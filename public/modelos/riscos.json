@@ -1,0 +1,74 @@
+{
+  "risco_isolador": {
+    "centro": [
+      0.97,
+      9.158,
+      -0.094
+    ],
+    "raio": 0.077
+  },
+  "risco_carga": {
+    "centro": [
+      5.303,
+      1.42,
+      2.738
+    ],
+    "raio": 0.908
+  },
+  "risco_escada": {
+    "centro": [
+      -0.28,
+      2.13,
+      1.08
+    ],
+    "raio": 2.148
+  },
+  "risco_capacete": {
+    "centro": [
+      -1.38,
+      0.112,
+      0.372
+    ],
+    "raio": 0.166
+  },
+  "risco_luva": {
+    "centro": [
+      -0.929,
+      0.12,
+      -0.464
+    ],
+    "raio": 0.18
+  },
+  "risco_ferramenta": {
+    "centro": [
+      -0.93,
+      0.144,
+      1.376
+    ],
+    "raio": 0.211
+  },
+  "risco_ferramental": {
+    "centro": [
+      -2.208,
+      0.222,
+      -0.355
+    ],
+    "raio": 0.747
+  },
+  "risco_apr": {
+    "centro": [
+      -1.62,
+      0.259,
+      0.8
+    ],
+    "raio": 0.181
+  },
+  "risco_cone": {
+    "centro": [
+      -1.073,
+      0.3,
+      3.985
+    ],
+    "raio": 0.297
+  }
+}

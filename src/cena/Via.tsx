@@ -1,0 +1,469 @@
+/**
+ * O mundo do trajeto, correndo por baixo da cabine.
+ *
+ * Quem se move é o cenário: a cabine fica na origem e cada peça da via é
+ * reposicionada a cada quadro conforme a distância percorrida. É o que permite
+ * um trajeto de 2 km com onze malhas no total — e é também o que mantém a
+ * câmera estável, que importa para quem enjoa fácil.
+ *
+ * Eixos do jogo: o veículo olha para +Z, a faixa dele é centrada em x=0 e o
+ * eixo da via fica em x=+1,75 (mão direita).
+ */
+import { useEffect, useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
+import { useGLTF, useTexture } from '@react-three/drei'
+import * as THREE from 'three'
+import { useThree } from '@react-three/fiber'
+import {
+  aplicarPerfil, criarDobra, dobrarMaterial, type NoTracado,
+} from './curva'
+import { uvPorPosicao, vestir } from './texturas'
+
+const MODELO = './modelos/via.glb'
+const DRACO = './draco/gltf/'
+
+/** Comprimento de um trecho, em metros. Tem de bater com via.py. */
+export const TRECHO = 40
+/** Até onde o mundo é desenhado à frente. */
+const ALCANCE = 320
+/** Faixa contrária: do outro lado do eixo da via, que fica em x = +1,75. */
+const CONTRA_X = 3.5
+/** Velocidade de quem vem de frente, em m/s (≈ 50 km/h). */
+const VELOCIDADE_CONTRA = 14
+/** Distância entre um veículo e o seguinte na fila contrária. */
+const VAO_CONTRA = 95
+
+/** Borda do lado do motorista e borda oposta, em x. */
+export const BORDA_DIR = -1.75
+export const BORDA_ESQ = 5.25
+
+useGLTF.preload(MODELO, DRACO)
+
+/** Uma peça colocada em algum ponto do trajeto. */
+export type Marco = {
+  peca: 'poste' | 'cabos' | 'arvore' | 'arbusto' | 'casa' | 'placa'
+    | 'carro' | 'lombada' | 'faixa_pedestre' | 'semaforo' | 'onibus'
+    | 'ciclista'
+  /** Distância absoluta ao longo do trajeto, em metros. */
+  metro: number
+  x: number
+  giro?: number
+  /** Só para o carro: ele anda, então a posição vem de fora a cada quadro. */
+  movel?: boolean
+}
+
+/**
+ * Espalha a paisagem ao longo do trajeto de forma determinística.
+ *
+ * Não usa Math.random: o cenário tem de ser o mesmo em toda sessão, senão dois
+ * colaboradores fazem provas diferentes e a nota não é comparável.
+ */
+export function paisagem(distanciaTotal: number): Marco[] {
+  const saida: Marco[] = []
+  const fim = distanciaTotal + ALCANCE
+  for (let m = 0; m < fim; m += TRECHO) {
+    saida.push({ peca: 'poste', metro: m + 6, x: BORDA_DIR - 1.5 })
+    saida.push({ peca: 'cabos', metro: m + 6, x: BORDA_DIR - 1.5 })
+  }
+  // embaralhamento barato e estável: um gerador linear congruente por índice
+  let semente = 7
+  const proximo = () => (semente = (semente * 1103515245 + 12345) % 2147483648) / 2147483648
+  for (let m = 0; m < fim; m += 18) {
+    const r = proximo()
+    if (r < 0.34) {
+      saida.push({ peca: 'arvore', metro: m + r * 12, x: BORDA_ESQ + 3.2 + r * 5,
+                   giro: r * 6 })
+    } else if (r < 0.52) {
+      saida.push({ peca: 'casa', metro: m + r * 10, x: BORDA_ESQ + 9.0 + r * 3 })
+    } else if (r < 0.70) {
+      saida.push({ peca: 'arvore', metro: m + r * 14, x: BORDA_DIR - 5.5 - r * 4,
+                   giro: r * 6 })
+    } else if (r < 0.86) {
+      saida.push({ peca: 'arbusto', metro: m + r * 16, x: BORDA_DIR - 3.4 })
+    }
+  }
+  return saida
+}
+
+/** Pool de cópias de uma peça, recicladas conforme o mundo corre. */
+function Fileira({
+  molde, marcos, distancia, limite = 14,
+}: {
+  molde: THREE.Object3D | null
+  marcos: Marco[]
+  distancia: React.RefObject<number>
+  limite?: number
+}) {
+  const grupo = useRef<THREE.Group>(null)
+
+  const copias = useMemo(() => {
+    if (!molde) return []
+    return Array.from({ length: limite }, () => {
+      const c = molde.clone(true)
+      c.visible = false
+      return c
+    })
+  }, [molde, limite])
+
+  useEffect(() => {
+    const g = grupo.current
+    if (!g) return
+    copias.forEach((c) => g.add(c))
+    return () => { copias.forEach((c) => g.remove(c)) }
+  }, [copias])
+
+  useFrame(() => {
+    const d = distancia.current ?? 0
+    let usadas = 0
+    for (const marco of marcos) {
+      const z = marco.metro - d
+      if (z < -TRECHO || z > ALCANCE) continue
+      const c = copias[usadas]
+      if (!c) break
+      c.position.set(marco.x, 0, z)
+      c.rotation.y = marco.giro ?? 0
+      c.visible = true
+      usadas++
+    }
+    for (let i = usadas; i < copias.length; i++) copias[i].visible = false
+  })
+
+  return <group ref={grupo} />
+}
+
+/** A pista, que é uma fileira contínua e por isso tem regra própria. */
+function Pista({
+  molde, distancia,
+}: { molde: THREE.Object3D | null; distancia: React.RefObject<number> }) {
+  const quantos = Math.ceil(ALCANCE / TRECHO) + 2
+  const grupo = useRef<THREE.Group>(null)
+
+  const copias = useMemo(() => {
+    if (!molde) return []
+    return Array.from({ length: quantos }, () => molde.clone(true))
+  }, [molde, quantos])
+
+  useEffect(() => {
+    const g = grupo.current
+    if (!g) return
+    copias.forEach((c) => g.add(c))
+    return () => { copias.forEach((c) => g.remove(c)) }
+  }, [copias])
+
+  useFrame(() => {
+    const d = distancia.current ?? 0
+    const resto = ((d % TRECHO) + TRECHO) % TRECHO
+    copias.forEach((c, i) => {
+      c.position.set(0, 0, (i - 1) * TRECHO - resto)
+    })
+  })
+
+  return <group ref={grupo} />
+}
+
+/**
+ * Tráfego no sentido oposto.
+ *
+ * O cliente pediu "outros carros" e "tráfego no sentido oposto" olhando um
+ * trajeto que era uma reta vazia. É só cenário — não entra na pontuação, não
+ * invade a faixa do jogador e não exige decisão nenhuma. O que ele faz é
+ * fazer a via parecer uma via: um veículo cruzando a cada poucos segundos
+ * muda a leitura do trecho mais do que qualquer árvore a mais.
+ *
+ * Como não vale nota, a posição pode andar com o RELÓGIO em vez de com o
+ * metro do trajeto — a regra de cenário determinístico existe para a prova
+ * ser comparável entre colaboradores, e aqui não há o que comparar.
+ */
+function Contrafluxo({
+  molde, distancia, quantos = 5,
+}: {
+  molde: THREE.Object3D | null
+  distancia: React.RefObject<number>
+  quantos?: number
+}) {
+  const grupo = useRef<THREE.Group>(null)
+
+  const copias = useMemo(() => {
+    if (!molde) return []
+    return Array.from({ length: quantos }, () => {
+      const c = molde.clone(true)
+      // meia-volta: ele vem de frente
+      c.rotation.y = Math.PI
+      c.position.x = CONTRA_X
+      c.visible = false
+      return c
+    })
+  }, [molde, quantos])
+
+  useEffect(() => {
+    const g = grupo.current
+    if (!g) return
+    copias.forEach((c) => g.add(c))
+    return () => { copias.forEach((c) => g.remove(c)) }
+  }, [copias])
+
+  // Onde cada um está, em metros de trajeto. Preenchido no primeiro quadro a
+  // partir de onde o jogador começa — o atalho `?m=` pode largar a fase no
+  // meio, e nascer todos em zero deixaria a estrada vazia até alcançá-los.
+  const posicoes = useRef<number[] | null>(null)
+
+  useFrame((_, bruto) => {
+    const dt = Math.min(bruto, 0.05)
+    const d = distancia.current ?? 0
+    if (!posicoes.current) {
+      posicoes.current = copias.map((_, i) => d + 60 + i * VAO_CONTRA)
+    }
+    const p = posicoes.current
+    for (let i = 0; i < copias.length; i++) {
+      p[i] -= VELOCIDADE_CONTRA * dt
+      // passou do jogador: volta para o fim da fila, lá na frente
+      if (p[i] < d - 25) p[i] = d + ALCANCE + (i % 3) * 40
+      const z = p[i] - d
+      copias[i].position.z = z
+      copias[i].visible = z > -25 && z < ALCANCE
+    }
+  })
+
+  return <group ref={grupo} />
+}
+
+/**
+ * O veículo que sai da garagem.
+ *
+ * Diferente do contrafluxo, este VALE NOTA — então a posição dele anda com o
+ * metro do trajeto, nunca com o relógio: dois colaboradores têm de encontrar
+ * exatamente a mesma cena no mesmo ponto, senão a prova não é comparável.
+ *
+ * Ele começa recolhido na garagem e vai avançando conforme o jogador se
+ * aproxima. Se o jogador reduz e espera, o carro completa a manobra e segue
+ * — é a mesma regra do pedestre na faixa: quem fez o certo não fica preso.
+ */
+function Garagem({
+  molde, distancia, metro, liberada,
+}: {
+  molde: THREE.Object3D | null
+  distancia: React.RefObject<number>
+  /** Onde a garagem fica, em metros de trajeto. Null quando não há. */
+  metro: number | null
+  /** O Motor levanta quando o jogador esperou; aí o carro sai de cena. */
+  liberada: React.RefObject<boolean>
+}) {
+  const grupo = useRef<THREE.Group>(null)
+  const saindo = useRef(0)
+
+  const copia = useMemo(() => molde?.clone(true) ?? null, [molde])
+
+  useFrame((_, bruto) => {
+    const g = grupo.current
+    if (!g || metro == null) return
+    const d = distancia.current ?? 0
+    const z = metro - d
+
+    // Quanto da manobra já aconteceu, em função de ONDE o jogador está —
+    // não de quanto tempo passou. Começa a 70 m e está na pista a 25 m.
+    const avanco = Math.max(0, Math.min(1, (d - (metro - 70)) / 45))
+
+    // liberada: o jogador reduziu e esperou, então ele termina de sair
+    if (liberada.current) saindo.current = Math.min(1, saindo.current + bruto * 0.5)
+
+    const lateral = -7.6 + (7.0 * avanco) + (6.5 * saindo.current)
+    g.position.set(lateral, 0, z + saindo.current * 14)
+    // entra de ré perpendicular à via e vai endireitando
+    g.rotation.y = -Math.PI / 2 + (Math.PI / 2) * (avanco * 0.75 + saindo.current * 0.25)
+    g.visible = z > -30 && z < 160 && avanco > 0.02
+  })
+
+  if (metro == null) return null
+  return (
+    <group ref={grupo} visible={false}>
+      {copia && <primitive object={copia} />}
+    </group>
+  )
+}
+
+export function Mundo({
+  distancia, marcos, carro, tracado, sinal, garagem,
+}: {
+  distancia: React.RefObject<number>
+  marcos: Marco[]
+  /** Posição do veículo à frente, em metros de trajeto. Null quando não há. */
+  carro: React.RefObject<number | null>
+  /** Onde a via dobra e onde sobe. Vazio = reta. */
+  tracado: NoTracado[]
+  /** Lâmpada acesa do semáforo: 0 verde, 1 amarelo, 2 vermelho. */
+  sinal?: React.RefObject<number>
+  /** Metro da saída de garagem, e se o jogador já cedeu passagem. */
+  garagem?: { metro: number | null; liberada: React.RefObject<boolean> }
+}) {
+  const { scene } = useGLTF(MODELO, DRACO)
+  const [asfaltoCor, asfaltoRelevo, terraCor, terraRelevo, gramaCor, gramaRelevo] =
+    useTexture([
+      './tex/asfalto_diff.jpg', './tex/asfalto_nor.jpg',
+      './tex/terra_diff.jpg', './tex/terra_nor.jpg',
+      './tex/grama_diff.jpg', './tex/grama_nor.jpg',
+    ])
+  const anisotropia = useThree((e) => e.gl.capabilities.getMaxAnisotropy())
+  const gl = useThree((e) => e.gl)
+
+  // Uma dobra para o mundo inteiro. As cópias compartilham o material do
+  // molde (clone não duplica material), então remendar o catálogo uma vez
+  // alcança todas as peças em cena.
+  const dobra = useMemo(criarDobra, [])
+
+  useEffect(() => {
+    scene.traverse((o) => {
+      const m = o as THREE.Mesh
+      if (!m.isMesh) return
+      m.castShadow = true
+      m.receiveShadow = true
+      // o corte por caixa envolvente é calculado na geometria reta; depois da
+      // dobra a peça não está mais lá e o three a descartaria em curva
+      m.frustumCulled = false
+      uvPorPosicao(m.geometry)
+      for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
+        dobrarMaterial(mat, dobra)
+        const material = mat as THREE.MeshStandardMaterial
+        if (material.map) continue
+        const anis = Math.min(8, anisotropia)
+        if (material.name === 'via_asfalto') {
+          // 0,42 e não 0,9: a textura do Poly Haven vem com albedo de
+          // ~0,25 e o asfalto do jogo nasceu em 0,042. Clarear demais
+          // deixou a pista bege — mais chapada do que antes da textura.
+          // Asfalto de verdade fica entre 0,06 e 0,12 de albedo.
+          vestir(material, { cor: asfaltoCor, relevo: asfaltoRelevo }, anis, 0.42)
+        } else if (material.name === 'via_terra') {
+          vestir(material, { cor: terraCor, relevo: terraRelevo }, anis, 0.5)
+        } else if (material.name === 'via_mato') {
+          // A grama é gerada em arte/gerar_grama.py: não havia nenhuma em
+          // arte/tex, e é a maior superfície do trajeto — chapada, era ela
+          // que tirava a referência de profundidade e fazia arbusto a 150 m
+          // parecer flutuando.
+          vestir(material, { cor: gramaCor, relevo: gramaRelevo }, anis, 0.55)
+        }
+      }
+    })
+    // o catálogo não entra em cena: só as cópias entram
+    scene.visible = false
+  }, [scene, dobra, anisotropia, asfaltoCor, asfaltoRelevo, terraCor,
+      terraRelevo, gramaCor, gramaRelevo])
+
+  // Pelo MATERIAL, não pelo nó: as lentes são parte da malha do semáforo, e
+  // as cópias em cena compartilham o material do molde — acender aqui acende
+  // o semáforo que o jogador vê.
+  const lampadas = useMemo(() => {
+    const achados: Record<string, THREE.MeshStandardMaterial> = {}
+    scene.traverse((o) => {
+      const malha = o as THREE.Mesh
+      if (!malha.isMesh) return
+      for (const mat of Array.isArray(malha.material) ? malha.material : [malha.material]) {
+        const m = mat as THREE.MeshStandardMaterial
+        if (m?.name?.startsWith('via_semaforo_')) achados[m.name] = m
+      }
+    })
+    return ['verde', 'amarela', 'vermelha']
+      .map((cor) => achados[`via_semaforo_${cor}`])
+  }, [scene])
+
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      const w = window as unknown as Record<string, unknown>
+      w.__lampadas = lampadas
+      // o renderer, para medir custo de quadro sem adivinhar
+      w.__gl = gl
+      const mats: Record<string, unknown> = {}
+      scene.traverse((o) => {
+        const malha = o as THREE.Mesh
+        if (!malha.isMesh) return
+        for (const mat of Array.isArray(malha.material) ? malha.material : [malha.material]) {
+          const m = mat as THREE.MeshStandardMaterial
+          if (!m?.name?.startsWith('via_')) continue
+          mats[m.name] = {
+            cor: m.color.getHexString(),
+            mapa: m.map ? ((m.map.image as { src?: string })?.src ?? 'sim').split('/').pop() : null,
+            repete: m.map ? +m.map.repeat.x.toFixed(3) : null,
+            uv: !!malha.geometry.getAttribute('uv'),
+            normal: !!m.normalMap,
+          }
+        }
+      })
+      w.__viaMats = mats
+    }
+  }, [lampadas, scene, gl])
+
+  useFrame(() => {
+    aplicarPerfil(dobra, tracado, distancia.current ?? 0)
+    const acesa = sinal?.current ?? 0
+    lampadas.forEach((mat, i) => {
+      // 16, não 5: a 40 m a lente tem três pixels na tela, e é o BLOOM que
+      // transforma esses três pixels num ponto de luz que se lê de longe —
+      // como acontece com um semáforo de verdade. Abaixo do limiar do bloom
+      // (0,75) a lâmpada acesa fica indistinguível da apagada.
+      if (mat) mat.emissiveIntensity = i === acesa ? 16 : 0.02
+    })
+  })
+
+  // todos os moldes de uma vez: buscar peça a peça dentro do map quebraria a
+  // regra dos hooks (useMemo em laço)
+  const moldes = useMemo(() => {
+    const nomes = ['trecho', 'chao', 'poste', 'cabos', 'arvore', 'arbusto',
+      'casa', 'placa', 'lombada', 'faixa_pedestre', 'carro', 'semaforo',
+      'onibus', 'ciclista'] as const
+    const mapa: Record<string, THREE.Object3D | null> = {}
+    for (const n of nomes) mapa[n] = scene.getObjectByName(`via_${n}`) ?? null
+    return mapa
+  }, [scene])
+
+  const porPeca = useMemo(() => {
+    const mapa: Record<string, Marco[]> = {}
+    for (const m of marcos) (mapa[m.peca] ??= []).push(m)
+    return mapa
+  }, [marcos])
+
+  // os clones ficam no useMemo: criados no corpo do render, cada re-render
+  // trocaria o objeto e o <primitive> remontaria a malha inteira
+  const chaoClone = useMemo(
+    () => moldes.chao?.clone(true) ?? null, [moldes.chao],
+  )
+  const carroClone = useMemo(
+    () => moldes.carro?.clone(true) ?? null, [moldes.carro],
+  )
+
+  const grupoCarro = useRef<THREE.Group>(null)
+  useFrame(() => {
+    const g = grupoCarro.current
+    if (!g) return
+    const pos = carro.current
+    if (pos == null) { g.visible = false; return }
+    g.visible = true
+    g.position.set(0, 0, pos - (distancia.current ?? 0))
+  })
+
+  return (
+    <group>
+      {chaoClone && <primitive object={chaoClone} position={[0, 0, 0]} />}
+      <Pista molde={moldes.trecho} distancia={distancia} />
+      {(['poste', 'cabos', 'arvore', 'arbusto', 'casa', 'placa', 'lombada',
+        'faixa_pedestre', 'semaforo', 'onibus', 'ciclista'] as const).map((nome) => (
+        <Fileira
+          key={nome}
+          molde={moldes[nome]}
+          marcos={porPeca[nome] ?? []}
+          distancia={distancia}
+          limite={nome === 'poste' || nome === 'cabos' ? 12 : 10}
+        />
+      ))}
+      <group ref={grupoCarro} visible={false}>
+        {carroClone && <primitive object={carroClone} />}
+      </group>
+      <Contrafluxo molde={moldes.carro} distancia={distancia} />
+      {garagem && (
+        <Garagem
+          molde={moldes.carro}
+          distancia={distancia}
+          metro={garagem.metro}
+          liberada={garagem.liberada}
+        />
+      )}
+    </group>
+  )
+}

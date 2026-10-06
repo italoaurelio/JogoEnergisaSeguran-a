@@ -1,0 +1,24 @@
+{
+  "trecho": 40.0,
+  "faixa": 3.5,
+  "eixo": 1.75,
+  "bordaDireita": -1.75,
+  "bordaEsquerda": 5.25,
+  "acostamento": 2.2,
+  "pecas": [
+    "via_trecho",
+    "via_chao",
+    "via_poste",
+    "via_cabos",
+    "via_placa",
+    "via_arvore",
+    "via_arbusto",
+    "via_casa",
+    "via_carro",
+    "via_lombada",
+    "via_faixa_pedestre",
+    "via_semaforo",
+    "via_onibus",
+    "via_ciclista"
+  ]
+}

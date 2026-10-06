@@ -1,0 +1,16 @@
+{
+  "bacia": [
+    0.0,
+    0.34,
+    0.455
+  ],
+  "variantes": {
+    "base_roupa": "mot_base_roupa",
+    "vestimenta_fr": "mot_vestimenta_fr",
+    "camisa_algodao": "mot_camisa_algodao",
+    "colete_refletivo": "mot_colete_refletivo",
+    "capacete_b": "mot_capacete_b",
+    "capacete_a": "mot_capacete_a",
+    "bone": "mot_bone"
+  }
+}

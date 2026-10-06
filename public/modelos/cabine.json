@@ -1,0 +1,27 @@
+{
+  "olho": [
+    0.38,
+    1.21,
+    -0.2
+  ],
+  "volante": [
+    0.38,
+    0.755,
+    0.3
+  ],
+  "largura": 1.58,
+  "altura": 1.42,
+  "painelTopo": 0.925,
+  "estados": {
+    "cinto_solto": "est_cinto_solto",
+    "cinto_afivelado": "est_cinto_afivelado",
+    "retro_desregulado": "est_retro_desregulado",
+    "retro_ok": "est_retro_ok",
+    "apoio_baixo": "est_apoio_baixo",
+    "apoio_alto": "est_apoio_alto",
+    "celular": "est_celular",
+    "celular_guardado": "est_celular_guardado",
+    "checklist_branco": "est_checklist_branco",
+    "checklist_feito": "est_checklist_feito"
+  }
+}

@@ -1,0 +1,324 @@
+/**
+ * Fase 1 — Vestiário.
+ *
+ * Duas etapas na mesma tela: montar o físico do personagem e escolher o EPI
+ * numa arara com mais peça errada do que certa. O personagem aparece de corpo
+ * inteiro e veste na hora — o jogador tem de ver no que ele se transformou
+ * antes de sair para o serviço.
+ */
+import { useCallback, useMemo, useRef, useState } from 'react'
+import { Canvas } from '@react-three/fiber'
+import { Acabamento } from '../cena/Acabamento'
+import { Environment } from '@react-three/drei'
+import Personagem, { type Fisico } from '../cena/Personagem'
+import { ALTURAS, TONS, FISICO_INICIAL } from '../conteudo/fisico'
+import { PECAS, VAGAS, type Peca, type Vaga } from '../conteudo/epi'
+import type { Registro } from '../conteudo/pontuacao'
+
+const ORDEM_VAGAS: Vaga[] = [
+  'cabeca', 'face', 'corpo', 'maos', 'pes', 'cintura', 'adorno',
+]
+
+/** Quanto o personagem gira por pixel arrastado. */
+const SENSIBILIDADE = 0.011
+
+type Escolhas = Partial<Record<Vaga, string>>
+
+export default function Vestiario({
+  aoConcluir,
+}: {
+  aoConcluir: (
+    registros: Registro[], fisico: Fisico, maximo: number, vestindo: string[],
+  ) => void
+}) {
+  const [etapa, setEtapa] = useState<'fisico' | 'epi'>('fisico')
+  const [altura, setAltura] = useState(FISICO_INICIAL.altura)
+  const [tom, setTom] = useState(FISICO_INICIAL.tom)
+  const [escolhas, setEscolhas] = useState<Escolhas>({})
+  const [vaga, setVaga] = useState<Vaga>('cabeca')
+  const [giro, setGiro] = useState(0)
+  const arrasto = useRef<{ x: number; giro: number } | null>(null)
+
+  const fisico: Fisico = useMemo(() => ({ altura, tom }), [altura, tom])
+  const vestindo = useMemo(() => {
+    const ids = Object.values(escolhas).filter(Boolean) as string[]
+    const cobre = ids.some(
+      (id) => PECAS.find((p) => p.id === id)?.substituiBase,
+    )
+    return cobre ? ids : ['base_roupa', ...ids]
+  }, [escolhas])
+
+  const faltam = ORDEM_VAGAS.filter((v) => VAGAS[v].obrigatoria && !escolhas[v])
+
+  const aoDescer = useCallback((e: React.PointerEvent) => {
+    arrasto.current = { x: e.clientX, giro }
+    ;(e.target as Element).setPointerCapture?.(e.pointerId)
+  }, [giro])
+
+  const aoMover = useCallback((e: React.PointerEvent) => {
+    if (!arrasto.current) return
+    setGiro(arrasto.current.giro + (e.clientX - arrasto.current.x) * SENSIBILIDADE)
+  }, [])
+
+  const aoSubir = useCallback((e: React.PointerEvent) => {
+    arrasto.current = null
+    // o release lança para ponteiro não capturado; sem o try o handler morre
+    try {
+      ;(e.target as Element).releasePointerCapture?.(e.pointerId)
+    } catch { /* ponteiro já solto */ }
+  }, [])
+
+  function concluir() {
+    const registros: Registro[] = []
+    let maximo = 0
+    for (const v of ORDEM_VAGAS) {
+      const opcoes = PECAS.filter((p) => p.vaga === v)
+      maximo += opcoes.reduce((m, p) => Math.max(m, p.pontos), 0)
+      const escolhida = opcoes.find((p) => p.id === escolhas[v])
+      if (escolhida) {
+        registros.push({
+          fase: 'vestiario',
+          id: escolhida.id,
+          titulo: escolhida.nome,
+          veredito: escolhida.veredito,
+          pontos: escolhida.pontos,
+          porque: escolhida.porque,
+          norma: escolhida.norma,
+        })
+      } else {
+        registros.push({
+          fase: 'vestiario',
+          id: `sem_${v}`,
+          titulo: `${VAGAS[v].nome}: sem proteção`,
+          veredito: 'incorreta',
+          pontos: 0,
+          porque: `Você saiu para o serviço sem nada em ${VAGAS[v].nome.toLowerCase()}.`,
+          norma: 'NR-6 — uso obrigatório de EPI na área',
+        })
+      }
+    }
+    // as peças seguem para as fases seguintes: o motorista sentado veste o
+    // que foi escolhido aqui
+    aoConcluir(registros, fisico, maximo,
+               Object.values(escolhas).filter(Boolean) as string[])
+  }
+
+  return (
+    <div className="vestiario">
+      <div
+        className="vestiario-palco"
+        onPointerDown={aoDescer}
+        onPointerMove={aoMover}
+        onPointerUp={aoSubir}
+        onPointerCancel={aoSubir}
+      >
+        <Canvas
+          dpr={[1, 1.5]}
+          shadows
+          camera={{ position: [0, 1.15, 3.1], fov: 34 }}
+          gl={{ antialias: true, toneMappingExposure: 1.0 }}
+        >
+          {/* O HDRI é um céu aberto: a irradiância dele é altíssima, e acima
+              de ~0,15 ele lava a cena inteira — tecido de albedo 0,05 chega a
+              parecer cinza claro. Aqui ele serve só para dar reflexo; quem
+              ilumina são as três direcionais. */}
+          <Environment files="./hdri/ceu.hdr" environmentIntensity={0.10} />
+          <directionalLight
+            position={[-1.6, 3.0, 2.6]}
+            intensity={3.6}
+            castShadow
+            shadow-mapSize={[2048, 2048]}
+            shadow-camera-left={-1.4}
+            shadow-camera-right={1.4}
+            shadow-camera-top={2.4}
+            shadow-camera-bottom={-0.2}
+          />
+          <directionalLight position={[2.4, 1.4, 1.2]} intensity={1.1} color="#cfe0ff" />
+          <directionalLight position={[0.8, 2.2, -2.4]} intensity={1.9} color="#ffeccd" />
+          <group position={[0, -0.9, 0]}>
+            <Personagem fisico={fisico} vestindo={vestindo} giro={giro} />
+            <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+              <circleGeometry args={[2.4, 48]} />
+              <meshStandardMaterial color="#141a22" roughness={0.9} />
+            </mesh>
+          </group>
+          <Acabamento raio={0.35} />
+        </Canvas>
+        <p className="vestiario-dica">Arraste para girar o personagem</p>
+      </div>
+
+      <aside className="vestiario-painel">
+        {etapa === 'fisico' ? (
+          <EtapaFisico
+            altura={altura}
+            setAltura={setAltura}
+            tom={tom}
+            setTom={setTom}
+            avancar={() => setEtapa('epi')}
+          />
+        ) : (
+          <EtapaEpi
+            vaga={vaga}
+            setVaga={setVaga}
+            escolhas={escolhas}
+            escolher={(v, id) => setEscolhas((a) => ({ ...a, [v]: id }))}
+            faltam={faltam}
+            voltar={() => setEtapa('fisico')}
+            concluir={concluir}
+          />
+        )}
+      </aside>
+    </div>
+  )
+}
+
+function EtapaFisico({
+  altura, setAltura, tom, setTom, avancar,
+}: {
+  altura: number
+  setAltura: (v: number) => void
+  tom: [number, number, number]
+  setTom: (v: [number, number, number]) => void
+  avancar: () => void
+}) {
+  return (
+    <>
+      <header className="painel-topo">
+        <p className="sobretitulo">Fase 1 · Vestiário</p>
+        <h2>Monte o seu personagem</h2>
+        <p className="painel-texto">
+          É você quem vai para a rua daqui a pouco. Deixe o boneco parecido.
+        </p>
+      </header>
+
+      <section className="grupo">
+        <h3>Altura</h3>
+        <div className="opcoes">
+          {ALTURAS.map((a) => (
+            <button
+              key={a.id}
+              className={`opcao ${altura === a.metros ? 'ativa' : ''}`}
+              onClick={() => setAltura(a.metros)}
+            >
+              {a.nome}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="grupo">
+        <h3>Tom de pele</h3>
+        <div className="tons">
+          {TONS.map((t) => (
+            <button
+              key={t.id}
+              className={`tom ${tom === t.tom ? 'ativa' : ''}`}
+              style={{ background: t.amostra }}
+              onClick={() => setTom(t.tom)}
+              aria-label={t.nome}
+              title={t.nome}
+            />
+          ))}
+        </div>
+      </section>
+
+      <div className="painel-rodape">
+        <button className="btn btn-grande" onClick={avancar}>
+          Ir para a arara de EPI
+        </button>
+      </div>
+    </>
+  )
+}
+
+function EtapaEpi({
+  vaga, setVaga, escolhas, escolher, faltam, voltar, concluir,
+}: {
+  vaga: Vaga
+  setVaga: (v: Vaga) => void
+  escolhas: Escolhas
+  escolher: (v: Vaga, id: string) => void
+  faltam: Vaga[]
+  voltar: () => void
+  concluir: () => void
+}) {
+  const opcoes = PECAS.filter((p) => p.vaga === vaga)
+
+  return (
+    <>
+      <header className="painel-topo">
+        <p className="sobretitulo">Fase 1 · Vestiário</p>
+        <h2>Escolha o EPI</h2>
+        <p className="painel-texto">
+          Tem muito mais peça na arara do que você precisa. Escolha uma para
+          cada parte do corpo. Ninguém vai avisar se estiver errado.
+        </p>
+      </header>
+
+      <nav className="abas">
+        {ORDEM_VAGAS.map((v) => (
+          <button
+            key={v}
+            className={`aba ${v === vaga ? 'ativa' : ''} ${escolhas[v] ? 'feita' : ''}`}
+            onClick={() => setVaga(v)}
+          >
+            {VAGAS[v].nome}
+          </button>
+        ))}
+      </nav>
+
+      <ul className="arara">
+        {opcoes.map((p) => (
+          <ItemArara
+            key={p.id}
+            peca={p}
+            escolhida={escolhas[vaga] === p.id}
+            escolher={() => escolher(vaga, p.id)}
+          />
+        ))}
+      </ul>
+
+      <div className="painel-rodape">
+        {faltam.length > 0 && (
+          <p className="painel-aviso">
+            Falta escolher: {faltam.map((v) => VAGAS[v].nome).join(' · ')}
+          </p>
+        )}
+        <div className="linha-botoes">
+          <button className="btn btn-fraco" onClick={voltar}>
+            Voltar ao físico
+          </button>
+          <button
+            className="btn btn-grande"
+            onClick={concluir}
+            disabled={faltam.length > 0}
+          >
+            Sair para o serviço
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+function ItemArara({
+  peca, escolhida, escolher,
+}: {
+  peca: Peca
+  escolhida: boolean
+  escolher: () => void
+}) {
+  return (
+    <li>
+      <button
+        className={`item ${escolhida ? 'ativa' : ''}`}
+        onClick={escolher}
+        aria-pressed={escolhida}
+        aria-label={`${peca.nome} — ${peca.descricao}`}
+      >
+        <span className="item-nome">{peca.nome}</span>
+        <span className="item-desc">{peca.descricao}</span>
+      </button>
+    </li>
+  )
+}

@@ -1,0 +1,20 @@
+{
+  "fixo": [
+    "oc_poste",
+    "oc_madeira",
+    "oc_porcelana",
+    "oc_metal",
+    "oc_transformador",
+    "oc_condutor",
+    "oc_via",
+    "oc_quadra"
+  ],
+  "soltas": [
+    "oc_veiculo",
+    "oc_cone",
+    "oc_cavalete",
+    "oc_fita",
+    "oc_caixa",
+    "oc_escada"
+  ]
+}

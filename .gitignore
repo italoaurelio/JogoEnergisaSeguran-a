@@ -1,0 +1,15 @@
+node_modules/
+dist/
+empacotado/
+# saída bruta do Blender: 47 MB de .glb e mapas assados, reproduzível por
+# `Blender -b -P arte/blender/exportar.py`. O que o jogo usa é public/modelos.
+arte/export/
+
+# gravacao de gameplay: o .webm bruto tem dezenas de MB
+gravacao/bruto/
+gravacao/log.txt
+
+# renders de conferencia: 64 MB de PNG, reproduzivel por `Blender -b -P arte/blender/prova_*.py`
+arte/render/
+# gravacao de gameplay inteira
+gravacao/

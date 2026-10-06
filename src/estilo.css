@@ -1,0 +1,530 @@
+/* Interface de treinamento: alvo grande, texto grande, contraste alto.
+   Quem joga pode ter 60 anos e nunca ter usado um jogo. */
+
+:root {
+  --fundo: #0f1419;
+  --painel: #161d26;
+  --painel-claro: #1f2935;
+  --borda: #2c3846;
+  --texto: #eef3f8;
+  --texto-fraco: #9fb0c0;
+  --verde: #16a46a;
+  --verde-claro: #35c98c;
+  --ambar: #d9a326;
+  --vermelho: #d3563f;
+  color-scheme: dark;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body, #raiz { height: 100%; }
+
+body {
+  background: var(--fundo);
+  color: var(--texto);
+  font: 16px/1.55 'Segoe UI', system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app { position: relative; height: 100%; }
+
+.palco { position: absolute; inset: 0; }
+.palco canvas { display: block; touch-action: none; cursor: crosshair; }
+
+/* ------------------------------------------------------------- carregamento */
+.carregando {
+  position: absolute; inset: 0; display: grid; place-content: center;
+  justify-items: center; gap: 18px; background: var(--fundo); z-index: 5;
+  color: var(--texto-fraco);
+}
+.giro {
+  width: 42px; height: 42px; border: 3px solid var(--borda);
+  border-top-color: var(--verde); border-radius: 50%;
+  animation: gira 0.9s linear infinite;
+}
+@keyframes gira { to { transform: rotate(360deg); } }
+
+/* ------------------------------------------------------------------- telas */
+.tela {
+  position: absolute; inset: 0; z-index: 20; display: grid; place-items: center;
+  padding: 24px; background: rgba(9, 13, 17, 0.86); backdrop-filter: blur(4px);
+}
+.tela-rolagem { align-items: start; overflow-y: auto; }
+
+.cartao-tela {
+  width: min(620px, 100%); background: var(--painel);
+  border: 1px solid var(--borda); border-radius: 16px; padding: 34px 36px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+.cartao-tela.largo { width: min(820px, 100%); margin: 24px 0; }
+
+.sobretitulo {
+  text-transform: uppercase; letter-spacing: 0.13em; font-size: 12px;
+  font-weight: 700; color: var(--verde-claro); margin-bottom: 10px;
+}
+.cartao-tela h1 { font-size: 44px; line-height: 1.1; margin-bottom: 14px; }
+.cartao-tela h2 { font-size: 27px; line-height: 1.25; margin-bottom: 14px; }
+.chamada { font-size: 18px; color: var(--texto-fraco); margin-bottom: 26px; }
+.nota { color: var(--texto-fraco); font-size: 15px; margin-top: 14px; }
+.secao {
+  font-size: 17px; margin: 26px 0 12px; padding-top: 18px;
+  border-top: 1px solid var(--borda);
+}
+
+.passos { list-style: none; display: grid; gap: 14px; margin: 6px 0 4px; }
+.passos li {
+  padding-left: 40px; position: relative; font-size: 16px;
+  color: var(--texto-fraco); counter-increment: passo;
+}
+.passos { counter-reset: passo; }
+.passos li::before {
+  content: counter(passo); position: absolute; left: 0; top: 1px;
+  width: 26px; height: 26px; border-radius: 50%; background: var(--painel-claro);
+  border: 1px solid var(--borda); color: var(--verde-claro);
+  display: grid; place-items: center; font-size: 13px; font-weight: 700;
+}
+.passos b { color: var(--texto); }
+
+.campo { display: block; margin-bottom: 22px; }
+.campo span {
+  display: block; font-size: 14px; color: var(--texto-fraco); margin-bottom: 7px;
+}
+.campo input {
+  width: 100%; padding: 13px 15px; font-size: 17px; color: var(--texto);
+  background: var(--painel-claro); border: 1px solid var(--borda);
+  border-radius: 9px; font-family: inherit;
+}
+.campo input:focus { outline: 2px solid var(--verde); outline-offset: 1px; }
+
+/* ------------------------------------------------------------------ botões */
+.btn {
+  font: inherit; font-weight: 600; color: #06130d; background: var(--verde);
+  border: none; border-radius: 10px; padding: 13px 22px; cursor: pointer;
+  transition: background 0.15s, transform 0.08s;
+}
+.btn:hover { background: var(--verde-claro); }
+.btn:active { transform: translateY(1px); }
+.btn-grande { width: 100%; padding: 16px 24px; font-size: 18px; }
+
+.btn-fim {
+  background: transparent; color: var(--texto); border: 1px solid var(--borda);
+  padding: 10px 18px;
+}
+.btn-fim:hover { background: var(--painel-claro); }
+
+/* --------------------------------------------------------------------- HUD */
+.hud {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+  display: flex; align-items: center; gap: 20px; padding: 14px 20px;
+  background: linear-gradient(rgba(9, 13, 17, 0.88), rgba(9, 13, 17, 0));
+}
+.hud-contagem { display: flex; align-items: baseline; gap: 8px; }
+.hud-contagem strong { font-size: 30px; line-height: 1; color: var(--verde-claro); }
+.hud-contagem span { color: var(--texto-fraco); font-size: 15px; }
+.hud-barra {
+  flex: 1; height: 7px; background: rgba(255, 255, 255, 0.12); border-radius: 4px;
+  overflow: hidden; max-width: 420px;
+}
+.hud-barra i {
+  display: block; height: 100%; background: var(--verde);
+  transition: width 0.35s ease;
+}
+
+.pontos {
+  position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+  z-index: 10; display: flex; gap: 8px; padding: 7px;
+  background: rgba(14, 20, 26, 0.9); border: 1px solid var(--borda);
+  border-radius: 13px; max-width: calc(100% - 24px); flex-wrap: nowrap;
+  overflow-x: auto; scrollbar-width: none;
+}
+.pontos::-webkit-scrollbar { display: none; }
+.ponto {
+  font: inherit; font-size: 15px; white-space: nowrap; color: var(--texto-fraco); background: none;
+  border: none; border-radius: 9px; padding: 11px 17px; cursor: pointer;
+}
+.ponto:hover { background: var(--painel-claro); color: var(--texto); }
+.ponto.ativo { background: var(--verde); color: #06130d; font-weight: 600; }
+
+.dica {
+  position: absolute; bottom: 94px; left: 50%; transform: translateX(-50%);
+  z-index: 10; font-size: 14px; color: var(--texto-fraco);
+  background: rgba(14, 20, 26, 0.78); padding: 7px 15px; border-radius: 20px;
+  white-space: nowrap;
+}
+
+.aviso {
+  position: absolute; top: 78px; left: 50%; transform: translateX(-50%);
+  z-index: 12; background: var(--painel-claro); border: 1px solid var(--borda);
+  border-left: 4px solid var(--ambar); padding: 13px 20px; border-radius: 10px;
+  font-size: 16px; animation: entra 0.2s ease;
+}
+@keyframes entra { from { opacity: 0; transform: translate(-50%, -7px); } }
+
+/* ------------------------------------------------------------------ selos */
+.selo {
+  width: 30px; height: 30px; border-radius: 50%; background: var(--verde);
+  color: #06130d; font: 700 15px/30px 'Segoe UI', system-ui, sans-serif;
+  text-align: center; border: 2px solid #eafff5;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5); user-select: none;
+}
+
+/* ----------------------------------------------------------- cartão do risco */
+.fundo-cartao {
+  position: absolute; inset: 0; z-index: 25; display: grid; place-items: center;
+  padding: 22px; background: rgba(9, 13, 17, 0.78);
+}
+.cartao {
+  width: min(600px, 100%); max-height: 100%; overflow-y: auto;
+  background: var(--painel); border: 1px solid var(--borda);
+  border-radius: 16px; padding: 30px 32px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5); animation: entra 0.22s ease;
+}
+.cartao-topo { margin-bottom: 20px; }
+.etiqueta {
+  display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--verde-claro);
+  background: rgba(22, 164, 106, 0.14); border-radius: 5px; padding: 4px 9px;
+  margin-bottom: 11px;
+}
+.cartao h3 { font-size: 25px; line-height: 1.22; }
+.cartao dl { display: grid; gap: 4px; }
+.cartao dt {
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--texto-fraco); margin-top: 15px; font-weight: 700;
+}
+.cartao dd { font-size: 16.5px; }
+.norma {
+  margin-top: 18px; font-size: 14px; color: var(--verde-claro);
+  border-top: 1px solid var(--borda); padding-top: 13px; margin-bottom: 22px;
+}
+
+/* -------------------------------------------------------------- relatório */
+.lista { list-style: none; display: grid; gap: 12px; }
+.lista li {
+  background: var(--painel-claro); border-radius: 11px; padding: 15px 18px;
+  border-left: 4px solid var(--borda); display: grid; gap: 5px;
+}
+.lista li.perdido { border-left-color: var(--vermelho); }
+.lista li.achado { border-left-color: var(--verde); }
+.lista b { font-size: 16.5px; }
+.lista span { color: var(--texto-fraco); font-size: 15px; }
+.lista em { color: var(--texto); font-size: 15px; font-style: normal; }
+.lista .norma {
+  margin: 4px 0 0; border: none; padding: 0; font-size: 13px;
+}
+.acoes { margin-top: 26px; }
+
+@media (max-width: 640px) {
+  .cartao-tela { padding: 26px 22px; }
+  .cartao-tela h1 { font-size: 34px; }
+  .hud { flex-wrap: wrap; }
+  .hud-barra { order: 3; flex-basis: 100%; max-width: none; }
+  .dica { font-size: 13px; white-space: normal; text-align: center; width: 90%; }
+}
+
+/* ------------------------------------------------------------- vestiário */
+.vestiario {
+  display: grid;
+  grid-template-columns: 1fr minmax(380px, 460px);
+  height: 100%;
+}
+
+.vestiario-palco {
+  position: relative;
+  background:
+    radial-gradient(120% 90% at 50% 12%, #223040 0%, #10151c 62%, #0a0e13 100%);
+  touch-action: none;
+  cursor: grab;
+}
+.vestiario-palco:active { cursor: grabbing; }
+.vestiario-palco canvas { display: block; }
+
+.vestiario-dica {
+  position: absolute; left: 0; right: 0; bottom: 18px;
+  text-align: center; color: var(--texto-fraco); font-size: 14px;
+  pointer-events: none;
+}
+
+.vestiario-painel {
+  display: flex; flex-direction: column;
+  background: var(--painel);
+  border-left: 1px solid var(--borda);
+  overflow: hidden;
+}
+
+.painel-topo { padding: 26px 26px 14px; }
+.painel-topo h2 { font-size: 26px; letter-spacing: -0.2px; }
+.painel-texto { color: var(--texto-fraco); margin-top: 8px; font-size: 15px; }
+
+.grupo { padding: 14px 26px; }
+.grupo h3 {
+  font-size: 13px; text-transform: uppercase; letter-spacing: 0.10em;
+  color: var(--texto-fraco); margin-bottom: 10px; font-weight: 600;
+}
+
+.opcoes { display: flex; gap: 10px; flex-wrap: wrap; }
+.opcao {
+  flex: 1 1 96px; padding: 14px 10px; border-radius: 10px;
+  border: 1px solid var(--borda); background: var(--painel-claro);
+  color: var(--texto); font: inherit; font-size: 17px; cursor: pointer;
+}
+.opcao:hover { border-color: #3d4d5f; }
+.opcao.ativa { border-color: var(--verde); background: #14302a; color: var(--verde-claro); }
+
+.tons { display: flex; gap: 12px; }
+.tom {
+  width: 52px; height: 52px; border-radius: 50%; cursor: pointer;
+  border: 3px solid transparent; outline: 1px solid var(--borda);
+}
+.tom.ativa { border-color: var(--verde-claro); }
+
+/* abas por parte do corpo */
+.abas {
+  display: flex; gap: 6px; overflow-x: auto; padding: 4px 26px 12px;
+  scrollbar-width: none;
+}
+.abas::-webkit-scrollbar { display: none; }
+.aba {
+  flex: 0 0 auto; padding: 9px 14px; border-radius: 999px;
+  border: 1px solid var(--borda); background: transparent;
+  color: var(--texto-fraco); font: inherit; font-size: 14px; cursor: pointer;
+  white-space: nowrap;
+}
+.aba.ativa { background: var(--painel-claro); color: var(--texto); border-color: #3d4d5f; }
+.aba.feita::after { content: ' ✓'; color: var(--verde-claro); }
+
+/* arara de EPI */
+.arara {
+  list-style: none; flex: 1; overflow-y: auto;
+  padding: 0 26px 12px; display: flex; flex-direction: column; gap: 10px;
+}
+.item {
+  width: 100%; text-align: left; display: flex; flex-direction: column;
+  gap: 4px; padding: 14px 16px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--borda); background: var(--painel-claro);
+  color: var(--texto); font: inherit;
+}
+.item:hover { border-color: #3d4d5f; }
+.item.ativa { border-color: var(--verde); background: #14302a; }
+.item-nome { font-size: 17px; font-weight: 600; }
+.item-desc { font-size: 14px; color: var(--texto-fraco); }
+
+.painel-rodape {
+  padding: 16px 26px 22px; border-top: 1px solid var(--borda);
+  background: var(--painel);
+}
+.painel-aviso { color: var(--ambar); font-size: 14px; margin-bottom: 12px; }
+.linha-botoes { display: flex; gap: 10px; }
+.linha-botoes .btn-grande { flex: 1; }
+
+.btn-fraco {
+  padding: 14px 18px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--borda); background: transparent;
+  color: var(--texto-fraco); font: inherit; font-size: 15px;
+}
+.btn-fraco:hover { color: var(--texto); border-color: #3d4d5f; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ------------------------------------------------------------- relatório */
+.nota-ok { color: var(--verde-claro); }
+.nota-ruim { color: var(--vermelho); }
+.nota.destaque { color: var(--verde-claro); margin-top: 14px; }
+/* Classe PRÓPRIA, não `.selo`.
+   Havia dois `.selo` neste arquivo: o alfinete redondo numerado da vistoria
+   (que saiu do escopo como fase, mas o código continua em src/Cena.tsx) e
+   esta pastilha. A pastilha herdava `width: 30px; height: 30px` do alfinete e
+   só não quebrava porque `em` é inline e ignora largura — bastava alguém pôr
+   `display: inline-block` para o texto ser cortado dentro de um círculo. */
+.selo-veredito {
+  margin-left: 10px; padding: 2px 8px; border-radius: 999px;
+  font-size: 12px; font-style: normal; font-weight: 600;
+  background: var(--painel-claro); color: var(--texto-fraco);
+}
+
+/* No celular o título quebra e a pastilha ficava pendurada sozinha na linha
+   de baixo, colada na palavra partida. Ali ela vai para a própria linha. */
+@media (max-width: 480px) {
+  .lista b { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .selo-veredito { margin-left: 0; }
+}
+.lista .parcial { border-left-color: var(--ambar); }
+
+/* ------------------------------------------- telas estreitas e retrato */
+@media (max-width: 900px), (orientation: portrait) {
+  .vestiario { grid-template-columns: 1fr; grid-template-rows: 44vh 1fr; }
+  .vestiario-painel { border-left: none; border-top: 1px solid var(--borda); }
+  .painel-topo { padding: 18px 18px 10px; }
+  .painel-topo h2 { font-size: 22px; }
+  .grupo, .abas, .arara { padding-left: 18px; padding-right: 18px; }
+  .painel-rodape { padding: 14px 18px 18px; }
+}
+
+/* ------------------------------------------- conferência do veículo */
+.opcoes.coluna { flex-direction: column; }
+.opcao.alta { padding: 18px 16px; text-align: left; font-size: 16px; }
+.grupo.cresce { flex: 1; overflow-y: auto; }
+.painel-texto.destaque { color: var(--verde-claro); }
+.grupo .norma { margin-top: 12px; }
+
+/* ------------------------------------------------------------- trajeto */
+.trajeto { position: relative; height: 100%; }
+.trajeto-palco { position: absolute; inset: 0; }
+.trajeto-palco canvas { display: block; }
+
+.trajeto-topo {
+  position: absolute; top: 0; left: 0; right: 0; padding: 14px 20px 10px;
+  background: linear-gradient(#0b0f14dd, #0b0f1400);
+  pointer-events: none;
+}
+.trajeto-barra {
+  height: 5px; border-radius: 999px; background: #ffffff1f; overflow: hidden;
+}
+.trajeto-barra i {
+  display: block; height: 100%; background: var(--verde);
+  transition: width 0.12s linear;
+}
+.trajeto-aviso {
+  margin-top: 10px; font-size: 15px; color: var(--texto);
+  text-shadow: 0 1px 3px #000a;
+}
+
+.trajeto-alerta {
+  position: absolute; top: 74px; left: 50%; transform: translateX(-50%);
+  background: var(--ambar); color: #14100a; font-weight: 600;
+  padding: 10px 18px; border-radius: 10px; font-size: 16px;
+  pointer-events: none;
+}
+
+/* Contagem até o cruzamento. Fica no alto, à direita do aviso, e muda de cor
+   junto com a lâmpada — quem está olhando para a pista lê a cor pelo canto do
+   olho sem precisar achar o semáforo na tela. */
+.trajeto-sinal {
+  position: absolute; top: 70px; right: 22px;
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 16px 9px 13px; border-radius: 999px;
+  background: #0b0f14cc; border: 1px solid var(--borda);
+  font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.trajeto-sinal::before {
+  content: ''; width: 13px; height: 13px; border-radius: 50%;
+  background: currentColor; box-shadow: 0 0 10px currentColor;
+}
+.sinal-verde { color: var(--verde-claro); border-color: #1d6b4a; }
+.sinal-amarelo { color: var(--ambar); border-color: #7a5d12; }
+.sinal-vermelho { color: var(--vermelho); border-color: #6b2b22; }
+
+/* A chamada. Entra pelo canto de baixo, longe dos pedais, para o jogador não
+   acertar um botão quando quer o outro — é o momento do trajeto em que ele
+   está com a mão apoiada no pedal. */
+.trajeto-chamada {
+  /* Encostada à esquerda, acima do velocímetro: no meio da tela ela tapava a
+     pista justamente enquanto o veículo anda, e a decisão é NÃO desviar a
+     atenção da via — a interface não pode ensinar o contrário do exercício. */
+  position: absolute; left: 22px; bottom: 136px;
+  width: min(330px, calc(100% - 44px));
+  background: var(--painel); border: 1px solid var(--borda);
+  border-radius: 18px; padding: 18px 20px 16px;
+  box-shadow: 0 18px 44px #0009;
+  animation: chamada-entra 0.22s ease-out;
+}
+@keyframes chamada-entra {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.chamada-quem { font-size: 17px; font-weight: 600; }
+.chamada-quem::before {
+  content: ''; display: inline-block; width: 9px; height: 9px;
+  margin-right: 9px; border-radius: 50%; background: var(--verde-claro);
+  animation: chamada-toca 1s steps(1) infinite;
+}
+@keyframes chamada-toca { 50% { opacity: 0.15; } }
+.chamada-nota { font-size: 14px; color: var(--texto-fraco); margin-top: 2px; }
+.chamada-botoes { display: flex; gap: 10px; margin-top: 14px; }
+.chamada-botoes button {
+  flex: 1; padding: 13px 10px; border-radius: 11px; font: inherit;
+  font-size: 15px; font-weight: 600; cursor: pointer; color: var(--texto);
+  border: 1px solid var(--borda); background: var(--painel-claro);
+}
+.chamada-recusa { border-color: #1d6b4a; background: #14302a; }
+.chamada-atende { border-color: #6b2b22; background: #2a1512; }
+
+.trajeto-velocimetro {
+  position: absolute; left: 22px; bottom: 26px;
+  display: grid; grid-template-columns: auto auto; align-items: baseline;
+  gap: 0 8px; background: #0b0f14cc; padding: 12px 18px;
+  border: 1px solid var(--borda); border-radius: 14px; pointer-events: none;
+}
+.trajeto-velocimetro strong {
+  font-size: 46px; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.trajeto-velocimetro strong.acima { color: var(--vermelho); }
+.trajeto-velocimetro span { font-size: 15px; color: var(--texto-fraco); }
+.trajeto-velocimetro em {
+  grid-column: 1 / -1; font-style: normal; font-size: 13px;
+  color: var(--texto-fraco);
+}
+
+.trajeto-pedais {
+  position: absolute; right: 22px; bottom: 26px; display: flex; gap: 14px;
+}
+.pedal {
+  width: 132px; height: 92px; border-radius: 16px; font: inherit;
+  font-size: 18px; font-weight: 600; cursor: pointer; color: var(--texto);
+  border: 1px solid var(--borda); background: #161d26cc;
+  touch-action: none; user-select: none;
+}
+.pedal:active { transform: translateY(2px); }
+.pedal-acel { border-color: #1d6b4a; background: #14302acc; }
+.pedal-freio { border-color: #6b2b22; background: #2a1512cc; }
+
+.trajeto-dica {
+  position: absolute; right: 22px; bottom: 6px; font-size: 12px;
+  color: var(--texto-fraco); pointer-events: none;
+}
+
+@media (max-width: 760px) {
+  .pedal { width: 106px; height: 78px; font-size: 16px; }
+  .trajeto-velocimetro strong { font-size: 36px; }
+}
+
+/* ------------------------------------------------------------- ocorrência */
+.passos .perdido { color: var(--vermelho); }
+.passos .perdido .selo { background: #2a1512; color: var(--vermelho); }
+.opcao.alta.ativa { border-color: var(--verde); background: #14302a; }
+
+/* ------------------------------------------- placar por fase (relatório) */
+/* Uma linha por fase: nome, quanto da fase foi feito, e a nota. O instrutor
+   lê daqui se a conversa é sobre EPI, sobre direção ou sobre procedimento —
+   que são três conversas diferentes. A barra é desenhada atrás do número, não
+   ao lado, para a linha caber inteira em tela de totem. */
+.placar {
+  list-style: none; margin: 18px 0 4px; display: grid; gap: 8px;
+}
+.placar li {
+  position: relative; display: grid; align-items: center;
+  grid-template-columns: 1fr auto; gap: 12px;
+  padding: 11px 14px; border-radius: 10px;
+  background: var(--painel-claro); overflow: hidden;
+}
+.placar li > * { position: relative; z-index: 1; }
+/* a barra é o fundo: fica atrás do texto e não disputa espaço com ele */
+.placar i {
+  position: absolute; inset: 0 auto 0 0; z-index: 0;
+  border-radius: 10px 0 0 10px; opacity: 0.30;
+  transition: width 0.5s ease-out;
+}
+.placar li.ok i { background: var(--verde); }
+.placar li.baixo i { background: var(--vermelho); }
+.placar b { font-size: 15px; font-weight: 600; }
+.placar span {
+  font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.placar li.ok span { color: var(--verde-claro); }
+.placar li.baixo span { color: var(--vermelho); }
+.placar em { font-style: normal; font-weight: 400; color: var(--texto-fraco); }
+
+@media (max-width: 760px) {
+  .placar b { font-size: 14px; }
+}
