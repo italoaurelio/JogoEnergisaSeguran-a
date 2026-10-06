@@ -122,11 +122,11 @@ caixa em coordenada de MUNDO contra a malha JÁ POSADA. Detalhe completo em
 1. **Interior da cabine** (`veiculo.py`) — nunca foi remodelado. Ocupa o terço
    inferior da tela durante os 1.340 m do trajeto; é o que mais tempo fica em
    cena no jogo inteiro.
-3. **Cruzeta** (`oc_madeira`, 108 triângulos) — peça de herói, única da
+2. **Cruzeta** (`oc_madeira`, 108 triângulos) — peça de herói, única da
    ocorrência não remodelada: tábua chanfrada sem furo nem parafuso.
-4. Ônibus (paralelepípedo no comprimento) e ciclista (peça mais cara e mais
+3. Ônibus (paralelepípedo no comprimento) e ciclista (peça mais cara e mais
    fraca do catálogo da via). Sobram ~51.000 triângulos de orçamento na via.
-5. **Manga que some em corpo posado** — causa raiz documentada no docstring de
+4. ~~Manga que some em corpo posado~~ — RESOLVIDO em 06/10, ver §4 — causa raiz documentada no docstring de
    `_camisa`: o recorte é uma caixa em coordenada de mundo e `recortar` avalia
    a malha com a armadura LIGADA, então no motorista sentado o antebraço sai
    da caixa e nenhuma manga é gerada. Corrigir com critério independente de
