@@ -15,7 +15,9 @@ const CHAVE_MUDO = 'jogoSeguranca.mudo'
 
 let ctx: AudioContext | null = null
 let mestre: GainNode | null = null
-let mudo = localStorage.getItem(CHAVE_MUDO) === '1'
+// Nasce MUDO. Som que começa sozinho incomoda em sala de treinamento e em
+// totem; quem quiser liga no botão, e a escolha fica guardada.
+let mudo = localStorage.getItem(CHAVE_MUDO) !== '0'
 
 /** Ruído branco de 2 s, reaproveitado por todo efeito que precisa de chiado. */
 let ruido: AudioBuffer | null = null

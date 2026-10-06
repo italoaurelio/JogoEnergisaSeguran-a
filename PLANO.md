@@ -896,6 +896,10 @@ RMS do que está saindo do ganho mestre. Medido nesta rodada: ambiente sozinho
 0,0025 · motor a 18 km/h 0,0373 · a 58 km/h 0,0611 · desligado 0,0034 ·
 buzina 0,121 · mudo 0. Sem essa medida, "tem som" é suposição.
 
+**O som nasce MUDO** (ajustado logo depois, a pedido). Som que começa sozinho
+incomoda em sala de treinamento e em totem — quem quiser liga no botão do
+canto e a escolha fica guardada no `localStorage`.
+
 **Armadilha reconfirmada:** tela preta no trajeto depois de várias recargas na
 mesma aba é o contexto WebGL esgotando, não o código. Aconteceu três vezes
 nesta sessão e custou duas rodadas de diagnóstico errado. Abrir aba NOVA antes
