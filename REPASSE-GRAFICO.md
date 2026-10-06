@@ -105,34 +105,21 @@ Todas descobertas medindo, não supondo. Nenhuma dá erro — falham em silênci
 
 ---
 
-## 4. ⚠️ O ESTADO QUEBRADO QUE VOCÊ ESTÁ HERDANDO
+## 4. O estado quebrado do `epi.py` — RESOLVIDO em 06/10/2026
 
-**`arte/blender/epi.py` está quebrado.** Uma remodelagem do EPI foi
-interrompida no meio.
+Esta seção avisava que `arte/blender/epi.py` estava quebrado e sem backup.
+**Está consertado e publicado**, e o projeto agora está em git (`9626174`),
+então o problema de "não há volta" acabou.
 
-- O arquivo **exporta sem erro** (19 de 19 peças) — por isso o defeito é
-  traiçoeiro.
-- O resultado na tela está **pior** que o anterior: borda serrilhada no peito
-  e no ombro do uniforme, degrau em escada na coxa, perna abaixo do joelho
-  inchada, luva enorme. Ver `arte/render/epi_conjunto.png`.
-- **Os `.glb` publicados ainda são os BONS.** O jogo está inteiro.
-- **NÃO rode `./publicar-arte.sh personagem` nem `... motorista`** até
-  consertar, ou você derruba a arte boa.
-- **NÃO HÁ BACKUP.** O projeto não está em git e a versão anterior do arquivo
-  não existe mais. O conserto é para frente.
-
-Há um aviso gravado no topo do próprio `epi.py`.
-
-Suspeita do que quebrou: os recortes de `_camisa` / `_calca`, que selecionam
-face do corpo por CAIXA de coordenada em `H.recortar`.
-
----
+A causa era uma só, com quatro sintomas: o recorte de roupa testava uma
+caixa em coordenada de MUNDO contra a malha JÁ POSADA. Detalhe completo em
+`PLANO.md`, seção "Item 2 — epi.py". `publicar-arte.sh personagem` e
+`... motorista` voltaram a ser seguros.
 
 ## 5. O que falta
 
 ### Arte
-1. **Consertar `epi.py`** (acima). É o item bloqueante.
-2. **Interior da cabine** (`veiculo.py`) — nunca foi remodelado. Ocupa o terço
+1. **Interior da cabine** (`veiculo.py`) — nunca foi remodelado. Ocupa o terço
    inferior da tela durante os 1.340 m do trajeto; é o que mais tempo fica em
    cena no jogo inteiro.
 3. **Cruzeta** (`oc_madeira`, 108 triângulos) — peça de herói, única da

@@ -12,27 +12,6 @@ Duas familias de peca, com tratamento diferente:
 O catalogo de qual peca e certa ou errada, e por que, mora em
 `src/conteudo/epi.ts`. Aqui e so a forma.
 """
-# =====================================================================
-# ATENCAO — ESTE ARQUIVO ESTA NUM ESTADO QUEBRADO (05/10/2026)
-#
-# Uma remodelagem do EPI foi INTERROMPIDA no meio. O arquivo EXPORTA sem
-# erro (19 de 19 pecas), mas o resultado na tela esta PIOR que o anterior:
-# borda serrilhada no peito e no ombro do uniforme, degrau em escada na
-# coxa, perna abaixo do joelho inchada como barril, luva enorme.
-# Ver `arte/render/epi_conjunto.png`.
-#
-# NAO RODE `publicar-arte.sh personagem` NEM `... motorista` ate consertar.
-# Os .glb publicados em public/modelos/ ainda sao os BONS (de 13:35) e o
-# jogo esta inteiro — quem publicar por rotina vai derrubar isso.
-#
-# NAO HA BACKUP: o projeto nao esta em git e a versao anterior do arquivo
-# nao existe mais. O conserto e para frente, nao para tras.
-#
-# O que provavelmente quebrou: os recortes de `_camisa` / `_calca` em
-# `H.recortar`, que selecionam face do corpo por CAIXA de coordenada. Ver
-# tambem o defeito ja documentado da manga que some em corpo posado.
-# =====================================================================
-
 import math, bmesh, bpy
 from mathutils import Vector, Euler
 

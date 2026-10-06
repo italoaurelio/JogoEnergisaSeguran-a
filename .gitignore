@@ -13,3 +13,4 @@ gravacao/log.txt
 arte/render/
 # gravacao de gameplay inteira
 gravacao/
+__pycache__/
