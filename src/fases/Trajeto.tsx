@@ -14,6 +14,7 @@ import {
   useState,
 } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
+import { som } from '../som'
 import { Acabamento } from '../cena/Acabamento'
 import { Environment, Sky } from '@react-three/drei'
 import * as THREE from 'three'
@@ -106,6 +107,11 @@ export default function Fase2Trajeto({
       : 0,
   )
   const velocidade = useRef(0)
+  // o motor vive no useFrame do Mundo; quem o desliga é a saída da fase
+  useEffect(() => {
+    som.ambiente(true)
+    return () => { som.motor(null); som.ambiente(false) }
+  }, [])
   const pedal = useRef<Pedal>(null)
   const carro = useRef<number | null>(null)
   const faltas = useRef<Record<string, number>>({})
@@ -282,6 +288,7 @@ function Motor({
   const amareloDesde = useRef<number | null>(null)
   const paradoNoSinal = useRef(0)
   const esperouGaragem = useRef(0)
+  const buzinou = useRef(false)
   // mesmo motivo do pedestreLiberado: o que ficou para trás já está resolvido
   const passouNoSinal = useRef(
     (distancia.current ?? 0) > (evento('semaforo')?.metro ?? 0),
@@ -391,6 +398,9 @@ function Motor({
     if (evGaragem && !garagemLiberada.current) {
       const falta = evGaragem.metro - d
       if (falta > -8 && falta < 70) ateGaragem = Math.max(0, falta)
+      // a buzina do carro que manobra avisa antes de o aviso aparecer na tela;
+      // dispara pelo METRO, como o resto do evento, e uma vez só
+      if (falta < 70 && !buzinou.current) { buzinou.current = true; som.buzina() }
       // reduziu e segurou: ele termina de sair e a via libera
       if (ateGaragem != null && kmh <= CONDUTA.garagemKmh) {
         esperouGaragem.current += dt
@@ -409,6 +419,7 @@ function Motor({
     if (evCel && celular.current === 'dormindo' && d >= evCel.metro) {
       celular.current = 'tocando'
       painel.current?.celular(true)
+      som.telefone()
     }
     if (celular.current === 'atendeu' && !julgados.current.celular) {
       julgados.current.celular = true
@@ -469,6 +480,7 @@ function Motor({
     }
 
     velocidade.current = v
+    som.motor(v)
     distancia.current = Math.min(DISTANCIA_TOTAL, d + v * dt)
 
     if (import.meta.env.DEV) {

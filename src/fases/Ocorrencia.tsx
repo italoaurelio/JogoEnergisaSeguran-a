@@ -9,7 +9,8 @@
  * que mata quando invertida: aterrar antes de constatar ausência de tensão é
  * encostar um cabo de cobre numa rede que pode estar viva.
  */
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { som } from '../som'
 import { Canvas } from '@react-three/fiber'
 import { Acabamento } from '../cena/Acabamento'
 import { Environment } from '@react-three/drei'
@@ -80,6 +81,7 @@ export default function Fase3Ocorrencia({
 }: {
   aoConcluir: (registros: Registro[], maximo: number) => void
 }) {
+  useEffect(() => { som.ambiente(true); return () => som.ambiente(false) }, [])
   const [etapa, setEtapa] = useState<Etapa>('briefing')
   const [indice, setIndice] = useState(0)
   const [escolhas, setEscolhas] = useState<Record<string, string>>({})
@@ -211,6 +213,9 @@ export default function Fase3Ocorrencia({
               const esperado = PASSOS[ordem.length]
               if (id !== esperado.id) setErrados((a) => [...a, id])
               setOrdem((a) => [...a, id])
+              // o estalo da chave marca que a manobra foi feita; não diz se
+              // foi na ordem certa, que é o que esta fase está avaliando
+              som.chave()
             }}
             concluir={concluir}
           />

@@ -5,6 +5,7 @@
  * a pontuação ser somada de uma vez só no fim, que é como o cliente pediu.
  */
 import { useCallback, useState } from 'react'
+import { som } from './som'
 import Vestiario from './fases/Vestiario'
 import Fase2Cabine from './fases/Cabine'
 import Fase2Trajeto from './fases/Trajeto'
@@ -113,6 +114,7 @@ export default function App() {
 
   return (
     <div className="app">
+      <BotaoMudo />
       {etapa === 'abertura' && (
         <Abertura nome={nome} setNome={setNome} avancar={() => setEtapa('vestiario')} />
       )}
@@ -134,6 +136,24 @@ export default function App() {
         />
       )}
     </div>
+  )
+}
+
+/**
+ * O jogo roda em sala de treinamento e em totem. Em sala, quem apresenta
+ * precisa conseguir cortar o som sem sair da partida.
+ */
+function BotaoMudo() {
+  const [mudo, setMudo] = useState(som.mudo)
+  return (
+    <button
+      className="btn-mudo"
+      title={mudo ? 'Ligar o som' : 'Desligar o som'}
+      aria-label={mudo ? 'Ligar o som' : 'Desligar o som'}
+      onClick={() => setMudo(som.alternarMudo())}
+    >
+      {mudo ? '🔇' : '🔊'}
+    </button>
   )
 }
 

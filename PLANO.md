@@ -837,3 +837,66 @@ Tudo o que sobrou está numa destas três caixas — nenhum é "faltou tempo".
    o ponto a reconferir a cada mudança de bake.
 4. **O projeto não está em git.** Com a rodada 2 mexendo em shader, arte e
    conteúdo ao mesmo tempo, versionar virou urgente.
+
+---
+
+# Rodada de jogabilidade e gráfico (06/10/2026)
+
+Origem: o usuário jogou e resumiu em "não é legal de jogar, não é educativo,
+não é bonito". O diagnóstico, feito jogando as quatro fases:
+
+1. **O 3D é papel de parede.** A cena nunca reage à escolha — o jogo é um
+   formulário com render atrás. É a causa de "não é legal de jogar".
+2. **Três perguntas não dão para responder pela imagem**: o cinto da cabine
+   (não existe cinto em quadro), "onde parar a caminhonete" na ocorrência
+   (não há veículo em quadro) e o volante do trajeto (fora de quadro). Quem
+   não vê, chuta — é a causa de "não é educativo".
+3. **Zero áudio no projeto inteiro.**
+
+Decisões do usuário nesta rodada:
+
+- **O vestiário ensina, o resto avalia.** Fase 1 mostra a descrição sempre e
+  dá o veredito logo depois de travar a escolha, com a NR. Trajeto e
+  ocorrência seguem em silêncio até o relatório, como o cliente aprovou em
+  28/09. Motivo: não se reprova alguém em EPI antes de ensinar EPI.
+- **O projeto foi versionado em git** (commit `9626174`), que era o portão de
+  tudo — ver `REPASSE-GRAFICO.md` §4.
+
+## Fila
+
+- [x] **1. Som** — `src/som.ts`, Web Audio sintetizado, sem arquivo e sem
+      biblioteca. Clique global, confirmar, veredito, buzina, chave fusível,
+      telefone, motor atrelado à velocidade, bafo de ambiente e botão de mudo.
+- [ ] 2. Consertar `arte/blender/epi.py` (quebrado, sem backup)
+- [ ] 3. Interior da cabine refeito a partir do `caminhao.py` aprovado
+- [ ] 4. Cinto que existe em quadro; veículo visível na pergunta "onde parar"
+- [ ] 5. O 3D reagindo à escolha (carro chegando, cesto subindo, escada no poste)
+- [ ] 6. Menu com identidade e vestiário em etapas com ícone e veredito
+- [ ] 7. Povoar o trajeto (casas, escola, semáforo de longe, tráfego)
+
+## Item 1 — som (feito)
+
+**Por que sintetizar e não tocar arquivo:** são seis efeitos curtos e um motor
+que precisa acompanhar a velocidade continuamente. Em `.mp3` o motor exigiria
+loop com mudança de altura, que `<audio>` não faz, mais sete downloads com
+licença para rastrear. Em oscilador cabe num arquivo de 230 linhas e a
+velocidade vira um parâmetro.
+
+**Um ouvinte só, na captura, dá som a todo botão do jogo** — inclusive os que
+ainda não existem (`ligarCliqueGlobal`). A alternativa era `onClick` em ~40
+botões.
+
+**A buzina é do carro que sai da garagem**, disparada pelo METRO e uma vez só.
+Não existe buzina atrelada ao comportamento do jogador de propósito: buzinar
+em quem parou no vermelho é punir quem fez a coisa certa, que é a armadilha
+que já apareceu duas vezes nesta fase.
+
+**Como conferir som sem ouvir:** `window.__som.nivel()` (só em dev) devolve o
+RMS do que está saindo do ganho mestre. Medido nesta rodada: ambiente sozinho
+0,0025 · motor a 18 km/h 0,0373 · a 58 km/h 0,0611 · desligado 0,0034 ·
+buzina 0,121 · mudo 0. Sem essa medida, "tem som" é suposição.
+
+**Armadilha reconfirmada:** tela preta no trajeto depois de várias recargas na
+mesma aba é o contexto WebGL esgotando, não o código. Aconteceu três vezes
+nesta sessão e custou duas rodadas de diagnóstico errado. Abrir aba NOVA antes
+de culpar a mudança.
