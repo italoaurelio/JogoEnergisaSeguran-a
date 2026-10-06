@@ -47,9 +47,15 @@ CAMADA = {
     "camisa": 0.019,
     "calca": 0.024,
     "acabamento": 0.030,   # gola, punho, carcela, bolso
-    "faixa": 0.036,        # retrorrefletiva, por cima da camisa
+    # A faixa tem de limpar o acabamento INTEIRO, nao so a folga dele: carcela
+    # e bolso tem 4 mm de espessura e ainda incham com o subsurf, entao a
+    # superficie de cima deles fica em ~0,036. Com a faixa tambem em 0,036 a
+    # carcela atravessava a faixa bem no meio do peito e a fita parecia um no
+    # de gravata — o defeito que o usuario chamou de "borda serrilhada no
+    # peito". 6 mm de folga real.
+    "faixa": 0.042,        # retrorrefletiva, por cima da camisa
     "colete": 0.040,
-    "tirante": 0.050,      # cinturao por cima de tudo
+    "tirante": 0.062,      # cinturao por cima de tudo
 }
 
 
@@ -672,53 +678,75 @@ def oculos(corpo, ref, escuro=False, nome=None):
 
 # ------------------------------------------------------------------ corpo
 
-def _camisa(corpo, ref, nome, folga=CAMADA["camisa"], espessura=0.005):
+def _camisa(corpo, rep, nome, folga=CAMADA["camisa"], espessura=0.005):
     """Camisa de manga longa recortada do tronco e dos bracos.
 
-    DEFEITO CONHECIDO — manga some em corpo POSADO (ver PLANO.md).
+    `rep` sao as referencias EM REPOUSO (`H.referencias(corpo, repouso=True)`),
+    e o recorte roda com `repouso=True`. Os dois andam juntos.
 
-    O teste abaixo e uma CAIXA em coordenada de mundo: altura entre a barra e
-    a gola, e |x| ate o punho. Na pose T isso cobre o braco inteiro, porque o
-    braco fica na horizontal na altura do ombro.
-
-    `recortar` avalia a malha com a armadura LIGADA, entao o teste roda na
-    geometria ja posada. No motorista SENTADO o antebraço desce abaixo de
-    `z_barra` e sai da caixa: nenhuma manga e gerada ali, e o braço aparece
-    nu. So se ve de angulo que olhe o braço do motorista.
-
-    Corrigir exige trocar a caixa por um criterio independente de pose —
-    grupos de vertice do proprio corpo (`H.recortar_grupo` ja faz isso para
-    um grupo) ou avaliar o teste em coordenada de REPOUSO. Nao foi feito
-    porque o caminho da pose T funciona e mexer aqui arrisca os dois.
+    O teste e uma CAIXA: altura entre a barra e a gola, e |x| ate o punho. Ela
+    so descreve o que pretende no corpo em pose de descanso, com o braco
+    aberto — e era por isso que o par anterior (caixa em z/x de MUNDO contra a
+    malha POSADA) quebrava: no motorista sentado o antebraco descia abaixo da
+    barra e saia nu, e na pose relaxada a mao entrava na caixa e virava lasca
+    azul. Agora a caixa e a malha estao no mesmo espaco e a pose nao importa.
     """
-    z_gola = ref["neck"].z + 0.008
-    z_barra = ref["pelvis"].z + 0.012
-    x_punho = abs(ref["l-hand"].x) - 0.030
+    z_gola = rep["neck"].z + 0.008
+    z_barra = rep["pelvis"].z + 0.012
+    # a manga termina por DISTANCIA NO EIXO DO ANTEBRACO, nao por |x|: um
+    # limite em x nao separa o polegar, que aponta para dentro e fica com x
+    # menor que o do punho. Sobrava uma lasca azul agarrada na mao — pequena,
+    # mas bem no centro da vista da cabine. E o mesmo criterio que `_mao` ja
+    # usava do outro lado do corte.
+    bracos = {}
+    for lado in ("l", "r"):
+        punho = rep[f"{lado}-hand"]
+        bracos[lado] = (punho, (rep[f"{lado}-elbow"] - punho).normalized())
 
     def teste(_, co):
-        return z_barra <= co.z <= z_gola and abs(co.x) <= x_punho
+        if not (z_barra <= co.z <= z_gola):
+            return False
+        punho, eixo = bracos["l" if co.x > 0 else "r"]
+        # 10 mm alem do punho: o punho de acabamento cobre a emenda
+        return (Vector(co) - punho).dot(eixo) >= -0.010
 
+    # a malha do corpo e grossa demais para a borda sair lisa: sem subdividir,
+    # gola, punho e barra saem em serrilha de quadrado. Decimar depois devolve
+    # a silhueta arredondada por um terco do custo.
     return H.recortar(corpo, teste, nome, deslocar=folga, espessura=espessura,
-                      subdividir=0)
+                      subdividir=1, reduzir=0.40, repouso=True)
 
 
-def _calca(corpo, ref, nome, folga=CAMADA["calca"], espessura=0.005):
-    """Calca recortada da perna.
+def _calca(corpo, rep, nome, folga=CAMADA["calca"], espessura=0.005):
+    """Calca recortada da perna. `rep` e `repouso=True`, ver `_camisa`.
 
     Nao usa o grupo `helper-tights`: esse helper e uma gaiola de simulacao bem
     mais larga que a perna, e recortar dela (ainda por cima com folga) devolve
     uma calca de palhaco. A perna com folga de 14 mm cai certo.
+
+    A folga sozinha nao faz calca: deslocar a pele pela normal engorda o
+    gemeo junto e o resultado le como legging. O `SMOOTH` depois do recorte
+    relaxa justamente a alta frequencia da anatomia — panturrilha, rotula,
+    tendao — e deixa a perna caindo reta, que e o que tecido faz e pele nao.
     """
-    z_cos = ref["pelvis"].z + 0.055
+    z_cos = rep["pelvis"].z + 0.055
     # a bainha para em cima do cano da bota, nao no tornozelo: terminando
     # embaixo sobra uma faixa de pele entre a calca e o peito do pe
-    z_bainha = ref["l-ankle"].z + 0.100
+    z_bainha = rep["l-ankle"].z + 0.100
+    # sem limite em x a caixa pega a MAO, que em descanso fica na altura da
+    # coxa — a mesma lasca que estragava a camisa
+    x_perna = abs(rep["l-upper-leg"].x) + 0.130
 
     def teste(_, co):
-        return z_bainha <= co.z <= z_cos
+        return z_bainha <= co.z <= z_cos and abs(co.x) <= x_perna
 
-    return H.recortar(corpo, teste, nome, deslocar=folga, espessura=espessura,
-                      subdividir=0)
+    peca = H.recortar(corpo, teste, nome, deslocar=folga, espessura=espessura,
+                      subdividir=1, reduzir=0.40, repouso=True)
+    if peca:
+        macio = peca.modifiers.new("cair", "SMOOTH")
+        macio.factor = 1.0
+        macio.iterations = 12
+    return peca
 
 
 def _acabamento(corpo, ref, nome, pano, sup=None):
@@ -742,7 +770,8 @@ def _acabamento(corpo, ref, nome, pano, sup=None):
         and (Vector((co.x, co.y, 0)) - eixo_pescoco).length < 0.085))
     gola = anel_na_pele(corpo, spescoco, nome + "_gola",
                         (ref["neck"].x, ref["neck"].y, ref["neck"].z + 0.024),
-                        largura=0.054, mat=pano, folga=0.014, espessura=0.005,
+                        largura=0.054, mat=pano,
+                        folga=CAMADA["camisa"] + 0.009, espessura=0.005,
                         n=40)
     if gola:
         saida.append(gola)
@@ -788,7 +817,8 @@ def _acabamento(corpo, ref, nome, pano, sup=None):
                         and (co.x > 0) == (sinal > 0)
                         and co.y < cy - 0.030)
             b = H.recortar(corpo, teste, f"{nome}_bolso_{lado}_{j}",
-                           deslocar=folga, espessura=0.004, subdividir=1)
+                           deslocar=folga, espessura=0.004,
+                           subdividir=2, reduzir=0.30)
             if b:
                 C.aplicar(b, pano)
                 b.parent = corpo
@@ -819,8 +849,10 @@ def uniforme(corpo, ref, antichama=True, nome=None):
                       aspereza=0.80 if antichama else 0.86,
                       brilho_fio=0.52 if antichama else 0.58)
 
-    camisa = _camisa(corpo, ref, nome + "_camisa")
-    calca = _calca(corpo, ref, nome + "_calca")
+    # a caixa de recorte so quer dizer o que pretende no corpo em descanso
+    rep = H.referencias(corpo, repouso=True)
+    camisa = _camisa(corpo, rep, nome + "_camisa")
+    calca = _calca(corpo, rep, nome + "_calca")
     pecas = [p for p in (camisa, calca) if p]
     for p in pecas:
         C.aplicar(p, pano)
@@ -853,15 +885,21 @@ def superficie_perna(corpo, ref, lado):
                         and ref[f"{lado}-knee"].z <= co.z <= z1)
 
 
-def _faixas_no_tronco(corpo, ref, nome, sup=None):
-    """Duas faixas retrorrefletivas dando a volta no tronco."""
+def _faixas_no_tronco(corpo, ref, nome, sup=None, folga=None):
+    """Duas faixas retrorrefletivas dando a volta no tronco.
+
+    `folga` explicito porque a mesma faixa serve em duas alturas: por cima da
+    CAMISA (o uniforme) e por cima do COLETE, que ja esta mais afastado da
+    pele. Com uma constante so, a faixa do colete nascia por DENTRO dele.
+    """
+    folga = CAMADA["faixa"] if folga is None else folga
     sup = sup or superficie_tronco(corpo, ref)
     mat = mat_refletivo()
     saida = []
     cy = ref["spine-2"].y
     for i, z in enumerate((ref["spine-1"].z - 0.020, ref["spine-2"].z - 0.055)):
         f = anel_na_pele(corpo, sup, f"{nome}_faixa{i}", (0.0, cy, z),
-                         largura=0.044, mat=mat, folga=CAMADA["faixa"],
+                         largura=0.044, mat=mat, folga=folga,
                          espessura=0.0015)
         if f:
             saida.append(f)
@@ -883,7 +921,8 @@ def colete(corpo, ref, nome="epi_colete"):
         return []
     C.aplicar(peca, mat_tecido("malha_colete", (0.82, 0.42, 0.02), aspereza=0.85,
                                brilho_fio=0.4))
-    saida = [peca] + _faixas_no_tronco(corpo, ref, nome)
+    saida = [peca] + _faixas_no_tronco(corpo, ref, nome,
+                                       folga=CAMADA["colete"] + 0.010)
     for p in saida:
         p.parent = corpo
         p.matrix_parent_inverse = corpo.matrix_world.inverted()
@@ -900,29 +939,32 @@ def roupa_base(corpo, ref, nome="base_roupa"):
                        brilho_fio=0.25)
     saida = []
 
-    z_gola = ref["neck"].z - 0.004
-    z_barra = ref["pelvis"].z + 0.060
-    x_manga = abs(ref["l-shoulder"].x) + 0.085
+    # mesma correcao da camisa: a caixa e as referencias tem de estar as duas
+    # no corpo em DESCANSO, senao o recorte segue a pose e corta na diagonal
+    rep = H.referencias(corpo, repouso=True)
+    z_gola = rep["neck"].z - 0.004
+    z_barra = rep["pelvis"].z + 0.060
+    x_manga = abs(rep["l-shoulder"].x) + 0.085
 
     def camiseta(_, co):
         return z_barra <= co.z <= z_gola and abs(co.x) <= x_manga
 
     c = H.recortar(corpo, camiseta, nome + "_camiseta", deslocar=0.009,
-                   espessura=0.003)
+                   espessura=0.003, subdividir=1, reduzir=0.40, repouso=True)
     if c:
         C.aplicar(c, malha)
         saida.append(c)
 
-    z_cos = ref["pelvis"].z + 0.075
-    z_bainha = ref["l-knee"].z + 0.075
+    z_cos = rep["pelvis"].z + 0.075
+    z_bainha = rep["l-knee"].z + 0.075
     # mesmo limite em X da calca: sem ele a bermuda engole a mao
-    x_perna = abs(ref["l-upper-leg"].x) + 0.130
+    x_perna = abs(rep["l-upper-leg"].x) + 0.130
 
     def bermuda(_, co):
         return z_bainha <= co.z <= z_cos and abs(co.x) <= x_perna
 
     b = H.recortar(corpo, bermuda, nome + "_bermuda", deslocar=0.011,
-                   espessura=0.003)
+                   espessura=0.003, subdividir=1, reduzir=0.40, repouso=True)
     if b:
         C.aplicar(b, malha)
         saida.append(b)
@@ -1378,6 +1420,13 @@ def fita_na_pele(corpo, sup, nome, guia, largura, mat, folga=0.010,
     bm = bmesh.new()
     linhas = []
     n = len(assentados)
+    # a largura da fita sai de `tang x normal`, e as normais que vem de
+    # `H.secao` nao tem orientacao garantida: onde uma aponta para dentro, o
+    # `lado` INVERTE e o quadrilatero se cruza. Na tela isso vira um no de
+    # gravata — era o que as duas faixas refletivas do peito faziam. Manter
+    # `lado` do mesmo lado do anterior custa tres linhas e resolve para toda
+    # fita (gola, punho, carcela, faixa, cinto).
+    anterior = None
     for i, (p, normal) in enumerate(assentados):
         if i == 0:
             tang = assentados[1][0] - p
@@ -1392,6 +1441,9 @@ def fita_na_pele(corpo, sup, nome, guia, largura, mat, folga=0.010,
         if lado.length < 1e-6:
             lado = tang.cross(Vector((0, 0, 1)))
         lado.normalize()
+        if anterior is not None and lado.dot(anterior) < 0:
+            lado = -lado
+        anterior = lado
         linhas.append((bm.verts.new(p + lado * (largura / 2)),
                        bm.verts.new(p - lado * (largura / 2))))
     for i in range(n - 1):

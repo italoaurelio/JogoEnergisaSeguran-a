@@ -48,7 +48,16 @@ def vistas(ref):
     mao = ref["l-hand"]
     pe = ref["l-ankle"]
     tronco = ref["spine-1"]
+    joelho = ref["l-knee"]
     return {
+        # Tres das quatro queixas do usuario sao no UNIFORME (borda do peito e
+        # do ombro, degrau na coxa, canela inchada) e nao havia vista nenhuma
+        # dele aqui — por isso o defeito sobreviveu a uma rodada inteira.
+        "uniforme": ((0.92, -1.75, tronco.z + 0.30), (0.0, 0.0, tronco.z - 0.02), 60),
+        "uniforme_ombro": ((0.60, -0.72, ref["l-shoulder"].z + 0.18),
+                           (0.12, 0.02, ref["l-shoulder"].z - 0.06), 72),
+        "uniforme_perna": ((0.58, -0.92, joelho.z + 0.34),
+                           (0.06, 0.0, joelho.z - 0.10), 62),
         "capacete": ((0.46, -0.62, cab + 0.10), (0.0, 0.01, cab - 0.03), 70),
         "capacete_lado": ((0.78, 0.04, cab + 0.02), (0.0, 0.01, cab - 0.04), 75),
         "luva": ((mao.x + 0.44, mao.y - 0.52, mao.z + 0.26),
@@ -64,6 +73,7 @@ def processar(pedidas=None):
     os.makedirs(SAIDA, exist_ok=True)
     corpo, ref = montar()
 
+    E.uniforme(corpo, ref, antichama=True)
     E.capacete(corpo, ref, classe="B", jugular=True)
     E.luvas(corpo, ref, "conjunto")
     E.botinas(corpo, ref, "isolante")

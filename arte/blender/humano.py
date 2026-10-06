@@ -84,7 +84,7 @@ def definir_tom(corpo, cor):
 
 # ------------------------------------------------------------------ olhos
 
-def _caixa_do_grupo(obj, nome_grupo):
+def _caixa_do_grupo(obj, nome_grupo, repouso=False):
     """Centro e raio do grupo de vertices, em coordenadas de mundo.
 
     Le a malha AVALIADA: `v.co` da malha crua ignora as shape keys, e o corpo do
@@ -102,7 +102,7 @@ def _caixa_do_grupo(obj, nome_grupo):
 
     estado = [(m, m.show_viewport) for m in obj.modifiers]
     for m, _ in estado:
-        if m.type != "ARMATURE":
+        if m.type != "ARMATURE" or repouso:
             m.show_viewport = False
     try:
         dep = bpy.context.evaluated_depsgraph_get()
@@ -387,7 +387,7 @@ def recortar_grupo(corpo, nome_grupo, nome, peso_min=0.25,
 
 
 def recortar(corpo, teste, nome, deslocar=0.0015, espessura=0.003, suave=50,
-             so_corpo=True, subdividir=0, reduzir=1.0):
+             so_corpo=True, subdividir=0, reduzir=1.0, repouso=False):
     """Recorta a superficie do corpo onde `teste(indice, coordenada)` vale.
 
     Recortar da propria malha garante assentamento perfeito, e faz a peca
@@ -400,6 +400,18 @@ def recortar(corpo, teste, nome, deslocar=0.0015, espessura=0.003, suave=50,
     modificadores para poder ler as shape keys, entao ela volta. Entre os
     helpers ha um `helper-skirt`, que e uma saia de verdade em volta das pernas:
     sem esse filtro a calca sai como um vestido ate o tornozelo.
+
+    `repouso=True` roda o TESTE na malha em pose de descanso e constroi a peca
+    a partir da malha POSADA. As duas tem a mesma topologia, entao a face que
+    o teste aprova em repouso e a mesma face no corpo posado.
+
+    Por que isso importa: um teste escrito como caixa em z/x de mundo so quer
+    dizer o que pretende enquanto o corpo esta na pose em que foi escrito. Com
+    a armadura ligada o mesmo teste no motorista SENTADO cortava a camisa na
+    diagonal — deixava o antebraco nu e picava a mao em lascas azuis (ver
+    `arte/render/epi_luva.png` de 06/10). Quem usar isto precisa passar
+    `referencias(corpo, repouso=True)`: a caixa e as referencias tem de estar
+    no MESMO espaco.
     """
     import bmesh
     do_corpo = None
@@ -425,6 +437,23 @@ def recortar(corpo, teste, nome, deslocar=0.0015, espessura=0.003, suave=50,
         for m, visivel in estado:
             m.show_viewport = visivel
 
+    # centro de cada face no corpo em DESCANSO, para o teste rodar ali
+    centros_repouso = None
+    if repouso:
+        estado = [(m, m.show_viewport) for m in corpo.modifiers]
+        for m, _ in estado:
+            m.show_viewport = False
+        try:
+            dep = bpy.context.evaluated_depsgraph_get()
+            aval = corpo.evaluated_get(dep)
+            malha = aval.to_mesh()
+            centros_repouso = [corpo.matrix_world @ f.center.copy()
+                               for f in malha.polygons]
+            aval.to_mesh_clear()
+        finally:
+            for m, visivel in estado:
+                m.show_viewport = visivel
+
     bm.verts.ensure_lookup_table()
     bm.faces.ensure_lookup_table()
     mundo = corpo.matrix_world
@@ -436,7 +465,8 @@ def recortar(corpo, teste, nome, deslocar=0.0015, espessura=0.003, suave=50,
         if do_corpo is not None and not all(v.index in do_corpo for v in f.verts):
             fora.append(f)
             continue
-        centro = mundo @ f.calc_center_median()
+        centro = (centros_repouso[f.index] if centros_repouso is not None
+                  else mundo @ f.calc_center_median())
         indice = min(v.index for v in f.verts)
         if not teste(indice, centro):
             fora.append(f)
@@ -508,18 +538,25 @@ def vestir_pelo(corpo, olhos, cor=(0.014, 0.009, 0.005)):
 
 # ------------------------------------------------------------- referencias
 
-def referencias(corpo):
+def referencias(corpo, repouso=False):
     """Pontos anatomicos do corpo, para assentar EPI em qualquer fisico.
 
     Tudo o que e peca rigida (capacete, botina, luva) se posiciona por aqui, e
     nao por numero fixo - senao o capacete flutua no personagem alto e afunda
     no baixo.
+
+    `repouso=True` devolve os mesmos pontos com a ARMADURA DESLIGADA, isto e,
+    no corpo em pose de descanso. Serve para quem recorta por regiao (camisa,
+    calca, roupa de baixo): um limite escrito em z de mundo so quer dizer
+    "altura da gola" enquanto o corpo esta em pe. No motorista sentado o mesmo
+    z corta o personagem na diagonal. Ver `recortar(repouso=True)`, que e a
+    outra metade do par — os dois andam juntos ou nenhum dos dois serve.
     """
     import bmesh
     ref = {}
     for g in corpo.vertex_groups:
         if g.name.startswith("joint-"):
-            c, _ = _caixa_do_grupo(corpo, g.name)
+            c, _ = _caixa_do_grupo(corpo, g.name, repouso=repouso)
             if c:
                 ref[g.name[6:]] = c
 
@@ -527,7 +564,7 @@ def referencias(corpo):
     # descanso, e as pecas recortadas de um corpo sentado sairiam em pe
     estado = [(m, m.show_viewport) for m in corpo.modifiers]
     for m, _ in estado:
-        if m.type != "ARMATURE":
+        if m.type != "ARMATURE" or repouso:
             m.show_viewport = False
     try:
         dep = bpy.context.evaluated_depsgraph_get()

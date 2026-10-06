@@ -867,7 +867,8 @@ Decisões do usuário nesta rodada:
 - [x] **1. Som** — `src/som.ts`, Web Audio sintetizado, sem arquivo e sem
       biblioteca. Clique global, confirmar, veredito, buzina, chave fusível,
       telefone, motor atrelado à velocidade, bafo de ambiente e botão de mudo.
-- [ ] 2. Consertar `arte/blender/epi.py` (quebrado, sem backup)
+- [x] **2. `epi.py` consertado** — causa raiz era o teste de recorte rodar
+      na malha POSADA; agora roda em repouso. Detalhe abaixo.
 - [ ] 3. Interior da cabine refeito a partir do `caminhao.py` aprovado
 - [ ] 4. Cinto que existe em quadro; veículo visível na pergunta "onde parar"
 - [ ] 5. O 3D reagindo à escolha (carro chegando, cesto subindo, escada no poste)
@@ -904,3 +905,75 @@ canto e a escolha fica guardada no `localStorage`.
 mesma aba é o contexto WebGL esgotando, não o código. Aconteceu três vezes
 nesta sessão e custou duas rodadas de diagnóstico errado. Abrir aba NOVA antes
 de culpar a mudança.
+
+
+## Item 2 — epi.py (feito)
+
+**Causa raiz, uma so, com quatro sintomas.** `_camisa`, `_calca` e
+`roupa_base` recortam por uma CAIXA em z/x de mundo, e `H.recortar` avalia a
+malha com a ARMADURA LIGADA. A caixa so descreve o que pretende enquanto o
+corpo esta na pose em que ela foi escrita. Fora dela:
+
+- no personagem em pose relaxada a MAO entrava na caixa e virava lasca azul
+  grudada nos dedos (`arte/render/epi_luva.png` de 06/10, antes);
+- no motorista SENTADO o antebraco descia abaixo da barra e saia NU — o
+  defeito ja documentado que nunca tinha sido fechado.
+
+**A correcao e um par, e os dois tem de andar juntos:**
+
+- `H.recortar(..., repouso=True)` roda o TESTE na malha em pose de descanso e
+  constroi a peca a partir da malha POSADA. Mesma topologia, entao a face
+  aprovada em repouso e a mesma face no corpo posado.
+- `H.referencias(corpo, repouso=True)` devolve os pontos anatomicos com a
+  armadura desligada. Sem isto a caixa estaria em repouso e os limites em
+  pose — pior que antes.
+
+Feito na funcao COMPARTILHADA, nao em cada chamador: os tres recortes de
+regiao tinham o mesmo defeito e passaram a estar certos de uma vez.
+
+**A manga termina por distancia no EIXO DO ANTEBRACO, nao por `|x|`.** Um
+limite em x nao separa o polegar, que aponta para dentro e tem x menor que o
+do punho — sobrava uma lasca de tecido agarrada na mao, bem no centro da
+vista da cabine. E o mesmo criterio que `_mao` ja usava do outro lado do
+corte.
+
+**`subdividir` tinha sido zerado em camisa, calca e roupa de baixo.** O
+proprio docstring de `recortar` avisa que sem ele a borda sai em serrilha de
+quadrado, porque a malha do corpo e grossa demais. Restaurado com
+`subdividir=1, reduzir=0.40` — decimar depois do subsurf devolve a silhueta
+por um terco do custo.
+
+**Folga nao faz calca; `SMOOTH` faz.** Deslocar a pele pela normal engorda o
+gemeo junto e o resultado le como legging — era a "perna inchada como barril".
+Um `SMOOTH` (fator 1,0 / 12 iteracoes) depois do recorte relaxa a alta
+frequencia da anatomia (panturrilha, rotula, tendao) e a perna cai reta, que
+e o que tecido faz e pele nao.
+
+**O "no de gravata" das faixas refletivas nao era torcao de fita — era ORDEM
+DE CAMADA.** Carcela e bolso ficam a 0,030 de folga mas tem 4 mm de espessura
+e ainda incham com o subsurf: a superficie de cima deles chega a ~0,036, que
+era exatamente a altura da faixa. A carcela atravessava a faixa bem no meio
+do peito. Faixa subiu para 0,042 e tirante para 0,062. O cabecalho de `CAMADA`
+ja dizia que o que importa e a ordem, nao cada numero; o que faltava era
+contar a ESPESSURA junto com a folga.
+
+**Uma constante de camada nao serve para dois trajes.** `_faixas_no_tronco`
+agora recebe `folga`: por cima da CAMISA e 0,042, por cima do COLETE e a folga
+do colete mais 10 mm. Com a constante unica a faixa do colete nascia por
+DENTRO dele.
+
+**A gola estava por dentro da camisa** (0,014 contra 0,019) e abria um vao
+preto no pescoco. Passou a ser a camada da camisa mais 9 mm.
+
+**Como conferir:** `prova_epi.py` ganhou tres vistas de UNIFORME (peito, ombro
+e perna). Nao havia nenhuma, e era por isso que tres das quatro queixas
+sobreviveram a uma rodada inteira — a prova renderizava capacete, luva, botina
+e cinturao, e o uniforme nem era vestido. Para o motorista sentado nao existe
+prova no repositorio; foi usada uma de uso unico que monta
+`exportar_motorista.montar()` e olha o braco.
+
+**O que NAO foi resolvido e nao e defeito de forma:** a luva de cobertura e
+recortada da propria mao e, na cor de raspa, le como "a mao do personagem em
+outra cor" — o proprio arquivo ja documentava isso. Nao e a "luva enorme" da
+queixa (essa some com o corte certo), e sim legibilidade. Fica para a rodada
+de arte.
