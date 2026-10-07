@@ -50,7 +50,7 @@ export const TRAJETO: Trecho[] = [
     nome: 'Saída do pátio',
     metros: 100,
     limite: 20,
-    aviso: 'Saída do pátio · 20 km/h · pessoas circulando a pé',
+    aviso: 'colegas a pé entre os veículos — alguém pode sair de trás de uma caçamba',
     curva: 0,
     colina: 0,
   },

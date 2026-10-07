@@ -38,6 +38,7 @@ def processar():
         "semaforo": V.semaforo(m),
         "onibus": V.onibus(m),
         "ciclista": V.ciclista(m),
+        "muro_patio": V.muro_patio(m),
         "pedestre": V.pedestre(m),
         # mesma peca a 1,25 m: crianca de embarque do onibus escolar
         "crianca": V.pedestre(m, nome="via_crianca", altura=1.25,

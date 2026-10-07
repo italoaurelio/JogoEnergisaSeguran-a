@@ -345,6 +345,72 @@ function OnibusEscolar({
   )
 }
 
+/**
+ * Gente andando no pátio, entre os veículos estacionados.
+ *
+ * É esta peça que faz o limite de 20 km/h virar motivo em vez de regra: o
+ * jogador reduz porque VÊ alguém podendo sair de trás de uma caçamba, não
+ * porque um texto mandou. Sem isso o trecho é obediência sem tradução — e
+ * quem obedece sem entender não leva nada para o trabalho.
+ *
+ * Elas andam com o METRO do jogador, não com o relógio: dois colaboradores
+ * têm de encontrar a mesma cena no mesmo ponto, como o resto do cenário.
+ * Ninguém entra na pista — são colegas atravessando entre vagas, e o risco
+ * que a fase ensina é o de ALGUÉM PODER entrar, que é o que faz reduzir.
+ */
+// Encostados na beira da pista, não lá no fundo do pátio: a 4 m de distância
+// eles ficavam ATRÁS da frota estacionada e não se via ninguém — e gente que
+// não se vê não faz ninguém reduzir. O vaivém é curto pelo mesmo motivo de
+// nunca entrarem na pista: o risco que a fase ensina é o de alguém PODER
+// entrar, e para isso basta estar perto o bastante para assustar.
+const NO_PATIO: { metro: number; x: number; ida: number; giro: number }[] = [
+  { metro: 16, x: -2.5, ida: 0.8, giro: 0 },
+  { metro: 33, x: 5.9, ida: -0.9, giro: Math.PI },
+  { metro: 52, x: -2.7, ida: 0.7, giro: 0 },
+  { metro: 68, x: 6.1, ida: -0.8, giro: Math.PI },
+  { metro: 88, x: -2.4, ida: 1.0, giro: 0 },
+]
+
+function PessoasDoPatio({
+  molde, distancia,
+}: {
+  molde: THREE.Object3D | null
+  distancia: React.RefObject<number>
+}) {
+  const grupo = useRef<THREE.Group>(null)
+  const copias = useMemo(() => {
+    if (!molde) return []
+    return NO_PATIO.map((p) => {
+      const c = molde.clone(true)
+      c.rotation.y = p.giro
+      c.visible = false
+      return c
+    })
+  }, [molde])
+
+  useEffect(() => {
+    const g = grupo.current
+    if (!g) return
+    copias.forEach((c) => g.add(c))
+    return () => { copias.forEach((c) => g.remove(c)) }
+  }, [copias])
+
+  useFrame(({ clock }) => {
+    const d = distancia.current ?? 0
+    const t = clock.elapsedTime
+    for (let i = 0; i < copias.length; i++) {
+      const p = NO_PATIO[i]
+      const z = p.metro - d
+      // vai e volta entre as vagas: seno, não sorteio, para ser igual sempre
+      const anda = Math.sin(t * 0.42 + i * 1.7) * p.ida
+      copias[i].position.set(p.x + anda, 0, z)
+      copias[i].visible = z > -20 && z < ALCANCE
+    }
+  })
+
+  return <group ref={grupo} />
+}
+
 /** Meio-fio de onde ele sai e meio-fio onde ele chega. */
 const DE_PE_X = BORDA_DIR - 0.85
 const ATE_PE_X = BORDA_ESQ + 0.85
@@ -536,7 +602,8 @@ export function Mundo({
   const moldes = useMemo(() => {
     const nomes = ['trecho', 'chao', 'poste', 'cabos', 'arvore', 'arbusto',
       'casa', 'placa', 'lombada', 'faixa_pedestre', 'carro', 'semaforo',
-      'onibus', 'ciclista', 'escola', 'moto', 'pedestre', 'crianca'] as const
+      'onibus', 'ciclista', 'escola', 'moto', 'pedestre', 'crianca',
+      'muro_patio'] as const
     const mapa: Record<string, THREE.Object3D | null> = {}
     for (const n of nomes) mapa[n] = scene.getObjectByName(`via_${n}`) ?? null
     return mapa
@@ -581,7 +648,7 @@ export function Mundo({
     <group ref={raiz}>
       {chaoClone && <primitive object={chaoClone} position={[0, 0, 0]} />}
       <Pista molde={moldes.trecho} distancia={distancia} />
-      {(['poste', 'cabos', 'arvore', 'arbusto', 'casa', 'escola', 'placa',
+      {(['poste', 'cabos', 'arvore', 'arbusto', 'casa', 'escola', 'muro_patio', 'placa',
         'lombada', 'faixa_pedestre', 'semaforo', 'onibus',
         'ciclista'] as const).map((nome) => (
         <Fileira
@@ -608,6 +675,7 @@ export function Mundo({
         metro={onibus}
         liberado={onibusLiberado}
       />
+      <PessoasDoPatio molde={moldes.pedestre} distancia={distancia} />
       <Contrafluxo molde={moldes.carro} distancia={distancia} />
       {/*
         Moto em fila PRÓPRIA, e não misturada na dos carros.

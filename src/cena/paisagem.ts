@@ -22,7 +22,7 @@ export const BORDA_ESQ = 5.25
 export type Marco = {
   peca: 'poste' | 'cabos' | 'arvore' | 'arbusto' | 'casa' | 'placa'
     | 'carro' | 'lombada' | 'faixa_pedestre' | 'semaforo' | 'onibus'
-    | 'ciclista' | 'escola'
+    | 'ciclista' | 'escola' | 'muro_patio'
   /** Distância absoluta ao longo do trajeto, em metros. */
   metro: number
   x: number
@@ -48,6 +48,16 @@ export type Marco = {
  * Agora sai do próprio `TRAJETO`. Cenário, limite de velocidade e som de
  * pátio passam a ser o mesmo trecho por construção.
  */
+/** Trecho de saída do pátio, lido do próprio trajeto. */
+export const ZONA_PATIO = (() => {
+  let acumulado = 0
+  for (const t of TRAJETO) {
+    if (t.id === 'patio') return { de: acumulado, ate: acumulado + t.metros }
+    acumulado += t.metros
+  }
+  return { de: 0, ate: 100 }
+})()
+
 export const ZONA_ESCOLA = (() => {
   let acumulado = 0
   for (const t of TRAJETO) {
@@ -80,7 +90,7 @@ export function paisagem(distanciaTotal: number): Marco[] {
   // escola, e de novo bairro chegando. A fronteira entre eles é o que dá
   // sensação de percurso — num descampado uniforme ninguém sente que andou.
   const zonaDe = (m: number) =>
-    m < 240 ? 'patio'
+    m < ZONA_PATIO.ate + 25 ? 'patio'
       : m < ZONA_ESCOLA.de ? 'bairro'
       : m < ZONA_ESCOLA.ate ? 'escola'
       : 'bairro'
@@ -97,10 +107,26 @@ export function paisagem(distanciaTotal: number): Marco[] {
     const casaAqui = passo++ % 2 === 0
 
     if (zona === 'patio') {
-      saida.push({ peca: 'arbusto', metro: m + r * 6, x: BORDA_DIR - 3.2 - r })
-      if (r < 0.35) {
-        saida.push({ peca: 'arvore', metro: m + r * 8, x: BORDA_ESQ + 4.0 + r * 4,
-                     giro: r * 6 })
+      // PÁTIO DE VERDADE, não descampado com placa de 20.
+      //
+      // O trecho era um aviso sem lugar: o jogador reduzia por obediência e
+      // não traduzia nada para o trabalho dele. Um pátio tem muro nos dois
+      // lados, frota estacionada em espinha e gente andando entre os
+      // veículos — e é a FROTA PARADA que explica o limite sozinha: não se
+      // anda a 60 onde alguém pode sair de trás de uma caçamba.
+      saida.push({ peca: 'muro_patio', metro: m, x: BORDA_DIR - 4.2 })
+      saida.push({ peca: 'muro_patio', metro: m, x: BORDA_ESQ + 4.2,
+                   giro: Math.PI })
+      // frota estacionada, alternando os lados para o olho ter o que seguir
+      if (passo % 2 === 0) {
+        saida.push({ peca: 'carro', metro: m + 1.5, x: BORDA_DIR - 2.7,
+                     giro: Math.PI / 2 })
+      } else {
+        saida.push({ peca: 'onibus', metro: m + 2, x: BORDA_ESQ + 2.9,
+                     giro: -Math.PI / 2 })
+      }
+      if (r < 0.5) {
+        saida.push({ peca: 'arbusto', metro: m + r * 6, x: BORDA_DIR - 3.6 })
       }
       continue
     }
@@ -157,6 +183,8 @@ export const POOL: Partial<Record<Marco['peca'], number>> = {
   poste: 12, cabos: 12,
   casa: 40,
   escola: 33,
+  // duas fileiras, uma a cada 10 m, nos dois lados do pátio
+  muro_patio: 30,
   arvore: 31,
   arbusto: 34,
 }

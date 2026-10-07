@@ -794,10 +794,16 @@ const Painel = forwardRef<
         }
         if (trechoEl.current) trechoEl.current.textContent = s.trecho.nome
         if (avisoEl.current) {
-          // o aviso do trecho já começa com o nome e o limite, que agora têm
-          // lugar próprio na tela; aqui fica só o que sobra
-          const resto = s.trecho.aviso.split(' · ').slice(2).join(' · ')
-          avisoEl.current.textContent = resto
+          // Os avisos antigos começavam com "Nome · 60 km/h · ..." e eu
+          // cortava os dois primeiros pedaços, porque nome e limite ganharam
+          // lugar próprio. Só que o do pátio foi reescrito para explicar o
+          // MOTIVO e não tem mais esse prefixo — e o corte cego apagava a
+          // frase inteira. Agora só tira o que de fato for nome ou limite.
+          const partes = s.trecho.aviso.split(' · ')
+          const util = partes.filter(
+            (x) => x !== s.trecho.nome && !/^\d+\s*km\/h$/.test(x.trim()),
+          )
+          avisoEl.current.textContent = util.join(' · ')
         }
         if (barraEl.current) {
           barraEl.current.style.width =
@@ -851,9 +857,7 @@ const Painel = forwardRef<
           </div>
           <p className="trajeto-trecho">
             <b ref={trechoEl}>{TRAJETO[0].nome}</b>
-            <span ref={avisoEl}>
-              {TRAJETO[0].aviso.split(' · ').slice(2).join(' · ')}
-            </span>
+            <span ref={avisoEl}>{TRAJETO[0].aviso}</span>
           </p>
         </header>
 

@@ -903,6 +903,52 @@ def _bolha_obj(nome, centro, raio):
     return o
 
 
+def muro_patio(m, nome="via_muro_patio", modulo=10.0):
+    """Modulo de 10 m do muro do PATIO da empresa, feito para ladrilhar.
+
+    O trecho de saida do patio era so uma placa de 20 km/h num descampado: o
+    jogador obedecia sem entender, e sem entender nao traduz para o trabalho
+    dele. Um patio de concessionaria tem cara: muro de placa pre-moldada com
+    pilar a cada modulo, faixa de cor da empresa em cima, e refletivo na
+    altura do farol porque caminhao manobra ali de madrugada.
+
+    E placa PRE-MOLDADA, nao alvenaria: a junta vertical a cada 10 m e a
+    marca do sistema, e e ela que faz o muro ler como industrial em vez de
+    muro de casa comprido.
+
+    ~260 triangulos.
+    """
+    pecas = []
+    concreto = C.mat_simples("via_patio_concreto", (0.215, 0.212, 0.200),
+                             rugosidade=0.92)
+    verde = C.mat_simples("via_patio_faixa", (0.020, 0.235, 0.105),
+                          rugosidade=0.80)
+    refl = C.mat_simples("via_patio_refl", (0.56, 0.52, 0.36), rugosidade=0.40)
+
+    placa = C.caixa(f"{nome}_placa", (modulo - 0.30, 0.16, 2.05), (0, 0, 1.18))
+    C.aplicar(placa, concreto)
+    pecas.append(placa)
+    # pilar na junta: e ele que diz "pre-moldado"
+    pilar = C.caixa(f"{nome}_pilar", (0.30, 0.26, 2.32),
+                    (modulo / 2 - 0.15, 0, 1.16))
+    C.chanfrar(pilar, largura=0.02, segmentos=2)
+    C.aplicar(pilar, concreto)
+    pecas.append(pilar)
+    faixa = C.caixa(f"{nome}_faixa", (modulo - 0.30, 0.19, 0.34), (0, 0, 2.05))
+    C.aplicar(faixa, verde)
+    pecas.append(faixa)
+    # refletivo na altura do farol de quem manobra
+    for dx in (-modulo / 4, modulo / 4):
+        olho = C.caixa(f"{nome}_refl_{dx:.1f}", (0.36, 0.21, 0.09),
+                       (dx, 0, 0.92))
+        C.aplicar(olho, refl)
+        pecas.append(olho)
+
+    alvo = C.juntar(pecas, nome)
+    alvo.name = nome
+    return alvo
+
+
 def pedestre(m, nome="via_pedestre", altura=1.72, roupa=(0.30, 0.10, 0.09)):
     """Pessoa andando, de perfil, atravessando a pista (anda no eixo X).
 

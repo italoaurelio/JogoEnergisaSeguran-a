@@ -22,6 +22,7 @@
     "via_semaforo",
     "via_onibus",
     "via_ciclista",
+    "via_muro_patio",
     "via_pedestre",
     "via_crianca"
   ]
