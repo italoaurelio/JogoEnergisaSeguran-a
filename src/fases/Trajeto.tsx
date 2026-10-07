@@ -17,7 +17,7 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { som } from '../som'
 import { Acabamento } from '../cena/Acabamento'
 import { BORDA_DIR, ZONA_ESCOLA } from '../cena/paisagem'
-import { Environment, Sky } from '@react-three/drei'
+import { Environment } from '@react-three/drei'
 import * as THREE from 'three'
 import { Mundo, paisagem, type Marco } from '../cena/Via'
 import { perfilEm, type NoTracado } from '../cena/curva'
@@ -182,6 +182,9 @@ export default function Fase2Trajeto({
   const onibusLiberado = useRef(
     distancia.current > (evento('onibus')?.metro ?? Infinity),
   )
+  // Onde o ônibus escolar está AGORA. Quem escreve é `<OnibusEscolar>`, que é
+  // quem integra a arrancada; quem lê é o Motor, para não atravessá-lo.
+  const onibusOnde = useRef<number | null>(null)
   const garagemLiberada = useRef(
     distancia.current > (evento('garagem')?.metro ?? Infinity),
   )
@@ -214,8 +217,13 @@ export default function Fase2Trajeto({
       if (e.tipo === 'faixa') base.push({ peca: 'faixa_pedestre', metro: e.metro, x: 0 })
       // o semáforo fica na borda do lado do motorista, recuado do cruzamento
       if (e.tipo === 'semaforo') base.push({ peca: 'semaforo', metro: e.metro, x: -3.1 })
-      // o ônibus para encostado na direita, no sentido do jogador
-      if (e.tipo === 'onibus') base.push({ peca: 'onibus', metro: e.metro, x: -1.0 })
+      // O ÔNIBUS ESCOLAR NÃO ENTRA AQUI.
+      //
+      // Entrava, e virava um segundo ônibus exatamente em cima do primeiro:
+      // `<OnibusEscolar>` já desenha um, no mesmo metro e no mesmo x -1,0. Os
+      // dois coincidiam, então não dava para ver que eram dois — até o
+      // verdadeiro arrancar com as crianças e a cópia PARADA ficar na faixa
+      // para sempre, para o jogador atravessar.
       // o ciclista anda junto à borda direita
       if (e.tipo === 'ciclista') base.push({ peca: 'ciclista', metro: e.metro, x: -1.3 })
     }
@@ -223,8 +231,6 @@ export default function Fase2Trajeto({
     // encosta, e é ele que diz "é aqui" sem precisar de texto.
     base.push({ peca: 'poste', metro: DISTANCIA_TOTAL + 4, x: BORDA_DIR - 0.9 })
     base.push({ peca: 'cabos', metro: DISTANCIA_TOTAL + 4, x: BORDA_DIR - 0.9 })
-    if (false) {
-    }
     return base
   }, [])
 
@@ -255,11 +261,31 @@ export default function Fase2Trajeto({
     <div className="trajeto">
       <div className="trajeto-palco">
         <Canvas dpr={[1, 1.5]} shadows camera={{ position: OLHO, fov: 52 }}>
-          <Sky sunPosition={[-40, 28, 60]} turbidity={5} rayleigh={1.4} />
+          {/*
+            O CÉU É A HDRI, NÃO O `<Sky>`.
+
+            O `<Sky>` (Preetham, via drei) estava aqui e saía um branco chapado
+            de horizonte a horizonte. Não é escolha de parâmetro: medindo a
+            saída do shader num alvo float, o horizonte dele vem em 1,9 a 2,4
+            de luminância LINEAR, contra 0,55 da névoa — dois pontos acima, e
+            nada abaixo de uns 40° de elevação sobrevive ao AgX do
+            `Acabamento`. O azul existe só no zênite, que a câmera da cabine
+            (fov 52, 4° para baixo) nunca mostra. E o shader do three termina
+            com um `pow(cor, 1/2.4)` sem nenhuma exposição para compensar —
+            não há botão para abaixar.
+
+            A HDRI já estava carregada aqui para iluminar. Usá-la também de
+            fundo tem céu de verdade com nuvem, custa um `background` a mais e
+            TIRA um desenho da tela (a caixa de 1000 unidades do `<Sky>`).
+
+            E a emenda some de graça: medido, o horizonte da HDRI é linear
+            (0,52, 0,56, 0,66) e a névoa abaixo é (0,48, 0,56, 0,66). A cor da
+            névoa já tinha saído daqui.
+          */}
           {/* névoa: sem ela a via some num corte seco no fim do alcance e a
               profundidade da paisagem não lê */}
           <fog attach="fog" args={['#b8c6d4', 90, 290]} />
-          <Environment files="./hdri/ceu.hdr" environmentIntensity={0.35} />
+          <Environment files="./hdri/ceu.hdr" environmentIntensity={0.35} background />
           <LuzCabine />
           <directionalLight
             position={[-24, 30, 40]}
@@ -294,6 +320,7 @@ export default function Fase2Trajeto({
             pedestreLiberado={pedestreLiberado}
             onibus={evento('onibus')?.metro ?? null}
             onibusLiberado={onibusLiberado}
+            onibusOnde={onibusOnde}
             garagem={{
               metro: evento('garagem')?.metro ?? null,
               liberada: garagemLiberada,
@@ -307,6 +334,7 @@ export default function Fase2Trajeto({
             faltas={faltas}
             pedestreLiberado={pedestreLiberado}
             onibusLiberado={onibusLiberado}
+            onibusOnde={onibusOnde}
             garagemLiberada={garagemLiberada}
             sinal={sinal}
             celular={celular}
@@ -386,7 +414,8 @@ function CameraFixa({
 
 function Motor({
   distancia, velocidade, pedal, carro, faltas, pedestreLiberado, onibusLiberado,
-  garagemLiberada, sinal, celular, painel, aoChegar, mostrarFone, dizer,
+  onibusOnde, garagemLiberada, sinal, celular, painel, aoChegar, mostrarFone,
+  dizer,
 }: {
   distancia: React.RefObject<number>
   velocidade: React.RefObject<number>
@@ -395,6 +424,7 @@ function Motor({
   faltas: React.RefObject<Record<string, number>>
   pedestreLiberado: React.RefObject<boolean>
   onibusLiberado: React.RefObject<boolean>
+  onibusOnde: React.RefObject<number | null>
   garagemLiberada: React.RefObject<boolean>
   sinal: React.RefObject<number>
   celular: React.RefObject<'dormindo' | 'tocando' | 'atendeu' | 'ignorou'>
@@ -452,7 +482,15 @@ function Motor({
       const vao = carro.current - d
       const seguro = Math.max(8, v * CONDUTA.segundosDeSeguimento)
       if (vao < seguro) contar(faltas, 'seguimento', dt)
-      if (vao < 6) v = Math.min(v, alvo * 0.9)   // não atravessa o carro da frente
+      // Não atravessa o carro da frente.
+      //
+      // 7,5 m e não 6: o carro tem 4,48 m e está centrado no próprio metro,
+      // então a traseira fica a `vao - 2,24`; o bico do caminhão está em
+      // z +2,40 (caixa envolvente da cabine, medida). Com vão 6 sobravam
+      // 1,36 m entre os dois — cabia, mas por pouco, e qualquer quadro longo
+      // (o dt é limitado em 0,05 s, que a 60 km/h são 0,83 m) comia metade
+      // disso. Com 7,5 sobram 2,86 m.
+      if (vao < 7.5) v = Math.min(v, alvo * 0.9)
     }
 
     // Semáforo. O amarelo abre a uma distância fixa do cruzamento, não num
@@ -572,17 +610,27 @@ function Motor({
     // Reduzir e esperar libera: as crianças terminam de entrar e ele arranca.
     // Mesma regra do pedestre e da garagem — quem fez o certo não fica preso.
     const evOnibus = evento('onibus')
-    if (evOnibus && !onibusLiberado.current) {
-      const falta = evOnibus.metro - d
-      if (falta < 55 && kmh <= CONDUTA.onibusKmh) {
-        esperouOnibus.current += dt
-        if (esperouOnibus.current > 4.5) onibusLiberado.current = true
+    if (evOnibus) {
+      if (!onibusLiberado.current) {
+        const falta = evOnibus.metro - d
+        if (falta < 55 && kmh <= CONDUTA.onibusKmh) {
+          esperouOnibus.current += dt
+          if (esperouOnibus.current > 4.5) onibusLiberado.current = true
+        }
       }
       // COLISÃO. O teto é aplicado lá embaixo, junto com a escrita da
       // distância: clampar aqui não adianta porque a linha
       // `distancia.current = d + v * dt` roda DEPOIS e sobrescreve com o `d`
       // antigo. Custou uma rodada de medição descobrir isso.
-      teto = evOnibus.metro - PARAR_ATRAS_DO_ONIBUS
+      //
+      // E ele segue o ônibus, não o metro do evento. Antes a trava sumia no
+      // instante da liberação, e o ônibus arranca a 9 m/s contra os até 16,7
+      // do caminhão: quem pisava fundo na saída alcançava e ATRAVESSAVA o
+      // ônibus com as crianças ainda em quadro. Agora o teto anda com ele e
+      // some sozinho quando ele se afasta.
+      const onde = onibusOnde.current ?? evOnibus.metro
+      const trava = onde - PARAR_ATRAS_DO_ONIBUS
+      if (trava - d < 60) teto = trava
     }
 
     // parada obrigatória na faixa

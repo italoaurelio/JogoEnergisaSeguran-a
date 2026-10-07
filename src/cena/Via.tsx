@@ -19,11 +19,12 @@ import {
 } from './curva'
 import { uvPorPosicao, vestir } from './texturas'
 import { som } from '../som'
+import { VEICULO } from '../conteudo/trajeto'
 import {
-  ALCANCE, BORDA_DIR, BORDA_ESQ, POOL, TRECHO, paisagem, type Marco,
+  ALCANCE, BORDA_DIR, BORDA_ESQ, FILEIRAS, POOL, TRECHO, paisagem, type Marco,
 } from './paisagem'
 
-export { ALCANCE, BORDA_DIR, BORDA_ESQ, POOL, TRECHO, paisagem }
+export { ALCANCE, BORDA_DIR, BORDA_ESQ, FILEIRAS, POOL, TRECHO, paisagem }
 export type { Marco }
 
 const MODELO = './modelos/via.glb'
@@ -278,13 +279,16 @@ function Pedestre({
  * fez o certo não fica preso, mas também não passa antes da hora.
  */
 function OnibusEscolar({
-  molde, moldeCrianca, distancia, metro, liberado,
+  molde, moldeCrianca, distancia, metro, liberado, onde,
 }: {
   molde: THREE.Object3D | null
   moldeCrianca: THREE.Object3D | null
   distancia: React.RefObject<number>
   metro: number | null
   liberado: React.RefObject<boolean>
+  /** Onde ele está AGORA, em metros de trajeto. O Motor lê para não
+      atravessá-lo depois que ele arranca. */
+  onde: React.RefObject<number | null>
 }) {
   const grupo = useRef<THREE.Group>(null)
   const criancas = useRef<THREE.Group>(null)
@@ -309,6 +313,8 @@ function OnibusEscolar({
   const embarcou = useRef(0)
   /** Quanto o ônibus já andou depois de arrancar, em metros. */
   const saiu = useRef(0)
+  /** Null até o primeiro quadro; o atalho `?m=` decide o que fazer nele. */
+  const nasceu = useRef(false)
 
   useFrame((_, bruto) => {
     const g = grupo.current
@@ -317,20 +323,50 @@ function OnibusEscolar({
     const d = distancia.current ?? 0
     const z = metro - d
 
+    // Entrando pelo atalho `?m=` DEPOIS do embarque, ele já foi embora: sem
+    // isto ele nasce atrás do jogador com `liberado` ligado e passa por cima
+    // dele indo para a frente, que é o contrário do que aconteceu.
+    if (!nasceu.current) {
+      nasceu.current = true
+      if (liberado.current && z < 0) saiu.current = ALCANCE - z
+    }
+
     // embarque começa quando o jogador está perto o bastante para ver
     if (!liberado.current && z < 60) {
       embarcou.current = Math.min(1, embarcou.current + dt / 4.5)
     }
     if (liberado.current) {
-      // arranca devagar e vai embora: 2 m/s² até 9 m/s
-      saiu.current += Math.min(9, 2 + saiu.current * 0.6) * dt
+      // Arranca devagar e VAI EMBORA DE VERDADE.
+      //
+      // O teto antigo era 9 m/s, e o caminhão faz 25 (`VEICULO.maxima`):
+      // quem pisava fundo na saída alcançava o ônibus. Com a trava de
+      // distância agora seguindo o ônibus, alcançar não atravessa mais — mas
+      // prende o jogador atrás dele a 32 km/h pelos 760 m restantes, o que é
+      // trocar um defeito por outro.
+      //
+      // O teto é a máxima do caminhão: assim o vão só aumenta, a trava nunca
+      // mais encosta depois do embarque, e o ônibus sai de cena sozinho. Na
+      // prática ninguém vê essa velocidade — quem respeita os 30 km/h do
+      // trecho escolar vê uma arrancada normal e o ônibus sumindo à frente.
+      saiu.current += Math.min(VEICULO.maxima, 2 + saiu.current * 0.6) * dt
     }
     for (let i = 0; i < filhos.length; i++) {
       const minha = (i + 1) / filhos.length
       filhos[i].visible = embarcou.current < minha
     }
-    g.position.set(-1.0, 0, z + saiu.current)
-    g.visible = z + saiu.current > -30 && z < ALCANCE
+    // ELE FUGIA PARA SEMPRE.
+    //
+    // O corte de frente usava o `z` PARADO, não o z de verdade (`z + saiu`):
+    // depois de arrancar, `saiu` crescia sem teto e o ônibus continuava
+    // visível a qualquer distância, porque `z < ALCANCE` seguia valendo com o
+    // z antigo. Medido entrando com `?m=600` (depois do evento, em 580, logo
+    // `liberado` já nasce verdadeiro): o ônibus estava em z = 1097 m, ainda
+    // com `visible` ligado, tendo atravessado a tela inteira de trás para a
+    // frente enquanto o caminhão estava parado.
+    const zf = z + saiu.current
+    g.position.set(-1.0, 0, zf)
+    g.visible = zf > -30 && zf < ALCANCE
+    onde.current = metro + saiu.current
     if (criancas.current) criancas.current.visible = saiu.current < 1
   })
 
@@ -363,12 +399,20 @@ function OnibusEscolar({
 // não se vê não faz ninguém reduzir. O vaivém é curto pelo mesmo motivo de
 // nunca entrarem na pista: o risco que a fase ensina é o de alguém PODER
 // entrar, e para isso basta estar perto o bastante para assustar.
+//
+// E ELES PISAVAM NO ASFALTO. Medido: com o vaivém no extremo, quatro dos
+// cinco entravam na pista — o de x -2,4 chegava a -0,98, que é 0,77 m dentro
+// do asfalto (que vai de -1,75 a 5,25), bem na frente do caminhão e sem
+// colisão nenhuma. O comentário acima já dizia "ninguém entra na pista"; a
+// conta é que não dizia. Agora os limites saem da medida: no extremo do
+// vaivém a silhueta para a 10 cm da beira do asfalto, e do outro lado a 10 cm
+// do veículo estacionado.
 const NO_PATIO: { metro: number; x: number; ida: number; giro: number }[] = [
-  { metro: 16, x: -2.5, ida: 0.8, giro: 0 },
-  { metro: 33, x: 5.9, ida: -0.9, giro: Math.PI },
-  { metro: 52, x: -2.7, ida: 0.7, giro: 0 },
-  { metro: 68, x: 6.1, ida: -0.8, giro: Math.PI },
-  { metro: 88, x: -2.4, ida: 1.0, giro: 0 },
+  { metro: 16, x: -3.0, ida: 0.6, giro: 0 },
+  { metro: 33, x: 6.5, ida: -0.6, giro: Math.PI },
+  { metro: 52, x: -3.05, ida: 0.6, giro: 0 },
+  { metro: 68, x: 6.6, ida: -0.6, giro: Math.PI },
+  { metro: 88, x: -2.95, ida: 0.6, giro: 0 },
 ]
 
 function PessoasDoPatio({
@@ -471,7 +515,7 @@ function Garagem({
 
 export function Mundo({
   distancia, marcos, carro, tracado, sinal, garagem, faixa, pedestreLiberado,
-  onibus, onibusLiberado,
+  onibus, onibusLiberado, onibusOnde,
 }: {
   distancia: React.RefObject<number>
   marcos: Marco[]
@@ -484,6 +528,8 @@ export function Mundo({
   /** Metro do ônibus escolar, e se ele já arrancou. */
   onibus: number | null
   onibusLiberado: React.RefObject<boolean>
+  /** Onde o ônibus está agora; o Motor lê para parar atrás dele. */
+  onibusOnde: React.RefObject<number | null>
   /** Metro da faixa de pedestre, e se o pedestre já atravessou. */
   faixa: number | null
   pedestreLiberado: React.RefObject<boolean>
@@ -648,15 +694,18 @@ export function Mundo({
     <group ref={raiz}>
       {chaoClone && <primitive object={chaoClone} position={[0, 0, 0]} />}
       <Pista molde={moldes.trecho} distancia={distancia} />
-      {(['poste', 'cabos', 'arvore', 'arbusto', 'casa', 'escola', 'muro_patio', 'placa',
-        'lombada', 'faixa_pedestre', 'semaforo', 'onibus',
-        'ciclista'] as const).map((nome) => (
+      {/*
+        A lista vem do POOL, não escrita à mão aqui.
+        Escrita à mão ela esqueceu `carro`: os 6 carros do pátio eram
+        calculados a cada quadro e jogados fora, e nenhum auto-teste viu.
+      */}
+      {FILEIRAS.map((nome) => (
         <Fileira
           key={nome}
           molde={moldes[nome]}
           marcos={porPeca[nome] ?? []}
           distancia={distancia}
-          limite={POOL[nome] ?? 10}
+          limite={POOL[nome]}
         />
       ))}
       <group ref={grupoCarro} visible={false}>
@@ -674,6 +723,7 @@ export function Mundo({
         distancia={distancia}
         metro={onibus}
         liberado={onibusLiberado}
+        onde={onibusOnde}
       />
       <PessoasDoPatio molde={moldes.pedestre} distancia={distancia} />
       <Contrafluxo molde={moldes.carro} distancia={distancia} />
