@@ -431,40 +431,80 @@ body {
 .sinal-amarelo { color: var(--ambar); border-color: #7a5d12; }
 .sinal-vermelho { color: var(--vermelho); border-color: #6b2b22; }
 
-/* A chamada. Entra pelo canto de baixo, longe dos pedais, para o jogador não
-   acertar um botão quando quer o outro — é o momento do trajeto em que ele
-   está com a mão apoiada no pedal. */
+/* A CHAMADA, desenhada como tela de celular.
+   Era um cartão escuro com dois botões de formulário. Agora tem o que uma
+   chamada tem — estado, quem liga, e os dois botões redondos na cor que todo
+   mundo já aprendeu: vermelho recusa, verde atende. Não é enfeite: o jogador
+   tem meio segundo para decidir enquanto dirige, e nesse tempo ele lê COR e
+   FORMA, não texto.
+
+   Encostada à esquerda, acima do velocímetro: no meio da tela ela tapava a
+   pista justamente enquanto o veículo anda, e a decisão é NÃO desviar a
+   atenção da via — a interface não pode ensinar o contrário do exercício. */
 .trajeto-chamada {
-  /* Encostada à esquerda, acima do velocímetro: no meio da tela ela tapava a
-     pista justamente enquanto o veículo anda, e a decisão é NÃO desviar a
-     atenção da via — a interface não pode ensinar o contrário do exercício. */
-  position: absolute; left: 22px; bottom: 136px;
-  width: min(330px, calc(100% - 44px));
-  background: var(--painel); border: 1px solid var(--borda);
-  border-radius: 18px; padding: 18px 20px 16px;
-  box-shadow: 0 18px 44px #0009;
-  animation: chamada-entra 0.22s ease-out;
+  position: absolute; left: 22px; bottom: 150px;
+  animation: chamada-entra 0.26s cubic-bezier(.2,.9,.3,1.2);
 }
 @keyframes chamada-entra {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(16px) scale(.96); }
+  to { opacity: 1; transform: none; }
 }
-.chamada-quem { font-size: 17px; font-weight: 600; }
-.chamada-quem::before {
-  content: ''; display: inline-block; width: 9px; height: 9px;
-  margin-right: 9px; border-radius: 50%; background: var(--verde-claro);
+.fone {
+  width: 212px; padding: 18px 16px 16px; border-radius: 26px;
+  background: linear-gradient(#1b2430, #121922);
+  border: 1px solid #39465a;
+  box-shadow: 0 22px 50px #000b, inset 0 1px 0 #ffffff1a;
+  text-align: center;
+}
+.fone-estado {
+  font-size: 11px; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--texto-fraco);
+}
+.fone-estado::before {
+  content: ''; display: inline-block; width: 7px; height: 7px;
+  margin-right: 7px; border-radius: 50%; background: var(--verde-claro);
   animation: chamada-toca 1s steps(1) infinite;
 }
 @keyframes chamada-toca { 50% { opacity: 0.15; } }
-.chamada-nota { font-size: 14px; color: var(--texto-fraco); margin-top: 2px; }
-.chamada-botoes { display: flex; gap: 10px; margin-top: 14px; }
-.chamada-botoes button {
-  flex: 1; padding: 13px 10px; border-radius: 11px; font: inherit;
-  font-size: 15px; font-weight: 600; cursor: pointer; color: var(--texto);
-  border: 1px solid var(--borda); background: var(--painel-claro);
+.fone-avatar {
+  width: 62px; height: 62px; margin: 13px auto 10px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 25px; font-weight: 600; color: #cfe0ff;
+  background: #2b3a4d; border: 1px solid #44566e;
 }
-.chamada-recusa { border-color: #1d6b4a; background: #14302a; }
-.chamada-atende { border-color: #6b2b22; background: #2a1512; }
+.fone-quem { font-size: 18px; font-weight: 600; }
+.fone-nota { font-size: 12px; color: var(--texto-fraco); margin-top: 2px; }
+.fone-botoes {
+  display: flex; gap: 14px; margin-top: 16px; justify-content: center;
+}
+.fone-botoes button {
+  flex: 1; display: grid; justify-items: center; gap: 6px;
+  padding: 11px 4px 9px; border-radius: 16px; border: 1px solid transparent;
+  font: inherit; font-size: 11px; font-weight: 600; cursor: pointer;
+  color: var(--texto);
+}
+.fone-botoes svg {
+  width: 26px; height: 26px; fill: currentColor; stroke: currentColor;
+  stroke-width: 1.6; stroke-linecap: round;
+}
+.fone-recusa { background: #3a1613; border-color: #7a3127; color: #ff9c8c; }
+.fone-recusa svg { fill: none; }
+.fone-atende { background: #11331f; border-color: #1f6b3f; color: #86e6ac; }
+.fone-atende svg { stroke: none; }
+
+/* LEGENDA da fala. A voz é sílaba inventada de propósito — quem carrega o
+   sentido é esta linha, e por isso ela fica grande e no caminho do olhar,
+   não num rodapé. */
+.trajeto-legenda {
+  position: absolute; left: 50%; bottom: 182px; transform: translateX(-50%);
+  max-width: min(520px, calc(100% - 36px));
+  padding: 11px 20px; border-radius: 12px;
+  background: #080c11d9; border: 1px solid #ffffff1f;
+  font-size: 17px; line-height: 1.35; text-align: center;
+  text-shadow: 0 1px 3px #000; pointer-events: none;
+  animation: legenda-entra .18s ease-out;
+}
+@keyframes legenda-entra { from { opacity: 0 } to { opacity: 1 } }
 
 /* Velocímetro de ARCO.
    A caixa de antes era um número grande num retângulo — lia como depuração.
@@ -562,7 +602,8 @@ body {
   .trajeto-velocimetro circle { stroke-width: 11; }
   .trajeto-dica { display: none; }
   .trajeto-sinal { top: 62px; right: 12px; padding: 7px 13px 7px 10px; }
-  .trajeto-chamada { bottom: 210px; left: 12px; }
+  .trajeto-chamada { bottom: 216px; left: 12px; }
+  .trajeto-legenda { bottom: 250px; font-size: 15px; padding: 9px 14px; }
 }
 
 /* ------------------------------------------------------------- ocorrência */
@@ -728,4 +769,18 @@ body {
     padding: clamp(20px, 5vw, 40px); max-width: none; align-self: start;
     overflow-y: auto; max-height: 100%;
   }
+}
+
+/* Chegada ao local: a tela esmaece antes de entregar a fase.
+   O corte seco fazia parecer troca de slide. Um segundo e meio de preto
+   crescendo dá ao olho o tempo de registrar que o caminhão parou ao lado do
+   poste — que é a informação que a fase 3 começa pressupondo. */
+.trajeto-chegada {
+  position: absolute; inset: 0; background: #05080c;
+  pointer-events: none; animation: chegada-esmaece 1.5s ease-in forwards;
+}
+@keyframes chegada-esmaece {
+  from { opacity: 0 }
+  55% { opacity: .55 }
+  to { opacity: 1 }
 }

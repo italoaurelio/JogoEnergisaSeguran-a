@@ -336,6 +336,60 @@ export const som = {
     }
   })(),
 
+  /**
+   * Fala sem palavra: sílabas com contorno de altura, tipo simlish.
+   *
+   * Por que inventar a língua em vez de gravar: voz gravada traria arquivo,
+   * sotaque e licença num jogo que vira `.exe` offline — e, pior, fixaria um
+   * timbre de pessoa num personagem que o jogador acabou de montar. Sílaba
+   * sintética entrega a INTENÇÃO (quem fala, com que ânimo) e deixa o sentido
+   * para a legenda, que é onde ele tem de estar mesmo num treinamento.
+   *
+   * O que faz soar humano não é o timbre, são dois formantes se movendo
+   * junto com a fundamental. Uma onda só soa como apito de micro-ondas.
+   */
+  fala(silabas = 6, grave = 1) {
+    const c = ligar()
+    if (!c || !mestre) return
+    let t = c.currentTime + 0.05
+    const base = 128 / grave
+    for (let i = 0; i < silabas; i++) {
+      const dur = 0.13 + Math.random() * 0.1
+      // a frase cai no fim, que é o que faz soar afirmação e não pergunta
+      const queda = i / Math.max(1, silabas - 1)
+      const f0 = base * (1.06 - queda * 0.22) * (0.94 + Math.random() * 0.13)
+      const o = c.createOscillator()
+      o.type = 'sawtooth'
+      o.frequency.setValueAtTime(f0, t)
+      o.frequency.linearRampToValueAtTime(f0 * (0.9 + Math.random() * 0.2), t + dur)
+      const g = c.createGain()
+      g.gain.setValueAtTime(0.0001, t)
+      g.gain.exponentialRampToValueAtTime(0.085, t + 0.03)
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur)
+      // dois formantes: é o par deles que o ouvido lê como vogal
+      const vogais: [number, number][] = [
+        [730, 1090], [530, 1840], [390, 1990], [570, 840], [300, 870],
+      ]
+      const [f1, f2] = vogais[Math.floor(Math.random() * vogais.length)]
+      let fim: AudioNode = o
+      for (const [fr, q, gg] of [[f1, 7, 1.0], [f2, 9, 0.6]] as const) {
+        const bp = c.createBiquadFilter()
+        bp.type = 'bandpass'
+        bp.frequency.value = fr
+        bp.Q.value = q
+        const amp = c.createGain()
+        amp.gain.value = gg
+        fim.connect(bp).connect(amp)
+        fim = amp
+      }
+      fim.connect(g).connect(mestre)
+      o.start(t)
+      o.stop(t + dur + 0.02)
+      t += dur + 0.045 + Math.random() * 0.05
+    }
+    return t - c.currentTime
+  },
+
   get mudo() { return mudo },
 
   alternarMudo() {

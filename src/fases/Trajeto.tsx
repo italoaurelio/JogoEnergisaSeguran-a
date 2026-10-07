@@ -16,7 +16,7 @@ import {
 import { Canvas, useFrame } from '@react-three/fiber'
 import { som } from '../som'
 import { Acabamento } from '../cena/Acabamento'
-import { ZONA_ESCOLA } from '../cena/paisagem'
+import { BORDA_DIR, ZONA_ESCOLA } from '../cena/paisagem'
 import { Environment, Sky } from '@react-three/drei'
 import * as THREE from 'three'
 import { Mundo, paisagem, type Marco } from '../cena/Via'
@@ -36,6 +36,18 @@ import type { Registro } from '../conteudo/pontuacao'
  * caminhão. Menos que isso e a câmera entra dentro da lataria.
  */
 const PARAR_ATRAS_DO_ONIBUS = 9
+
+/**
+ * Últimos metros do trajeto, onde o veículo encosta sozinho.
+ *
+ * O jogador pode estar com o pé no acelerador quando chega — e terminar a
+ * fase a 60 km/h, com corte seco para a ocorrência, lia como "a tela trocou",
+ * não como "cheguei". Aqui a velocidade passa a ser limitada por
+ * `restante / 4`, o que faz o caminhão desacelerar sozinho e parar no ponto,
+ * ao lado do poste. Acelerar no fim não muda nada, que é o que acontece
+ * quando se chega mesmo.
+ */
+const CHEGADA_M = 70
 
 /** Fim de escala do velocímetro. O trecho mais rápido é 60 km/h. */
 const ESCALA_VELOCIMETRO = 80
@@ -182,6 +194,17 @@ export default function Fase2Trajeto({
   // Aqui o laço de quadro escreve direto no DOM do painel.
   const painel = useRef<PainelAPI>(null)
   const [acabou, setAcabou] = useState(false)
+  /** Legenda da fala do personagem. Estado, porque é texto na tela. */
+  const [legenda, setLegenda] = useState<string | null>(null)
+  /** O celular está à vista no painel (toca) ou guardado. */
+  const [foneAVista, setFoneAVista] = useState(false)
+  /** Chegou ao local: a tela esmaece antes de entregar a fase. */
+  const [chegando, setChegando] = useState(false)
+  useEffect(() => {
+    if (!chegando) return
+    const id = window.setTimeout(terminar, 1500)
+    return () => window.clearTimeout(id)
+  }, [chegando])
 
   const marcos = useMemo<Marco[]>(() => {
     const base = paisagem(DISTANCIA_TOTAL)
@@ -195,6 +218,12 @@ export default function Fase2Trajeto({
       if (e.tipo === 'onibus') base.push({ peca: 'onibus', metro: e.metro, x: -1.0 })
       // o ciclista anda junto à borda direita
       if (e.tipo === 'ciclista') base.push({ peca: 'ciclista', metro: e.metro, x: -1.3 })
+    }
+    // O poste do DESTINO, na direita e bem na beira: é nele que o caminhão
+    // encosta, e é ele que diz "é aqui" sem precisar de texto.
+    base.push({ peca: 'poste', metro: DISTANCIA_TOTAL + 4, x: BORDA_DIR - 0.9 })
+    base.push({ peca: 'cabos', metro: DISTANCIA_TOTAL + 4, x: BORDA_DIR - 0.9 })
+    if (false) {
     }
     return base
   }, [])
@@ -252,7 +281,8 @@ export default function Fase2Trajeto({
           />
           <group position={[0, ALTURA_CABINE, 0]}>
             <Cabine ligados={['cinto_afivelado', 'retro_ok', 'apoio_alto',
-                              'celular_guardado', 'checklist_feito']} />
+                              foneAVista ? 'celular' : 'celular_guardado',
+                              'checklist_feito']} />
           </group>
           <Mundo
             distancia={distancia}
@@ -281,14 +311,20 @@ export default function Fase2Trajeto({
             sinal={sinal}
             celular={celular}
             painel={painel}
-            aoTerminar={terminar}
+            aoChegar={() => setChegando(true)}
+            mostrarFone={setFoneAVista}
+            dizer={setLegenda}
           />
-          <CameraFixa distancia={distancia} />
+          <CameraFixa distancia={distancia} celular={celular} />
           <Acabamento raio={2.0} />
         </Canvas>
       </div>
 
       <Painel ref={painel} pedal={pedal} celular={celular} />
+      {chegando && <div className="trajeto-chegada" aria-hidden />}
+      {legenda && (
+        <p className="trajeto-legenda" role="status">{legenda}</p>
+      )}
     </div>
   )
 }
@@ -299,9 +335,28 @@ export default function Fase2Trajeto({
  * A inclinação na curva é pequena de propósito (no máximo 1,7°): a dobra
  * acontece no cenário, e exagerar aqui briga com o que os olhos veem e enjoa.
  */
-function CameraFixa({ distancia }: { distancia: React.RefObject<number> }) {
+/**
+ * Onde o celular fica no painel, em coordenada de jogo.
+ *
+ * Sai da caixa envolvente do nó `celular` do `cabine.glb` — Blender
+ * (−0,10, −0,455, 0,910) vira jogo (x, z, −y) e sobe `ALTURA_CABINE`.
+ */
+const ONDE_CELULAR: [number, number, number] = [-0.10, 0.91 + ALTURA_CABINE, 0.455]
+
+function CameraFixa({
+  distancia, celular,
+}: {
+  distancia: React.RefObject<number>
+  celular: CelularRef
+}) {
   const { current: base } = useRef(new THREE.Vector3(...OLHO))
   const inclinacao = useRef(0)
+  /** 0 olhando a via, 1 olhando o celular. */
+  const desvio = useRef(0)
+  const mira = useRef(new THREE.Vector3())
+  const naVia = useRef(new THREE.Vector3())
+  const noFone = useRef(new THREE.Vector3(...ONDE_CELULAR))
+
   useFrame(({ camera, clock }, dt) => {
     const t = clock.elapsedTime
     camera.position.set(
@@ -309,7 +364,19 @@ function CameraFixa({ distancia }: { distancia: React.RefObject<number> }) {
       base.y + Math.sin(t * 3.3) * 0.005,
       base.z,
     )
-    camera.lookAt(base.x + 0.02, base.y - 0.42, base.z + 6)
+    // A cabeça vira para o celular quando ele toca, e volta sozinha. Ela vira
+    // DEVAGAR (1,6 s de ida) de propósito: é o tempo que o olhar fica fora da
+    // via, e é isso que a fase está ensinando a não fazer. Instantâneo não
+    // custa nada, e o que não custa nada não ensina.
+    // 0,55 e não 1: virar a cabeça INTEIRA para o painel tira a via do
+    // quadro e vira cena de cinema. O motorista que atende dá uma OLHADA —
+    // e é a olhada, com a via ainda meio à vista, que mostra o risco. Virar
+    // tudo esconde justamente o que está em jogo.
+    const alvoDesvio = celular.current === 'tocando' ? 0.55 : 0
+    desvio.current += (alvoDesvio - desvio.current) * Math.min(1, dt * 1.6)
+    naVia.current.set(base.x + 0.02, base.y - 0.42, base.z + 6)
+    mira.current.copy(naVia.current).lerp(noFone.current, desvio.current)
+    camera.lookAt(mira.current)
     const alvo = -perfilEm(TRACADO, distancia.current ?? 0).curva * 0.03
     inclinacao.current += (alvo - inclinacao.current) * Math.min(1, dt * 2.5)
     camera.rotateZ(inclinacao.current)
@@ -319,7 +386,7 @@ function CameraFixa({ distancia }: { distancia: React.RefObject<number> }) {
 
 function Motor({
   distancia, velocidade, pedal, carro, faltas, pedestreLiberado, onibusLiberado,
-  garagemLiberada, sinal, celular, painel, aoTerminar,
+  garagemLiberada, sinal, celular, painel, aoChegar, mostrarFone, dizer,
 }: {
   distancia: React.RefObject<number>
   velocidade: React.RefObject<number>
@@ -332,7 +399,9 @@ function Motor({
   sinal: React.RefObject<number>
   celular: React.RefObject<'dormindo' | 'tocando' | 'atendeu' | 'ignorou'>
   painel: React.RefObject<PainelAPI | null>
-  aoTerminar: () => void
+  aoChegar: () => void
+  mostrarFone: (v: boolean) => void
+  dizer: (texto: string | null) => void
 }) {
   const desdeAtualizacao = useRef(0)
   const paradoDesde = useRef(0)
@@ -341,6 +410,7 @@ function Motor({
   const esperouGaragem = useRef(0)
   const buzinou = useRef(false)
   const esperouOnibus = useRef(0)
+  const chegou = useRef(false)
   // mesmo motivo do pedestreLiberado: o que ficou para trás já está resolvido
   const passouNoSinal = useRef(
     (distancia.current ?? 0) > (evento('semaforo')?.metro ?? 0),
@@ -471,11 +541,22 @@ function Motor({
     if (evCel && celular.current === 'dormindo' && d >= evCel.metro) {
       celular.current = 'tocando'
       painel.current?.celular(true)
+      mostrarFone(true)
       som.telefone()
     }
     if (celular.current === 'atendeu' && !julgados.current.celular) {
       julgados.current.celular = true
       contar(faltas, 'celular', 1)
+      mostrarFone(false)
+    }
+    // Recusou: o personagem fala. A legenda carrega o sentido e a voz carrega
+    // só a intenção — é de propósito que não dê para entender a palavra.
+    if (celular.current === 'ignorou' && !julgados.current.recusou) {
+      julgados.current.recusou = true
+      mostrarFone(false)
+      const dura = som.fala(7) ?? 1.6
+      dizer('Não devo atender dirigindo.')
+      window.setTimeout(() => dizer(null), (dura + 1.4) * 1000)
     }
 
     /** Até onde o veículo pode ir neste quadro. Null = sem obstáculo. */
@@ -557,6 +638,16 @@ function Motor({
       contar(faltas, 'lento', dt)
     }
 
+    // chegada: o veículo encosta sozinho nos últimos metros
+    const restante = DISTANCIA_TOTAL - d
+    if (restante < CHEGADA_M) {
+      // O piso de 1,5 m/s existe para não virar rastejo: `restante / 4` puro
+      // é decaimento exponencial, e os últimos 70 m levariam 21 s com o
+      // caminhão quase parado no fim. Com o piso ele encosta andando, e quem
+      // para o movimento é o esmaecer.
+      v = Math.min(v, Math.max(1.5, restante / 4))
+    }
+
     if (teto != null && d >= teto) {
       // encostou na traseira do ônibus: para e fica parado
       v = 0
@@ -602,7 +693,13 @@ function Motor({
         ateGaragem,
       })
     }
-    if (distancia.current >= DISTANCIA_TOTAL) aoTerminar()
+    // Chegou: a tela esmaece ANTES de trocar de fase. O corte seco fazia
+    // parecer troca de slide; o esmaecer dá o segundo que o olho precisa para
+    // registrar que o caminhão parou ao lado do poste.
+    if (distancia.current >= DISTANCIA_TOTAL - 0.4 && !chegou.current) {
+      chegou.current = true
+      aoChegar()
+    }
   })
   return null
 }
@@ -765,21 +862,32 @@ const Painel = forwardRef<
 
         {chamando && (
           <div className="trajeto-chamada" role="dialog" aria-live="polite">
-            <p className="chamada-quem">Chamada · Supervisão</p>
-            <p className="chamada-nota">Você está dirigindo.</p>
-            <div className="chamada-botoes">
-              <button
-                className="chamada-recusa"
-                onClick={() => { celular.current = 'ignorou'; setChamando(false) }}
-              >
-                Deixar tocar
-              </button>
-              <button
-                className="chamada-atende"
-                onClick={() => { celular.current = 'atendeu'; setChamando(false) }}
-              >
-                Atender
-              </button>
+            <div className="fone">
+              <p className="fone-estado">Chamada recebida</p>
+              <div className="fone-avatar" aria-hidden>S</div>
+              <p className="fone-quem">Supervisão</p>
+              <p className="fone-nota">Você está dirigindo</p>
+              <div className="fone-botoes">
+                <button
+                  className="fone-recusa"
+                  onClick={() => { celular.current = 'ignorou'; setChamando(false) }}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden>
+                    <path d="M3 10.5c5-4 13-4 18 0l-2.2 3-3.6-1.1-.4-2.4a12 12 0 0 0-5.6 0l-.4 2.4-3.6 1.1Z" />
+                    <path d="M4 20 20 4" />
+                  </svg>
+                  Deixar tocar
+                </button>
+                <button
+                  className="fone-atende"
+                  onClick={() => { celular.current = 'atendeu'; setChamando(false) }}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden>
+                    <path d="M7.5 4.5 9.8 9l-2 1.8a12 12 0 0 0 5.4 5.4l1.8-2 4.5 2.3-1 3.1a2 2 0 0 1-2.1 1.3C9.6 20.2 3.8 14.4 2.9 7.6A2 2 0 0 1 4.2 5.5Z" />
+                  </svg>
+                  Atender
+                </button>
+              </div>
             </div>
           </div>
         )}
