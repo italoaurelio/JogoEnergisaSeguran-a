@@ -542,6 +542,29 @@ body {
   .trajeto-velocimetro strong { font-size: 36px; }
 }
 
+/* Tela estreita: velocímetro e pedais lado a lado precisam de 436 px (152 do
+   mostrador + 226 dos dois pedais + folga), e num painel de 335 px eles se
+   SOBREPÕEM — os botões cobriam o número. Medido, não suposto.
+
+   Empilhado: pedais ocupando a largura toda embaixo, que é onde o polegar
+   alcança, e o mostrador acima deles. */
+@media (max-width: 460px) {
+  .trajeto-pedais {
+    left: 12px; right: 12px; bottom: 14px; gap: 10px;
+  }
+  .pedal { flex: 1; width: auto; height: 84px; }
+  .trajeto-velocimetro {
+    left: 12px; bottom: 110px; width: 112px; height: 112px;
+  }
+  .trajeto-velocimetro strong { font-size: 32px; margin-top: 8px; }
+  .trajeto-velocimetro span { top: 70px; font-size: 11px; }
+  .trajeto-velocimetro em { bottom: 8px; font-size: 11px; }
+  .trajeto-velocimetro circle { stroke-width: 11; }
+  .trajeto-dica { display: none; }
+  .trajeto-sinal { top: 62px; right: 12px; padding: 7px 13px 7px 10px; }
+  .trajeto-chamada { bottom: 210px; left: 12px; }
+}
+
 /* ------------------------------------------------------------- ocorrência */
 .passos .perdido { color: var(--vermelho); }
 .passos .perdido .selo { background: #2a1512; color: var(--vermelho); }

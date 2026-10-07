@@ -187,7 +187,19 @@ function Contrafluxo({
       // passou do jogador: volta para o fim da fila, lá na frente. O resto da
       // divisão por 5 (e não por 3) evita que os reciclados voltem sempre nas
       // mesmas três distâncias e formem comboio visível.
-      if (p[i] < d - 25) p[i] = d + ALCANCE + deslocamento + (i % 5) * 32
+      // Recicla ATRÁS DO ÚLTIMO, não numa das cinco posições fixas que a
+      // conta antiga usava. Com cinco destinos possíveis e onze veículos,
+      // dois que reciclam perto um do outro caíam no MESMO ponto — e, como
+      // todos andam na mesma velocidade, ficavam grudados para sempre.
+      // Medido dirigindo a fase: dois carros em z=0 exatamente, e outro par
+      // a 5 m, que é menos que o comprimento de um carro.
+      //
+      // Entrar no fim da fila mantém o vão constante por construção.
+      if (p[i] < d - 25) {
+        let ultimo = d + ALCANCE
+        for (let j = 0; j < p.length; j++) if (j !== i && p[j] > ultimo) ultimo = p[j]
+        p[i] = ultimo + vao
+      }
       const z = p[i] - d
       copias[i].position.z = z
       copias[i].visible = z > -25 && z < ALCANCE
