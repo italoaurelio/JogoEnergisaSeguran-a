@@ -2,7 +2,7 @@
  * A cena da ocorrência: poste com transformador na via.
  *
  * O cenário fixo vem assado do Blender. As peças que o jogador posiciona —
- * caminhonete, cones, cavalete, fita — são nós separados, instanciados aqui
+ * caminhão, cones, cavalete, fita — são nós separados, instanciados aqui
  * conforme as decisões da fase 3a. É o mesmo padrão do EPI e da cabine: o que
  * o jogador decide, ele vê acontecer.
  */

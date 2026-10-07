@@ -44,7 +44,7 @@ export const CHEGADA: DecisaoChegada[] = [
   {
     id: 'posicao_veiculo',
     nome: 'Posição do veículo',
-    pergunta: 'Onde parar a caminhonete?',
+    pergunta: 'Onde parar o caminhão?',
     opcoes: [
       {
         id: 'protegendo',
@@ -105,7 +105,7 @@ export const CHEGADA: DecisaoChegada[] = [
     // quadro.
     //
     // A câmera antiga enfiava o olhar pela via afora (alvo em x=-22) com
-    // teleobjetiva: aparecia a caminhonete e asfalto vazio, e o poste —
+    // teleobjetiva: aparecia o caminhão e asfalto vazio, e o poste —
     // que é a área de trabalho — ficava fora da tela. A pergunta é "a que
     // distância da ÁREA", e a área não estava na imagem: não dava para
     // julgar distância nenhuma.

@@ -25,12 +25,19 @@ import type { Registro } from '../conteudo/pontuacao'
 
 const Q = Math.PI / 2
 
-/** Onde cada escolha põe a caminhonete. A rua corre no eixo X. */
+/** Onde cada escolha põe o caminhão. A rua corre no eixo X. */
 const POSICOES_VEICULO: Record<string, Colocada> = {
   protegendo: { peca: 'oc_veiculo', pos: [-8.5, 0, 2.6] },
   depois: { peca: 'oc_veiculo', pos: [8.5, 0, 2.6] },
   calcada: { peca: 'oc_veiculo', pos: [-5.5, 0, -2.9] },
 }
+
+/**
+ * Posição de espera: na pista, bem antes da área, no sentido do fluxo. É de
+ * onde o caminhão "chega" — e é o que dá ao jogador a escala e o sentido do
+ * trânsito para responder a primeira pergunta.
+ */
+const CHEGANDO: Colocada = { peca: 'oc_veiculo', pos: [-19.5, 0, 2.6] }
 
 const SINALIZACAO: Record<string, Colocada[]> = {
   compativel: [
@@ -94,6 +101,11 @@ export default function Fase3Ocorrencia({
     const saida: Colocada[] = []
     const v = escolhas.posicao_veiculo
     if (v && POSICOES_VEICULO[v]) saida.push(POSICOES_VEICULO[v])
+    // Antes de escolher, o caminhão aparece PARADO ATRÁS, recém-chegado. Sem
+    // isto a pergunta "onde parar o caminhão?" vinha sem caminhão nenhum em
+    // quadro: o jogador via rua e casas e tinha de imaginar o veículo, o
+    // tamanho dele e de que lado o trânsito vem. Quem não vê, chuta.
+    else if (etapa === 'chegada') saida.push(CHEGANDO)
     const s = escolhas.distancia_sinalizacao
     if (s) saida.push(...(SINALIZACAO[s] ?? []))
     const a = escolhas.area_trabalho

@@ -99,7 +99,13 @@ def mat_vidro():
     return mat
 
 
-def mat_cinto(cor=(0.062, 0.064, 0.070)):
+# Cinza medio, nao preto. O cinto e o item que mais vale ponto da fase 2a e
+# a pergunta e "ele esta como precisa estar?" — com albedo 0,062 ele sumia
+# contra o pilar, que tem 0,072. O proprio comentario de `cinto()` ja dizia
+# que a fita tinha sido ALARGADA para nao sumir; alargar nao resolve
+# contraste, cor resolve. Cinto cinza e comum em frota, entao nao custa
+# realismo nenhum.
+def mat_cinto(cor=(0.175, 0.180, 0.192)):
     mat = C.mat_simples("cinto", cor, rugosidade=0.78)
     b = mat.node_tree.nodes["Principled BSDF"]
     if "Sheen Weight" in b.inputs:
@@ -460,7 +466,10 @@ def freio_de_mao(puxado=True):
         v.co += base + Vector((0, -0.13 * math.cos(ang), -0.13 * math.sin(ang)))
     bm.to_mesh(alavanca.data); bm.free(); alavanca.data.update()
     C.chanfrar(alavanca, largura=0.010, segmentos=2)
-    C.aplicar(alavanca, C.mat_simples("freio", (0.024, 0.025, 0.028),
+    # Mesmo problema do cinto: com albedo 0,024 a alavanca e preta sobre um
+    # console preto e a pergunta nao tem resposta na imagem. Cinza de borracha
+    # de coifa, que e o que cobre alavanca de freio de verdade.
+    C.aplicar(alavanca, C.mat_simples("freio", (0.105, 0.108, 0.116),
                                       rugosidade=0.58))
     return [alavanca]
 

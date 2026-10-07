@@ -138,7 +138,7 @@ export const TRAJETO: Trecho[] = [
 
 export const DISTANCIA_TOTAL = TRAJETO.reduce((t, s) => t + s.metros, 0)
 
-/** Física do veículo. Valores de caminhonete carregada, arredondados. */
+/** Física do veículo. Valores de caminhão carregado, arredondados. */
 export const VEICULO = {
   aceleracao: 2.0,        // m/s²
   freio: 5.2,             // m/s²

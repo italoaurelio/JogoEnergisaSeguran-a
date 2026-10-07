@@ -51,7 +51,16 @@ export const ITENS_CABINE: ItemCabine[] = [
       'É o equipamento que mais salva vida em veículo, e o mais fácil de esquecer em deslocamento curto dentro do pátio ou da obra. A maior parte das mortes em serviço na distribuição acontece no trânsito, não na rede.',
     norma: 'CTB art. 65 e NR-11 — uso obrigatório do cinto por todos os ocupantes',
     pontos: 14,
-    camera: { de: [0.10, 1.18, -0.10], para: [-0.72, 0.70, -0.36], lente: 26 },
+    // Refeita em 06/10. A antiga olhava para x -0,72 — o lado do PASSAGEIRO —
+    // e o cinto está em x 0,70-0,78, do lado do motorista: a pergunta "o cinto
+    // está como precisa estar?" aparecia SEM O CINTO em quadro. Confirmado no
+    // render, não deduzido.
+    //
+    // Três coisas restringem esta câmera, e por isso ela está onde está:
+    // tem de passar por cima do volante (z até 1,00), por cima do encosto
+    // (z até 1,02), e ficar INBOARD — a fita olha para dentro da cabine, e
+    // de perto do pilar ela é vista de fio e vira um risco.
+    camera: { de: [-0.05, 1.32, 0.30], para: [0.74, 0.80, -0.33], lente: 30 },
     no: { errado: 'cinto_solto', certo: 'cinto_afivelado' },
   },
   {
@@ -65,21 +74,17 @@ export const ITENS_CABINE: ItemCabine[] = [
       'Espelho virado para dentro mostra o que o motorista já sabe — a lataria — e esconde o que ele precisa ver. Em serviço na via, é por ali que aparece a moto que vem pela direita.',
     norma: 'CTB art. 103 e checklist de frota — campo de visão indireto',
     pontos: 10,
-    // Enquadra o espelho DO MOTORISTA, do lado dele.
+    // Enquadra o espelho DO MOTORISTA, do lado dele, a partir do olho de
+    // quem vai dirigir — que é de onde a pergunta é feita.
     //
-    // A câmera antiga ficava em x=-0,45 olhando o espelho em x=-0,92 — os
-    // dois do lado do PASSAGEIRO. O motorista senta em x=+0,38, então a
-    // pergunta "os retrovisores estão regulados para quem vai dirigir?"
-    // aparecia com a câmera no banco errado, apertada contra a porta, e o
-    // espelho saía cortado na borda com o vidro branco ocupando a tela. Numa
-    // fase cujo exercício é olhar e julgar, isso é a pergunta sem a imagem.
-    // Recuada para a porta e um pouco mais alta do que o olho: enquadrando
-    // da altura exata do olho, o antebraço do motorista entra no terço
-    // esquerdo do quadro — e ele está NU ali, porque a manga do uniforme foi
-    // modelada na pose T e o motorista está sentado e posado, então o braço
-    // atravessa a peça. É defeito de arte, anotado no plano; aqui a câmera
-    // só evita exibi-lo.
-    camera: { de: [0.70, 1.25, 0.14], para: [0.95, 1.02, 0.56], lente: 44 },
+    // A câmera de antes ficava em x=-0,45 olhando o espelho em x=-0,92: os
+    // dois do lado do PASSAGEIRO, numa pergunta sobre o equipamento do
+    // motorista, que senta em x=+0,38.
+    //
+    // (A nota antiga sobre o antebraço nu do motorista saiu: aquele defeito
+    // era o recorte da manga seguir a pose do corpo, e foi corrigido em
+    // 06/10 — ver "Item 2" no PLANO.md.)
+    camera: { de: [0.38, 1.17, -0.10], para: [0.90, 1.02, 0.56], lente: 50 },
     no: { errado: 'retro_desregulado', certo: 'retro_ok' },
   },
   {
@@ -100,7 +105,11 @@ export const ITENS_CABINE: ItemCabine[] = [
     // cabeça do motorista E o apoio atrás dela, que é exatamente a
     // comparação que o item pede: o topo tem de ficar na altura do alto da
     // cabeça, não da nuca.
-    camera: { de: [-0.30, 1.32, -0.06], para: [0.38, 1.12, -0.46], lente: 38 },
+    // PERFIL, pela janela do motorista. Altura se julga de lado: de frente o
+    // apoio fica na frente do encosto e o vão some, e de dentro da cabine o
+    // apoio do PASSAGEIRO entra na frente. Pela janela é a única linha livre
+    // (o pilar B está em y 0,43-0,51 e esta vista passa em y 0,57).
+    camera: { de: [0.95, 1.12, -0.56], para: [0.38, 1.05, -0.58], lente: 36 },
     no: { errado: 'apoio_baixo', certo: 'apoio_alto' },
   },
   {
@@ -127,7 +136,11 @@ export const ITENS_CABINE: ItemCabine[] = [
     // anteriores (do lado do passageiro, o motorista virava o fundo; do olho
     // do motorista, a coxa dele tapava a alavanca). Olhando de cima o fundo
     // é o assoalho, e o que resta em quadro é o freio.
-    camera: { de: [0.04, 1.06, 0.20], para: [-0.07, 0.30, -0.06], lente: 30 },
+    // Quase a prumo e DE PERTO. Toda vista lateral põe um banco atrás da
+    // alavanca, porque ela fica entre os dois; e de longe ela some no
+    // assoalho preto. A alavanca também clareou (albedo 0,024 → 0,105): com
+    // preto sobre preto, a pergunta não tem resposta na imagem.
+    camera: { de: [-0.06, 1.05, 0.26], para: [-0.09, 0.40, 0.02], lente: 40 },
   },
   {
     id: 'celular',
@@ -140,7 +153,7 @@ export const ITENS_CABINE: ItemCabine[] = [
       'Objeto solto no painel vira projétil numa frenagem e, muito antes disso, vira desvio de atenção. Celular na mão em deslocamento é infração e é a causa mais comum de colisão traseira na frota.',
     norma: 'CTB art. 252 — dirigir manuseando telefone',
     pontos: 10,
-    camera: { de: [-0.38, 1.18, -0.15], para: [0.10, 0.91, 0.46], lente: 30 },
+    camera: { de: [0.20, 1.20, 0.02], para: [-0.10, 0.91, 0.46], lente: 40 },
     no: { errado: 'celular', certo: 'celular_guardado' },
   },
   {
@@ -161,7 +174,7 @@ export const ITENS_CABINE: ItemCabine[] = [
     // quadro com o torso dele. O item pergunta por uma prancheta que está do
     // outro lado da cabine: era a quarta das seis vistas compostas quando o
     // banco ainda estava vazio.
-    camera: { de: [0.15, 1.15, 0.12], para: [-0.40, 0.52, -0.28], lente: 34 },
+    camera: { de: [0.10, 1.24, 0.22], para: [-0.40, 0.51, -0.30], lente: 34 },
     no: { errado: 'checklist_branco', certo: 'checklist_feito' },
   },
 ]

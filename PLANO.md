@@ -870,7 +870,7 @@ Decisões do usuário nesta rodada:
 - [x] **2. `epi.py` consertado** — causa raiz era o teste de recorte rodar
       na malha POSADA; agora roda em repouso. Detalhe abaixo.
 - [x] **3. Cabine: volante em quadro, pilar A, hastes.** Detalhe abaixo.
-- [ ] 4. Cinto que existe em quadro; veículo visível na pergunta "onde parar"
+- [x] **4. Cinto e veículo em quadro; as seis câmeras da fase 2a refeitas.**
 - [ ] 5. O 3D reagindo à escolha (carro chegando, cesto subindo, escada no poste)
 - [ ] 6. Menu com identidade e vestiário em etapas com ícone e veredito
 - [ ] 7. Povoar o trajeto (casas, escola, semáforo de longe, tráfego)
@@ -1036,3 +1036,62 @@ existe para diagnostico, nao e vista de jogo.
 screenshot nao compoe quadro nesse estado. A conferencia foi por render em
 Cycles, que e o metodo que o repasse prescreve para modelagem — mas falta
 abrir a fase 2b com a via por tras do para-brisa.
+
+
+## Item 4 — perguntas que agora têm resposta na imagem (feito)
+
+**O cinto nunca esteve "sumido": a câmera dele olhava para o outro lado.**
+Ela mirava x -0,72, que é o lado do PASSAGEIRO, e o cinto está em x 0,70-0,78,
+do lado do motorista. A pergunta "o cinto está como precisa estar?" aparecia
+com a porta e o banco do passageiro em quadro, e nada mais. Registrado numa
+rodada anterior como uma das "duas boas"; não era.
+
+**As seis foram refeitas a partir da CAIXA ENVOLVENTE real de cada peça**, não
+do olho. Antes de mirar, um script despejou a caixa de cada estado do `.glb` —
+é isso que torna o enquadramento uma conta e não um palpite. Resultado:
+
+| vista | o que estava errado |
+|---|---|
+| cinto | olhava o lado do passageiro; a peça nem aparecia |
+| retrovisores | enquadrava o espelho cortado, escuro, sem contexto |
+| apoio de cabeça | de frente, e ALTURA só se julga de perfil |
+| freio de mão | a prumo e de longe: a alavanca sumia no assoalho preto |
+| celular | já estava boa |
+| checklist | já estava boa |
+
+**Três armadilhas de enquadramento que valem para qualquer vista futura:**
+
+1. **A fita do cinto olha para DENTRO da cabine.** Câmera colada no pilar a vê
+   de fio e ela vira um risco de um pixel. Tem de ser inboard — e, por isso,
+   tem de passar por cima do volante (z até 1,00) e do encosto (z até 1,02),
+   senão o aro toma a tela inteira.
+2. **Altura se julga de PERFIL.** De frente, o apoio fica na frente do encosto
+   e o vão desaparece. De dentro da cabine o apoio do PASSAGEIRO entra na
+   frente; pela janela do motorista é a única linha livre.
+3. **Toda vista lateral do freio de mão põe um banco atrás dele**, porque a
+   alavanca fica entre os dois. Quase a prumo e de perto é a única que isola.
+
+**Duas peças estavam pretas sobre preto, e cor resolve o que enquadramento
+não resolve.** O cinto tinha albedo 0,062 contra um pilar de 0,072, e a
+alavanca do freio 0,024 sobre um console preto. O comentário de `cinto()` já
+registrava que a fita tinha sido ALARGADA para não sumir — alargar não resolve
+contraste. Cinto foi para 0,175 e alavanca para 0,105, os dois cinzas comuns
+em frota.
+
+**A minha própria prova estava mentindo.** `prova_cabine.py` chamava
+`luz_cabine()` mas não o HDRI, e o docstring de `luz_cabine` diz que a luz
+principal vem do HDRI atravessando o vidro. Sem ele o interior saía todo na
+sombra — e o jogo usa `hemisphereLight` a 1,05 mais direcional a 2,0, bem mais
+claro. Julguei duas câmeras como escuras demais antes de perceber.
+
+**Ocorrência: a pergunta "onde parar" vinha sem veículo em quadro.** O
+caminhão só entrava na cena DEPOIS da escolha. Agora, enquanto a pergunta
+está aberta, ele aparece parado na pista bem antes da área, no sentido do
+fluxo — é o que dá ao jogador a escala e o sentido do trânsito. E "caminhonete"
+virou "caminhão" em todo texto: o modelo é o `caminhao.py` com cesto aéreo,
+aprovado pelo cliente.
+
+**Não conferido no jogo rodando** (painel do navegador oculto a sessão
+inteira): as seis vistas foram julgadas por render em Cycles com a câmera
+copiada verbatim de `cabine.ts`, e a chegada da ocorrência só por código e
+`tsc`. Falta abrir a fase 2a e a 3a.
