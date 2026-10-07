@@ -961,7 +961,18 @@ def semaforo(m, nome="via_semaforo"):
 
 
 def onibus(m, nome="via_onibus"):
-    """Onibus escolar parado em embarque, encostado na direita."""
+    """Onibus escolar parado em embarque, encostado na direita.
+
+    O "paralelepipedo" do repasse tinha uma causa concreta: a carroceria
+    comecava em z 0,47 e as rodas (raio 0,44, centro em 0,44) ficavam
+    ENTERRADAS dentro dela — sobrava menos de meia roda, escondida pelo
+    chanfro. Onibus sem roda visivel e uma caixa pousada no chao, e era
+    exatamente o que se via.
+
+    Agora o piso fica em 0,95 e a roda tem 0,52 de raio: a roda aparece
+    inteira embaixo da saia, que e o que da a leitura de veiculo. A altura
+    total foi de 2,57 para 3,05 m, que e altura de onibus de verdade.
+    """
     pecas = []
     amarelo = C.mat_simples("via_onibus_pintura", (0.62, 0.42, 0.045),
                             rugosidade=0.30)
@@ -972,26 +983,26 @@ def onibus(m, nome="via_onibus"):
 
     # chanfro GORDO: 8 cm numa caixa de 2,4 m some, e o onibus ficava um
     # tijolo. 24 cm arredonda o canto o bastante para ler como carroceria
-    corpo = C.caixa(f"{nome}_corpo", (2.42, 8.60, 2.10), (0, 0, 1.52))
+    corpo = C.caixa(f"{nome}_corpo", (2.42, 8.60, 2.10), (0, 0, 2.00))
     C.chanfrar(corpo, largura=0.24, segmentos=4)
     C.aplicar(corpo, amarelo)
     pecas.append(corpo)
 
     # para-brisa e painel de destino: e a frente que diz que e um onibus
-    frente = C.caixa(f"{nome}_parabrisa", (2.10, 0.07, 0.86), (0, -4.29, 2.02))
+    frente = C.caixa(f"{nome}_parabrisa", (2.10, 0.07, 0.86), (0, -4.29, 2.50))
     C.aplicar(frente, vidro)
     pecas.append(frente)
-    destino = C.caixa(f"{nome}_destino", (1.30, 0.06, 0.26), (0, -4.31, 2.62))
+    destino = C.caixa(f"{nome}_destino", (1.30, 0.06, 0.26), (0, -4.31, 3.10))
     C.aplicar(destino, preto)
     pecas.append(destino)
     for lado in (-1, 1):
         espelho = C.caixa(f"{nome}_espelho_{lado}", (0.10, 0.08, 0.42),
-                          (lado * 1.42, -4.18, 2.30))
+                          (lado * 1.42, -4.18, 2.78))
         C.aplicar(espelho, preto)
         pecas.append(espelho)
 
     # a faixa preta e o que identifica o escolar a distancia
-    for dz in (2.26, 0.86):
+    for dz in (2.74, 1.34):
         faixa = C.caixa(f"{nome}_faixa_{dz:.2f}", (2.46, 8.64, 0.17), (0, 0, dz))
         C.aplicar(faixa, preto)
         pecas.append(faixa)
@@ -999,29 +1010,29 @@ def onibus(m, nome="via_onibus"):
     # janelas: uma fita de cada lado e a traseira
     for lado in (-1, 1):
         jan = C.caixa(f"{nome}_janela_{lado}", (0.06, 7.20, 0.80),
-                      (lado * 1.21, -0.2, 1.92))
+                      (lado * 1.21, -0.2, 2.40))
         C.aplicar(jan, vidro)
         pecas.append(jan)
-    tras = C.caixa(f"{nome}_vidro_tras", (1.90, 0.06, 0.74), (0, 4.31, 1.95))
+    tras = C.caixa(f"{nome}_vidro_tras", (1.90, 0.06, 0.74), (0, 4.31, 2.43))
     C.aplicar(tras, vidro)
     pecas.append(tras)
 
     for lado in (-1, 1):
         luz = C.caixa(f"{nome}_luz_{lado}", (0.30, 0.06, 0.22),
-                      (lado * 0.88, 4.32, 0.92))
+                      (lado * 0.88, 4.32, 1.40))
         C.aplicar(luz, C.mat_simples("via_onibus_lanterna", (0.52, 0.035, 0.026),
                                      rugosidade=0.25))
         pecas.append(luz)
         for dy in (-2.9, 2.6):
-            roda = C.cilindro(f"{nome}_roda_{lado}_{dy:+.1f}", 0.44, 0.26,
-                              (lado * 1.02, dy, 0.44), segmentos=14,
+            roda = C.cilindro(f"{nome}_roda_{lado}_{dy:+.1f}", 0.52, 0.28,
+                              (lado * 1.06, dy, 0.52), segmentos=16,
                               rot=(0, math.radians(90), 0))
             C.aplicar(roda, C.mat_simples("via_pneu", (0.018, 0.018, 0.020),
                                           rugosidade=0.92))
             pecas.append(roda)
 
     # placa de PARE do escolar, aberta do lado do motorista que ultrapassa
-    braco = C.caixa(f"{nome}_pare_braco", (0.70, 0.06, 0.06), (-1.55, -1.2, 1.35))
+    braco = C.caixa(f"{nome}_pare_braco", (0.70, 0.06, 0.06), (-1.55, -1.2, 1.83))
     C.aplicar(braco, preto)
     pecas.append(braco)
     # A placa de PARE e OITAVADA — e a forma que a identifica a distancia,
@@ -1029,13 +1040,30 @@ def onibus(m, nome="via_onibus"):
     # redonda no render, uma bola vermelha espetada num pau.
     for raio, esp, dx, cor in ((0.32, 0.030, -2.00, (0.72, 0.70, 0.66)),
                                (0.27, 0.034, -2.01, (0.58, 0.045, 0.035))):
-        p = C.cilindro(f"{nome}_pare_{raio:.2f}", raio, esp, (dx, -1.2, 1.35),
+        p = C.cilindro(f"{nome}_pare_{raio:.2f}", raio, esp, (dx, -1.2, 1.83),
                        segmentos=8, rot=(math.radians(90), 0, 0))
         for f in p.data.polygons:
             f.use_smooth = False
         C.aplicar(p, C.mat_simples(f"via_onibus_pare_{raio:.2f}", cor,
                                    rugosidade=0.40))
         pecas.append(p)
+
+    # PORTA dianteira, do lado da calcada. Depois da roda, e o que mais diz
+    # "onibus" numa silhueta: a fita de janela e continua, e a porta e o unico
+    # rasgo vertical nela.
+    porta = C.caixa(f"{nome}_porta", (0.07, 0.86, 1.52),
+                    (1.23, -3.20, 1.85))
+    C.aplicar(porta, vidro)
+    pecas.append(porta)
+    batente = C.caixa(f"{nome}_porta_batente", (0.05, 0.96, 1.62),
+                      (1.225, -3.20, 1.85))
+    C.aplicar(batente, preto)
+    pecas.append(batente)
+
+    # saia entre as rodas: fecha o vao e impede que o onibus pareca flutuar
+    saia = C.caixa(f"{nome}_saia", (2.26, 5.40, 0.30), (0, -0.15, 1.05))
+    C.aplicar(saia, preto)
+    pecas.append(saia)
 
     return C.juntar(pecas, nome)
 
@@ -1090,28 +1118,41 @@ def ciclista(m, nome="via_ciclista"):
                                       rugosidade=0.20))
     pecas.append(refletor)
 
-    tronco = C.caixa(f"{nome}_tronco", (0.36, 0.26, 0.58), (0, -0.02, 1.26),
+    tronco = C.caixa(f"{nome}_tronco", (0.36, 0.26, 0.58), (0, -0.02, 1.14),
                      rot=(math.radians(-18), 0, 0))
     C.chanfrar(tronco, largura=0.04, segmentos=2)
     C.aplicar(tronco, roupa)
     pecas.append(tronco)
 
-    cabeca = C.caixa(f"{nome}_cabeca", (0.20, 0.22, 0.24), (0, -0.19, 1.63))
+    cabeca = C.caixa(f"{nome}_cabeca", (0.20, 0.22, 0.24), (0, -0.19, 1.50))
     C.chanfrar(cabeca, largura=0.05, segmentos=3)
     C.aplicar(cabeca, pele)
     pecas.append(cabeca)
 
-    capacete = C.caixa(f"{nome}_capacete", (0.23, 0.25, 0.12), (0, -0.19, 1.73))
+    capacete = C.caixa(f"{nome}_capacete", (0.23, 0.25, 0.12), (0, -0.19, 1.60))
     C.chanfrar(capacete, largura=0.05, segmentos=3)
     C.aplicar(capacete, C.mat_simples("via_ciclista_capacete",
                                       (0.56, 0.52, 0.48), rugosidade=0.30))
     pecas.append(capacete)
 
     for lado in (-1, 1):
-        perna = C.barra(f"{nome}_perna_{lado}", (lado * 0.11, 0.06, 1.00),
-                        (lado * 0.11, -0.10, 0.52), secao=(0.12, 0.12))
+        # DUAS secoes, nao uma: perna reta do quadril ao pedal e o que fazia
+        # o ciclista parecer uma boneca de pau em cima da bicicleta. Coxa
+        # para a frente e canela para tras e a forma de quem pedala — e e o
+        # joelho dobrado que da a leitura, nao o detalhe.
+        coxa = C.barra(f"{nome}_coxa_{lado}", (lado * 0.11, 0.08, 0.92),
+                       (lado * 0.13, -0.22, 0.72), secao=(0.13, 0.13))
+        C.aplicar(coxa, roupa)
+        pecas.append(coxa)
+        perna = C.barra(f"{nome}_perna_{lado}", (lado * 0.13, -0.22, 0.72),
+                        (lado * 0.12, -0.04, 0.30), secao=(0.11, 0.11))
         C.aplicar(perna, roupa)
         pecas.append(perna)
+        pe = C.caixa(f"{nome}_pe_{lado}", (0.10, 0.22, 0.07),
+                     (lado * 0.12, -0.02, 0.26))
+        C.aplicar(pe, C.mat_simples("via_bike_tenis", (0.045, 0.045, 0.050),
+                                    rugosidade=0.60))
+        pecas.append(pe)
         braco = C.barra(f"{nome}_braco_{lado}", (lado * 0.15, -0.10, 1.42),
                         (lado * 0.18, -0.38, 1.00), secao=(0.09, 0.09))
         C.aplicar(braco, roupa)

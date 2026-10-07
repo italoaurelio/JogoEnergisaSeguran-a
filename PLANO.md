@@ -1447,3 +1447,32 @@ Conferido no jogo: 3 passos com 5/8/5 opções, e a escolha chega ao material
 em y −0,9, cabeça em ~0,85, então o alvo 0,76 é o rosto e, a 1,36 m com fov
 34, a cabeça ocupa ~28% da altura do quadro. Ver na tela ainda depende do
 painel do navegador.
+
+
+## Item D — ônibus e ciclista (feito)
+
+**O "paralelepípedo" do ônibus tinha uma causa concreta, e não era a forma: a
+carroceria enterrava as próprias rodas.** O corpo começava em z 0,47 e as
+rodas (raio 0,44, centro 0,44) ficavam dentro dele — sobrava menos de meia
+roda, ainda escondida pelo chanfro. **Ônibus sem roda visível é uma caixa
+pousada no chão**, e era exatamente o que o render mostrava.
+
+Piso subiu para 0,95 e a roda para raio 0,52: a roda aparece inteira embaixo
+da saia. Altura total de 2,57 para **3,05 m**, que é altura de ônibus de
+verdade. Entraram também a porta dianteira — depois da roda, é o que mais diz
+"ônibus" numa silhueta, porque é o único rasgo vertical na fita de janela — e
+a saia entre as rodas, que fecha o vão.
+
+**O ciclista tinha a perna RETA do quadril ao pedal**, numa barra só. É isso
+que o fazia parecer boneco de pau em cima da bicicleta. Agora são duas seções
+com joelho dobrado — coxa para a frente, canela para trás — mais o pé no
+pedal. É o joelho dobrado que dá a leitura de quem pedala, não o detalhe. A
+altura sentada baixou 13 cm, que é o que corresponde a um selim de 0,95.
+
+Custo: ônibus 306 → 332 faces, ciclista 820 → 940. Sobra orçamento de
+triângulos de sobra.
+
+**O que continua fraco e não escondo:** o tronco do ciclista ainda é um bloco
+reto de 36 cm de largura, e o teto do ônibus é totalmente plano. As duas
+peças passam a 30 km/h na beira da pista, então a silhueta importa mais que a
+superfície — mas se o cliente reclamar de alguma, é dessas duas.
