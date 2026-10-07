@@ -29,8 +29,16 @@ import type { Registro } from '../conteudo/pontuacao'
 
 /** A cabine fica 52 cm acima da pista. */
 const ALTURA_CABINE = 0.52
-/** Olho do motorista, em coordenadas do jogo (vem de cabine.json). */
-const OLHO: [number, number, number] = [0.38, 1.21 + ALTURA_CABINE, -0.20]
+/**
+ * Olho do motorista, em coordenadas do jogo (vem de cabine.json).
+ *
+ * 1,17 e nao 1,21: com o olho mais alto NENHUM ponto do volante ficava a
+ * menos de 40 graus abaixo da direcao do olhar, e a borda de baixo da tela
+ * esta a 27,5 graus — dirigia-se sem ver volante nenhum. Baixar 4 cm aqui e
+ * inclinar 4 graus no `lookAt` e a metade da correcao; a outra metade e o aro
+ * de caminhao em `arte/blender/veiculo.py`, e uma sem a outra nao resolve.
+ */
+const OLHO: [number, number, number] = [0.38, 1.17 + ALTURA_CABINE, -0.20]
 
 type Pedal = 'acelera' | 'freia' | null
 
@@ -259,7 +267,7 @@ function CameraFixa({ distancia }: { distancia: React.RefObject<number> }) {
       base.y + Math.sin(t * 3.3) * 0.005,
       base.z,
     )
-    camera.lookAt(base.x + 0.02, base.y - 0.16, base.z + 6)
+    camera.lookAt(base.x + 0.02, base.y - 0.42, base.z + 6)
     const alvo = -perfilEm(TRACADO, distancia.current ?? 0).curva * 0.03
     inclinacao.current += (alvo - inclinacao.current) * Math.min(1, dt * 2.5)
     camera.rotateZ(inclinacao.current)

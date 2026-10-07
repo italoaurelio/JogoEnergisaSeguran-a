@@ -24,10 +24,36 @@ COMPRIMENTO = 1.72      # do para-brisa ao banco traseiro
 ALTURA = 1.42           # piso ao forro
 
 X_MOTORISTA = 0.38
-OLHO = Vector((X_MOTORISTA, 0.20, 1.21))   # olho do motorista
-VOLANTE = Vector((X_MOTORISTA, -0.30, 0.755))
-RAIO_VOLANTE = 0.185
-INCLINACAO_VOLANTE = math.radians(24)
+# Olho do motorista. Baixou 4 cm e a vista da fase 2b inclinou 4 graus para
+# baixo (ver `CameraFixa` em src/fases/Trajeto.tsx): e o par que poe o volante
+# em quadro sem comer a via. Medido, nao chutado — a conta esta no bloco de
+# VOLANTE logo abaixo.
+OLHO = Vector((X_MOTORISTA, 0.20, 1.17))   # olho do motorista
+# O volante estava FORA DE QUADRO na fase 2b, e ninguem tinha medido. Do olho
+# antigo NENHUM ponto do aro ficava a menos de 40 graus abaixo da direcao do
+# olhar, e a borda de baixo da tela esta a 27,5 graus (fov 52, 1,5 grau de
+# inclinacao). Nao era enquadramento infeliz: num caminhao de verdade quem
+# olha a via NAO VE o volante, porque o olho fica 45 cm acima do aro.
+#
+# Entao a correcao e dos dois lados, e so funciona junto:
+#
+# - aro de CAMINHAO: 470 mm (era 370, de carro de passeio) e deitado 32 graus
+#   da horizontal (era 24), empurrado para a frente e para cima;
+# - olho 4 cm mais baixo e vista 4 graus mais inclinada para baixo.
+#
+# Conta do resultado: o ponto mais alto do aro fica em z 0,985 e y -0,171,
+# isto e, 37 cm a frente do olho e 18,5 cm abaixo -> 26,5 graus. Com a borda
+# de baixo da tela a 30 graus, o arco de cima do volante atravessa a parte de
+# baixo da tela e o horizonte fica 15% acima do centro. Mexer em um dos dois
+# sozinho nao cabe: so a geometria da 28,2 graus contra 27,5 de borda.
+#
+# O y nao pode ir mais para a frente que -0,37: o aro passa a atravessar o
+# capo do painel de instrumentos, que ocupa y de -0,70 a -0,49. Conferido no
+# render, nao no olho — a primeira tentativa com -0,42 enterrou metade do
+# volante dentro do capo e a prova mostrou na hora.
+VOLANTE = Vector((X_MOTORISTA, -0.37, 0.86))
+RAIO_VOLANTE = 0.235
+INCLINACAO_VOLANTE = math.radians(32)
 
 PAINEL_Y = -0.62        # face do painel voltada para o motorista
 PARABRISA_BASE = -0.80
@@ -178,16 +204,20 @@ def casco():
         # teto ele tapa a janela lateral inteira, e com ela o retrovisor
         # externo — que e um dos itens conferidos na fase 2
         altura_porta = 0.95
-        porta = C.caixa(f"cab_porta_{lado}", (0.07, 1.00, altura_porta),
-                        (lado * (meia + 0.035), y0 + 0.78, altura_porta / 2))
+        # 1,14 m e nao 1,00: com 1,00 o forro comecava em y -0,52 e o braco do
+        # retrovisor externo esta em y -0,53, entao os dois se tocavam por uma
+        # quina de 5 mm — na tela o espelho parecia boiando ao lado da cabine.
+        # Agora a porta vai ate -0,66 e encontra o pilar A.
+        porta = C.caixa(f"cab_porta_{lado}", (0.07, 1.14, altura_porta),
+                        (lado * (meia + 0.035), y0 + 0.71, altura_porta / 2))
         C.chanfrar(porta, largura=0.010, segmentos=2)
         # a porta mais clara que o painel: sem essa diferenca o interior vira
         # uma mancha cinza so e nao se distingue uma peca da outra na tela
         C.aplicar(porta, mat_plastico_painel((0.082, 0.087, 0.097)))
         pecas.append(porta)
 
-        peitoril = C.caixa(f"cab_peitoril_{lado}", (0.085, 1.00, 0.045),
-                           (lado * (meia + 0.030), y0 + 0.78,
+        peitoril = C.caixa(f"cab_peitoril_{lado}", (0.085, 1.14, 0.045),
+                           (lado * (meia + 0.030), y0 + 0.71,
                             altura_porta + 0.020))
         C.chanfrar(peitoril, largura=0.008, segmentos=2)
         C.aplicar(peitoril, mat_plastico_painel((0.060, 0.064, 0.072)))
@@ -204,6 +234,26 @@ def casco():
         C.chanfrar(apoio, largura=0.014, segmentos=3)
         C.aplicar(apoio, plastico)
         pecas.append(apoio)
+
+    # PILAR A. Nao existia: a cabine era um palco com so as pecas que as seis
+    # vistas de perto precisavam, e na vista do MOTORISTA — que e a mais longa
+    # do jogo, 1.340 m — isso aparece como laje solta boiando. Travessa,
+    # para-brisa e porta nao se encostavam em nada.
+    #
+    # Vai do canto de baixo do para-brisa ao canto de cima, encostando nos
+    # dois: 54 cm para tras e 45 cm para cima, 50 graus da vertical.
+    for lado in (-1, 1):
+        comp = math.hypot(PARABRISA_TOPO - PARABRISA_BASE, ALTURA - PAINEL_TOPO)
+        pilar_a = C.caixa(
+            f"cab_pilar_a_{lado}", (0.075, 0.090, comp + 0.06),
+            (lado * (meia + 0.005),
+             (PARABRISA_BASE + PARABRISA_TOPO) / 2,
+             (PAINEL_TOPO + ALTURA) / 2),
+            rot=(-math.atan2(PARABRISA_TOPO - PARABRISA_BASE,
+                             ALTURA - PAINEL_TOPO), 0, 0))
+        C.chanfrar(pilar_a, largura=0.010, segmentos=2)
+        C.aplicar(pilar_a, mat_plastico_painel((0.072, 0.076, 0.085)))
+        pecas.append(pilar_a)
 
     travessa = C.caixa("cab_travessa", (LARGURA + 0.06, 0.10, 0.075),
                        (0, PARABRISA_TOPO - 0.03, ALTURA - 0.020))
@@ -238,12 +288,14 @@ def painel():
     pecas = [p]
 
     # capo do painel de instrumentos, em cima do volante
+    # recuado 6 cm com o volante de caminhao: o aro agora chega a y -0,49 e
+    # com o capo na posicao antiga os dois se atravessavam
     capo = [
-        (-0.640, PAINEL_TOPO + 0.010),
-        (-0.520, PAINEL_TOPO + 0.042),
-        (-0.430, PAINEL_TOPO - 0.003),
-        (-0.440, PAINEL_TOPO - 0.078),
-        (-0.600, PAINEL_TOPO - 0.083),
+        (-0.700, PAINEL_TOPO + 0.010),
+        (-0.580, PAINEL_TOPO + 0.042),
+        (-0.490, PAINEL_TOPO - 0.003),
+        (-0.500, PAINEL_TOPO - 0.078),
+        (-0.660, PAINEL_TOPO - 0.083),
     ]
     c = extrudar("cab_capo", capo, VOLANTE.x - 0.145, VOLANTE.x + 0.145)
     C.aplicar(c, plastico)
@@ -251,7 +303,7 @@ def painel():
 
     # mostrador: uma placa escura sob o capo, levemente inclinada
     mostrador = C.caixa("cab_mostrador", (0.255, 0.008, 0.105),
-                        (VOLANTE.x, -0.505, PAINEL_TOPO - 0.035),
+                        (VOLANTE.x, -0.565, PAINEL_TOPO - 0.035),
                         rot=(math.radians(-18), 0, 0))
     C.aplicar(mostrador, C.mat_simples("mostrador", (0.008, 0.009, 0.011),
                                        rugosidade=0.25))
@@ -478,7 +530,17 @@ def retrovisor_interno():
     face = C.caixa("cab_retro_interno_face", (0.26, 0.006, 0.072),
                    (-0.02, -0.479, 1.335), rot=(0, 0, math.radians(-4)))
     C.aplicar(face, espelho)
-    return [interno, face]
+    # HASTE. O espelho flutuava a 4 cm de tudo, no meio do ar, bem no alto da
+    # vista do motorista — e uma das "partes voando". Sobe ate a travessa do
+    # para-brisa, que e onde retrovisor interno se prende de verdade.
+    alvo = Vector((-0.02, PARABRISA_TOPO - 0.03, ALTURA - 0.050))
+    base = Vector((-0.02, -0.46, 1.335 + 0.040))
+    meio = (base + alvo) / 2
+    d = alvo - base
+    haste = C.caixa("cab_retro_haste", (0.034, 0.028, d.length + 0.05),
+                    tuple(meio), rot=(-math.atan2(d.y, d.z), 0, 0))
+    C.aplicar(haste, moldura)
+    return [interno, face, haste]
 
 
 def retrovisores(desregulado=False, sufixo=""):

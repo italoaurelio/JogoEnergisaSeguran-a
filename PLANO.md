@@ -869,7 +869,7 @@ Decisões do usuário nesta rodada:
       telefone, motor atrelado à velocidade, bafo de ambiente e botão de mudo.
 - [x] **2. `epi.py` consertado** — causa raiz era o teste de recorte rodar
       na malha POSADA; agora roda em repouso. Detalhe abaixo.
-- [ ] 3. Interior da cabine refeito a partir do `caminhao.py` aprovado
+- [x] **3. Cabine: volante em quadro, pilar A, hastes.** Detalhe abaixo.
 - [ ] 4. Cinto que existe em quadro; veículo visível na pergunta "onde parar"
 - [ ] 5. O 3D reagindo à escolha (carro chegando, cesto subindo, escada no poste)
 - [ ] 6. Menu com identidade e vestiário em etapas com ícone e veredito
@@ -977,3 +977,62 @@ recortada da propria mao e, na cor de raspa, le como "a mao do personagem em
 outra cor" — o proprio arquivo ja documentava isso. Nao e a "luva enorme" da
 queixa (essa some com o corte certo), e sim legibilidade. Fica para a rodada
 de arte.
+
+
+## Item 3 — interior da cabine (feito)
+
+**O diagnostico so apareceu porque passou a existir `prova_cabine.py`.** Nao
+havia prova nenhuma do interior — e ele ocupa o terco inferior da tela durante
+os 1.340 m do trajeto, de noite e com pos-processamento, que e exatamente a
+condicao em que peca solta passa despercebida. A vista `motorista` da prova
+copia o OLHO e o campo da fase 2b, e e a unica que responde "o jogador ve o
+volante?".
+
+### O volante estava fora de quadro, e nao era enquadramento infeliz
+
+Medido: do olho antigo, **nenhum ponto do aro ficava a menos de 40 graus
+abaixo da direcao do olhar**, e a borda de baixo da tela esta a 27,5 graus
+(fov 52, 1,5 grau de inclinacao). Num caminhao de verdade e assim mesmo —
+quem olha a via nao ve o volante, porque o olho fica 45 cm acima do aro.
+
+Por isso a correcao e dos dois lados, e **so funciona junto**:
+
+- aro de caminhao: 470 mm (era 370, de carro de passeio), deitado 32 graus da
+  horizontal, empurrado para a frente;
+- olho 4 cm mais baixo (1,17) e vista 4 graus mais inclinada para baixo.
+
+Resultado medido: o ponto mais alto do aro fica 37 cm a frente do olho e
+18,5 cm abaixo, isto e **26,5 graus**, contra 30 graus de borda de tela. O
+arco de cima do volante atravessa a parte de baixo da tela e o horizonte fica
+15% acima do centro. So a geometria daria 28,2 contra 27,5 — nao cabia.
+
+**O primeiro valor de y (-0,42) enterrou metade do volante dentro do capo do
+painel.** A prova mostrou na hora; a olho nao se via, porque no jogo aquela
+regiao e preta. O capo recuou 6 cm e o volante parou em -0,37.
+
+### As "partes voando" tinham uma causa estrutural
+
+A cabine era um palco com **so as pecas que as seis vistas de perto
+precisavam**. Faltava o que amarra tudo, e na vista do motorista — a mais
+longa do jogo — isso aparece como laje boiando:
+
+- **Nao existia PILAR A.** Travessa do para-brisa, porta e vidro nao se
+  encostavam em nada. Entrou o par, do canto de baixo ao canto de cima do
+  para-brisa (54 cm para tras, 45 cm para cima, 50 graus da vertical).
+- **O retrovisor interno flutuava a 4 cm de tudo**, no meio do ar e bem no
+  alto da tela. Ganhou haste ate a travessa.
+- **O braco do retrovisor externo encostava na porta por uma quina de 5 mm**
+  (braco em y -0,53, forro da porta comecando em -0,52). O forro passou de
+  1,00 m para 1,14 m e agora vai ate -0,66, encontrando o pilar A.
+
+### O que NAO foi feito, e por que
+
+A cabine nao tem painel externo nenhum — vista de fora e um teto sobre
+postes. Esta certo e e barato: o jogo so a mostra por dentro, e o caminhao
+visto de fora e o `caminhao.py` da ocorrencia. A vista `geral` da prova
+existe para diagnostico, nao e vista de jogo.
+
+**Nao foi conferido no jogo rodando**: o painel do navegador estava oculto e
+screenshot nao compoe quadro nesse estado. A conferencia foi por render em
+Cycles, que e o metodo que o repasse prescreve para modelagem — mas falta
+abrir a fase 2b com a via por tras do para-brisa.
