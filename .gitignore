@@ -14,3 +14,5 @@ arte/render/
 # gravacao de gameplay inteira
 gravacao/
 __pycache__/
+# quadros soltos do ciclo de caminhada: o que vale e o .gif montado
+arte/render/caminhada/q*.png
