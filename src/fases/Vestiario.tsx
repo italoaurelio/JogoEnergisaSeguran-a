@@ -7,11 +7,12 @@
  * antes de sair para o serviço.
  */
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useFrame } from '@react-three/fiber'
+import * as THREE from 'three'
 import { Acabamento } from '../cena/Acabamento'
 import { Environment } from '@react-three/drei'
 import Personagem, { type Fisico } from '../cena/Personagem'
-import { ALTURAS, TONS, FISICO_INICIAL } from '../conteudo/fisico'
+import { ALTURAS, CABELOS, TONS, FISICO_INICIAL } from '../conteudo/fisico'
 import { PECAS, VAGAS, pecasDaVaga, type Peca, type Vaga } from '../conteudo/epi'
 import { IconePeca } from '../icones'
 import { som } from '../som'
@@ -36,13 +37,17 @@ export default function Vestiario({
   const [etapa, setEtapa] = useState<'fisico' | 'epi'>('fisico')
   const [altura, setAltura] = useState(FISICO_INICIAL.altura)
   const [tom, setTom] = useState(FISICO_INICIAL.tom)
+  const [cabelo, setCabelo] = useState(FISICO_INICIAL.cabelo)
+  const [passoFisico, setPassoFisico] = useState(0)
   const [escolhas, setEscolhas] = useState<Escolhas>({})
   const [passo, setPasso] = useState(0)
   const vaga = ORDEM_VAGAS[passo]
   const [giro, setGiro] = useState(0)
   const arrasto = useRef<{ x: number; giro: number } | null>(null)
 
-  const fisico: Fisico = useMemo(() => ({ altura, tom }), [altura, tom])
+  const fisico: Fisico = useMemo(
+    () => ({ altura, tom, cabelo }), [altura, tom, cabelo],
+  )
   const vestindo = useMemo(() => {
     const ids = Object.values(escolhas).filter(Boolean) as string[]
     const cobre = ids.some(
@@ -144,6 +149,7 @@ export default function Vestiario({
               <meshStandardMaterial color="#141a22" roughness={0.9} />
             </mesh>
           </group>
+          <OlharFisico alvo={etapa === 'fisico' ? passoFisico : 0} />
           <Acabamento raio={0.35} />
         </Canvas>
         <p className="vestiario-dica">Arraste para girar o personagem</p>
@@ -152,11 +158,17 @@ export default function Vestiario({
       <aside className="vestiario-painel">
         {etapa === 'fisico' ? (
           <EtapaFisico
+            passo={passoFisico}
             altura={altura}
             setAltura={setAltura}
             tom={tom}
             setTom={setTom}
-            avancar={() => setEtapa('epi')}
+            cabelo={cabelo}
+            setCabelo={setCabelo}
+            voltar={() => setPassoFisico((n) => n - 1)}
+            avancar={() => (passoFisico < 2
+              ? setPassoFisico((n) => n + 1)
+              : setEtapa('epi'))}
           />
         ) : (
           <EtapaEpi
@@ -174,27 +186,51 @@ export default function Vestiario({
   )
 }
 
+/**
+ * A câmera vai até o que está sendo escolhido: corpo inteiro para a altura,
+ * rosto para o tom de pele e para o cabelo.
+ *
+ * É o que faz a montagem parecer viva em vez de um formulário com um boneco
+ * ao lado — e tem razão prática junto: tom de pele e cor de cabelo são
+ * diferenças de poucos por cento, e a dois metros de distância o jogador não
+ * vê o que acabou de escolher.
+ */
+const OLHARES: { de: [number, number, number]; para: [number, number, number] }[] = [
+  { de: [0, 1.15, 3.10], para: [0, 0.10, 0] },
+  { de: [0.34, 0.96, 1.30], para: [0, 0.76, 0] },
+  { de: [0.16, 1.16, 1.18], para: [0, 0.84, 0] },
+]
+
+function OlharFisico({ alvo }: { alvo: number }) {
+  const mira = useRef(new THREE.Vector3(...OLHARES[0].para))
+  useFrame(({ camera }, dt) => {
+    const o = OLHARES[Math.max(0, Math.min(OLHARES.length - 1, alvo))]
+    const passo = Math.min(1, dt * 3.2)
+    camera.position.lerp(new THREE.Vector3(...o.de), passo)
+    mira.current.lerp(new THREE.Vector3(...o.para), passo)
+    camera.lookAt(mira.current)
+  })
+  return null
+}
+
 function EtapaFisico({
-  altura, setAltura, tom, setTom, avancar,
+  passo, altura, setAltura, tom, setTom, cabelo, setCabelo, voltar, avancar,
 }: {
+  passo: number
   altura: number
   setAltura: (v: number) => void
   tom: [number, number, number]
   setTom: (v: [number, number, number]) => void
+  cabelo: [number, number, number]
+  setCabelo: (v: [number, number, number]) => void
+  voltar: () => void
   avancar: () => void
 }) {
-  return (
-    <>
-      <header className="painel-topo">
-        <p className="sobretitulo">Fase 1 · Vestiário</p>
-        <h2>Monte o seu personagem</h2>
-        <p className="painel-texto">
-          É você quem vai para a rua daqui a pouco. Deixe o boneco parecido.
-        </p>
-      </header>
-
-      <section className="grupo">
-        <h3>Altura</h3>
+  const etapas = [
+    {
+      titulo: 'Qual a sua altura?',
+      nota: 'É você quem vai para a rua daqui a pouco. Deixe o boneco parecido.',
+      corpo: (
         <div className="opcoes">
           {ALTURAS.map((a) => (
             <button
@@ -206,10 +242,12 @@ function EtapaFisico({
             </button>
           ))}
         </div>
-      </section>
-
-      <section className="grupo">
-        <h3>Tom de pele</h3>
+      ),
+    },
+    {
+      titulo: 'Tom de pele',
+      nota: 'A câmera foi para o rosto: a diferença entre um tom e o seguinte é pequena de perto e invisível de longe.',
+      corpo: (
         <div className="tons">
           {TONS.map((t) => (
             <button
@@ -222,12 +260,56 @@ function EtapaFisico({
             />
           ))}
         </div>
-      </section>
+      ),
+    },
+    {
+      titulo: 'Cabelo',
+      nota: 'O corte é o mesmo — raspado, que é o que cabe embaixo do capacete.',
+      corpo: (
+        <div className="tons">
+          {CABELOS.map((c) => (
+            <button
+              key={c.id}
+              className={`tom ${cabelo === c.cor ? 'ativa' : ''}`}
+              style={{ background: c.amostra }}
+              onClick={() => setCabelo(c.cor)}
+              aria-label={c.nome}
+              title={c.nome}
+            />
+          ))}
+        </div>
+      ),
+    },
+  ]
+  const atual = etapas[Math.max(0, Math.min(etapas.length - 1, passo))]
+  const ultimo = passo >= etapas.length - 1
+
+  return (
+    <>
+      <header className="painel-topo">
+        <p className="sobretitulo">
+          Fase 1 · Vestiário · {passo + 1} de {etapas.length}
+        </p>
+        <h2>{atual.titulo}</h2>
+        <p className="painel-texto">{atual.nota}</p>
+        <ol className="trilha" aria-label="Progresso da montagem">
+          {etapas.map((e, i) => (
+            <li key={e.titulo} className={i === passo ? 'atual' : i < passo ? 'feita' : ''} />
+          ))}
+        </ol>
+      </header>
+
+      <section className="grupo">{atual.corpo}</section>
 
       <div className="painel-rodape">
-        <button className="btn btn-grande" onClick={avancar}>
-          Ir para a arara de EPI
-        </button>
+        <div className="linha-botoes">
+          <button className="btn btn-fraco" onClick={voltar} disabled={passo === 0}>
+            Voltar
+          </button>
+          <button className="btn btn-grande" onClick={avancar}>
+            {ultimo ? 'Ir para a arara de EPI' : 'Próximo'}
+          </button>
+        </div>
       </div>
     </>
   )

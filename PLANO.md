@@ -1415,3 +1415,35 @@ carro pequeno.
 **Não foi feito:** moto no MESMO sentido, ultrapassando o jogador. Exige lógica
 de ultrapassagem (aproximar, desviar, voltar) e, se valer nota, teria de andar
 com o metro e não com o relógio. Fica anotado, não escondido.
+
+
+## Item C — criação de personagem (feito, com um limite medido)
+
+**Porte (magro/médio/forte) é impossível, e agora está medido e não suposto.**
+Varrendo `morphTargetInfluences` no modelo publicado: **zero malhas com morph
+target**. Porte exigiria o morph no corpo E em cada uma das 19 peças de roupa,
+porque elas são recortadas da superfície dele — sem isso a roupa não acompanha
+e atravessa a pele. O comentário em `fisico.ts` já suspeitava; agora tem
+número.
+
+**O que o modelo permite variar em tempo real é escala e cor de material.**
+Então a escolha cresceu dentro disso:
+
+- altura: 3 → **5** (1,60 a 1,90)
+- tom de pele: 5 → **8**
+- **cor de cabelo**, que é eixo novo: o cabelo é nó próprio com material
+  próprio, e sai de graça. O corte continua um só (raspado, que é o que cabe
+  embaixo do capacete); trocar o CORTE exigiria uma malha por opção.
+
+**A montagem virou três passos com a câmera indo até o que se escolhe:** corpo
+inteiro para a altura, rosto para o tom, cabeça para o cabelo. Não é enfeite —
+a diferença entre um tom e o seguinte é de poucos por cento, e a dois metros
+de distância o jogador não via o que acabou de escolher.
+
+Conferido no jogo: 3 passos com 5/8/5 opções, e a escolha chega ao material
+(`pele_export` em 0,40/0,36/0,32 no tom 8; `cabelo` no grisalho).
+
+**O enquadramento das câmeras foi conferido por conta, não por imagem**: pés
+em y −0,9, cabeça em ~0,85, então o alvo 0,76 é o rosto e, a 1,36 m com fov
+34, a cabeça ocupa ~28% da altura do quadro. Ver na tela ainda depende do
+painel do navegador.

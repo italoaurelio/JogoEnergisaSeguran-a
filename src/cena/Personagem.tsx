@@ -24,6 +24,8 @@ export type Fisico = {
   altura: number
   /** Multiplicador da cor da pele sobre o mapa assado em tom neutro. */
   tom: [number, number, number]
+  /** Cor absoluta do material `cabelo`. Opcional: o motorista não escolhe. */
+  cabelo?: [number, number, number]
 }
 
 type Props = {
@@ -116,8 +118,11 @@ export default function Personagem({ fisico, vestindo, giro }: Props) {
     scene.traverse((o) => {
       const mat = (o as THREE.Mesh).material as THREE.MeshStandardMaterial
       if (mat?.name === 'pele_export') mat.color.setRGB(...fisico.tom)
+      // o cabelo é nó próprio com material próprio: é a única peça do corpo
+      // que dá para variar sem reexportar o modelo
+      if (mat?.name === 'cabelo' && fisico.cabelo) mat.color.setRGB(...fisico.cabelo)
     })
-  }, [scene, fisico.tom])
+  }, [scene, fisico.tom, fisico.cabelo])
 
   // o giro é interpolado para o personagem não pular quando o jogador arrasta
   useFrame((estado, dt) => {
