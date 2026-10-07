@@ -95,9 +95,12 @@ def processar():
         exportaveis.append(alvo)
 
     # 2) as pecas que o jogador posiciona, com material direto
+    # A lanca e o cesto saem em nos PROPRIOS para o jogo poder levantar o
+    # cesto: a lanca gira em torno do pino e o cesto translada pelo mesmo
+    # giro, sem girar — senao ele despeja quem esta dentro.
+    caminhao = CAM.montar("oc_veiculo", separar=True)
     soltas = {
-        # caminhao com cesto aereo, no lugar da caminhonete de caixas
-        "oc_veiculo": CAM.montar("oc_veiculo"),
+        **caminhao,
         "oc_cone": CEN.cone(m, "oc_cone_base"),
         "oc_cavalete": OC.cavalete(m),
         "oc_fita": OC.fita_zebrada(m),
@@ -150,8 +153,16 @@ def processar():
                               export_yup=True)
 
     with open(os.path.join(SAIDA, "ocorrencia.json"), "w") as f:
-        json.dump({"fixo": [n for n, _, _ in GRUPOS], "soltas": catalogo},
-                  f, indent=2, ensure_ascii=False)
+        json.dump({
+            "fixo": [n for n, _, _ in GRUPOS],
+            "soltas": catalogo,
+            # Blender (x, y, z) -> glTF com Y para cima: (x, z, -y). O jogo
+            # gira a lanca em torno do PINO e leva o cesto pelo mesmo giro.
+            "pino": [round(CAM.PINO[0], 4), round(CAM.PINO[2], 4),
+                     round(-CAM.PINO[1], 4)],
+            "cestoBase": [round(CAM.CESTO_BASE[0], 4), round(CAM.CESTO_BASE[2], 4),
+                          round(-CAM.CESTO_BASE[1], 4)],
+        }, f, indent=2, ensure_ascii=False)
     print("GLB:", destino, os.path.getsize(destino) // 1024, "KB")
     print("SOLTAS:", ", ".join(catalogo))
 

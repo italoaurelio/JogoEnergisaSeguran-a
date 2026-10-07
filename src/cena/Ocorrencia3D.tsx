@@ -27,7 +27,31 @@ export type Colocada = {
   escala?: [number, number, number]
   /** Inclinação em X e Z (rad). A escada encosta no poste, não fica em pé. */
   tombo?: [number, number]
+  /** Só o caminhão: 0 lança de transporte, 1 cesto no alto. */
+  elevacao?: number
 }
+
+/**
+ * Articulação do cesto aéreo, em coordenadas do jogo. Os dois pontos saem de
+ * `public/modelos/ocorrencia.json` (campos `pino` e `cestoBase`), escritos
+ * pelo exportador a partir das medidas de `arte/blender/caminhao.py`.
+ *
+ * A lança gira em torno do PINO; o cesto é LEVADO pelo mesmo giro mas não
+ * gira — cesto que acompanha o ângulo da lança despeja o eletricista na rua.
+ */
+const PINO = new THREE.Vector3(-0.88, 2.14, 0)
+const CESTO_BASE = new THREE.Vector3(2.88, 1.96, 0)
+/**
+ * Ângulo da lança com o cesto no alto.
+ *
+ * 62° e não 42°: a câmera do reparo mira y = 6,4 m, que é a altura da chave
+ * fusível no poste. Com 42° o piso do cesto para em 4,52 m e o eletricista
+ * fica OLHANDO PARA CIMA para o serviço que está fazendo com as mãos — a
+ * altura é conta, não gosto. Com 62° o piso vai a 5,38 m e o peito de quem
+ * está dentro encosta nos 6,4 m. O braço tem 3,76 m e o pino está a 2,14 m,
+ * então 5,9 m é o teto físico desta lança.
+ */
+const ELEVACAO_MAX = THREE.MathUtils.degToRad(62)
 
 export function CenaOcorrencia({ colocadas }: { colocadas: Colocada[] }) {
   const { scene } = useGLTF(MODELO, DRACO)
@@ -110,12 +134,63 @@ function Peca({ molde, c }: { molde: THREE.Object3D; c: Colocada }) {
       scale={c.escala ?? [1, 1, 1]}
     >
       <primitive object={obj} />
+      {c.peca === 'oc_veiculo' && (
+        <CestoAereo molde={molde} elevacao={c.elevacao ?? 0} />
+      )}
     </group>
   )
 }
 
+/**
+ * A lança e o cesto, que saíram do `.glb` como nós separados exatamente para
+ * isto. Parentesco não sobrevive ao glTF, então a montagem é feita aqui: um
+ * grupo no pino segura a lança (deslocada de −pino para girar em torno dele),
+ * e o cesto recebe a posição já girada, com rotação zero.
+ */
+function CestoAereo({ molde, elevacao }: { molde: THREE.Object3D; elevacao: number }) {
+  const pecas = useMemo(() => {
+    const l = molde.getObjectByName('oc_veiculo_lanca')?.clone(true)
+    const c = molde.getObjectByName('oc_veiculo_cesto')?.clone(true)
+    if (l) l.visible = true
+    if (c) c.visible = true
+    return { lanca: l ?? null, cesto: c ?? null }
+  }, [molde])
+
+  const eixo = useRef<THREE.Group>(null)
+  const cestoRef = useRef<THREE.Group>(null)
+  const atual = useRef(0)
+
+  useFrame((_, dt) => {
+    // sobe devagar: guindaste não é elevador de prédio, e o movimento lento é
+    // metade do que faz a cena parecer um equipamento e não um brinquedo
+    atual.current += (elevacao - atual.current) * Math.min(1, dt * 0.9)
+    const t = atual.current * ELEVACAO_MAX
+    if (eixo.current) eixo.current.rotation.z = t
+    if (cestoRef.current) {
+      const alvo = CESTO_BASE.clone().sub(PINO).applyAxisAngle(EIXO_Z, t).add(PINO)
+      cestoRef.current.position.copy(alvo).sub(CESTO_BASE)
+    }
+  })
+
+  return (
+    <>
+      <group ref={eixo} position={PINO}>
+        {pecas.lanca && (
+          <primitive object={pecas.lanca} position={PINO.clone().negate()} />
+        )}
+      </group>
+      <group ref={cestoRef}>
+        {pecas.cesto && <primitive object={pecas.cesto} />}
+      </group>
+    </>
+  )
+}
+
+const EIXO_Z = new THREE.Vector3(0, 0, 1)
+
 const MOVEIS = new Set([
-  'oc_veiculo', 'oc_cone', 'oc_cavalete', 'oc_fita', 'oc_caixa', 'oc_escada',
+  'oc_veiculo', 'oc_veiculo_lanca', 'oc_veiculo_cesto',
+  'oc_cone', 'oc_cavalete', 'oc_fita', 'oc_caixa', 'oc_escada',
 ])
 
 export type Vista = {

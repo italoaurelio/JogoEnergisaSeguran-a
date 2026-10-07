@@ -873,7 +873,7 @@ Decisões do usuário nesta rodada:
 - [x] **4. Cinto e veículo em quadro; as seis câmeras da fase 2a refeitas.**
 - [x] **5. O 3D reagindo à escolha** — caminhão chegando, escada encostada, boneco
       vestindo. **O cesto subindo NÃO foi feito**, ver abaixo.
-- [ ] 5b. Cesto do caminhão subindo (exige separar a lança em nó próprio no `.glb`)
+- [x] **5b. Cesto do caminhão subindo** — lança e cesto em nós próprios.
 - [x] **6. Menu com personagem, vestiário em etapas com ícone, veredito e boneco respirando.**
 - [x] **7. Trajeto povoado por zonas**, com escola nova e auto-teste de densidade.
 
@@ -1271,3 +1271,38 @@ ok poste 9/12 · cabos 9/12 · arbusto 31/34 · arvore 28/31 · casa 37/40 · es
 chega a montar nesse estado (a cena 3D precisa de quadros para existir). A
 densidade foi medida pela função pura e a escola por render em Cycles; falta
 ver o conjunto em movimento.
+
+
+## Item 5b — o cesto subindo (feito)
+
+**A separação tinha de ser decidida ANTES de juntar por material.** `montar()`
+junta por material e depois junta tudo; passado o primeiro `C.juntar` os nomes
+individuais não existem mais, e aí não há como dizer quem é lança e quem é
+carroceria. Entrou `montar(nome, separar=True)`, que classifica por prefixo de
+nome enquanto os nomes ainda existem e devolve três objetos.
+
+**O cesto é irmão da lança, não filho.** Ele tem de ficar NIVELADO enquanto a
+lança sobe. Cesto que acompanha o ângulo da lança despeja o eletricista na
+rua — é o tipo de erro que o cliente vê em um segundo. E parentesco não
+sobrevive ao glTF de qualquer jeito, então a montagem é feita no jogo: um
+grupo no pino segura a lança (deslocada de −pino, para girar em torno dele) e
+o cesto recebe a posição já girada, com rotação zero.
+
+Os dois pontos de articulação saem do exportador para
+`public/modelos/ocorrencia.json` (`pino` e `cestoBase`), em coordenada de
+jogo, para não virarem número mágico no `.tsx`.
+
+**O ângulo é conta, não gosto.** A câmera do reparo mira y = 6,4 m, que é a
+altura da chave fusível. Com os 42° da primeira tentativa o piso do cesto
+parava em 4,52 m e o eletricista ficava OLHANDO PARA CIMA para o serviço que
+faz com as mãos. 62° põe o piso em 5,38 m e o peito de quem está dentro nos
+6,4 m. O braço tem 3,76 m e o pino está a 2,14 m: 5,9 m é o teto físico desta
+lança.
+
+Conferido por render em Cycles nas duas posições, com a mesma matemática que
+o jogo usa (girar em torno do pino, transladar o cesto pelo mesmo giro).
+
+**O que falta para o efeito ficar completo:** não há ninguém DENTRO do cesto.
+E o cesto aéreo reabre a pergunta de conteúdo já anotada — com ele, a escada
+deixa de ser obviamente a ferramenta certa no item do ferramental da fase 3.
+As duas coisas são decisão de conteúdo, não de arte.

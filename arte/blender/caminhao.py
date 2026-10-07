@@ -797,7 +797,7 @@ def patolas(m):
 
 # ------------------------------------------------------------------ montagem
 
-def montar(nome="oc_veiculo"):
+def montar(nome="oc_veiculo", separar=False):
     """Monta o caminhao inteiro e devolve UM objeto, como o exportador espera.
 
     Junta-se POR MATERIAL e so depois tudo: juntar de uma vez perderia a
@@ -840,15 +840,55 @@ def montar(nome="oc_veiculo"):
         "giroflex": m["giroflex"], "borracha": m["borracha"], "aro": m["aro"],
     }
 
-    partes = []
-    for chave, objs in grupos.items():
-        objs = [o for o in objs if o and o.name in bpy.data.objects]
-        if not objs:
-            continue
-        alvo = C.juntar(objs, f"cam_g_{chave}") if len(objs) > 1 else objs[0]
-        C.aplicar(alvo, por_material.get(chave, m["aco"]))
-        partes.append(alvo)
+    # Com `separar`, a LANCA e o CESTO saem como objetos proprios para o jogo
+    # poder levantar o cesto. Tem de ser decidido AQUI, antes de juntar por
+    # material: `C.juntar` apaga os nomes individuais, e depois dele nao ha
+    # mais como dizer quem e lanca e quem e carroceria.
+    #
+    # O cesto e separado da lanca (e nao filho dela) porque ele tem de ficar
+    # NIVELADO enquanto a lanca sobe. Cesto girando junto com a lanca despeja
+    # o eletricista na rua, e e o tipo de erro que o cliente ve em um segundo.
+    def onde(obj):
+        n = obj.name
+        if n.startswith("cam_cesto"):
+            return "cesto"
+        if n.startswith(("cam_lanca_", "cam_hidraulico", "cam_braco_")):
+            return "lanca"
+        return "fixo"
 
-    inteiro = C.juntar(partes, nome)
-    inteiro.name = nome
-    return inteiro
+    caixas = {"fixo": {}, "lanca": {}, "cesto": {}}
+    for chave, objs in grupos.items():
+        for o in objs:
+            if o and o.name in bpy.data.objects:
+                caixas[onde(o)].setdefault(chave, []).append(o)
+
+    def montar_caixa(alvo_nome, conteudo):
+        partes = []
+        for chave, objs in conteudo.items():
+            alvo = C.juntar(objs, f"cam_g_{chave}") if len(objs) > 1 else objs[0]
+            C.aplicar(alvo, por_material.get(chave, m["aco"]))
+            partes.append(alvo)
+        if not partes:
+            return None
+        inteiro = C.juntar(partes, alvo_nome) if len(partes) > 1 else partes[0]
+        inteiro.name = alvo_nome
+        return inteiro
+
+    if not separar:
+        tudo = {}
+        for caixa in caixas.values():
+            for chave, objs in caixa.items():
+                tudo.setdefault(chave, []).extend(objs)
+        return montar_caixa(nome, tudo)
+
+    return {
+        nome: montar_caixa(nome, caixas["fixo"]),
+        f"{nome}_lanca": montar_caixa(f"{nome}_lanca", caixas["lanca"]),
+        f"{nome}_cesto": montar_caixa(f"{nome}_cesto", caixas["cesto"]),
+    }
+
+
+# Eixo da articulacao e base do cesto, em metros do caminhao. O jogo gira a
+# lanca em torno do PINO e translada o cesto pelo mesmo giro, sem girar ele.
+PINO = (LANCA_X0, 0.0, LANCA_Z0)
+CESTO_BASE = (CESTO_X, 0.0, CESTO_PISO)

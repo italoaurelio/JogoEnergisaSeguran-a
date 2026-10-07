@@ -109,7 +109,11 @@ export default function Fase3Ocorrencia({
   const colocadas = useMemo<Colocada[]>(() => {
     const saida: Colocada[] = []
     const v = escolhas.posicao_veiculo
-    if (v && POSICOES_VEICULO[v]) saida.push(POSICOES_VEICULO[v])
+    if (v && POSICOES_VEICULO[v]) {
+      // O cesto sobe quando o reparo começa — é quando alguém de fato subiria.
+      // Antes disso a lança fica deitada no berço, que é como o caminhão anda.
+      saida.push({ ...POSICOES_VEICULO[v], elevacao: etapa === 'reparo' ? 1 : 0 })
+    }
     // Antes de escolher, o caminhão aparece PARADO ATRÁS, recém-chegado. Sem
     // isto a pergunta "onde parar o caminhão?" vinha sem caminhão nenhum em
     // quadro: o jogador via rua e casas e tinha de imaginar o veículo, o

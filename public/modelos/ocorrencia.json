@@ -11,10 +11,22 @@
   ],
   "soltas": [
     "oc_veiculo",
+    "oc_veiculo_lanca",
+    "oc_veiculo_cesto",
     "oc_cone",
     "oc_cavalete",
     "oc_fita",
     "oc_caixa",
     "oc_escada"
+  ],
+  "pino": [
+    -0.88,
+    2.14,
+    -0.0
+  ],
+  "cestoBase": [
+    2.88,
+    1.96,
+    -0.0
   ]
 }
