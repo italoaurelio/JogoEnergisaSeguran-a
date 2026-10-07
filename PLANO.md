@@ -874,7 +874,7 @@ Decisões do usuário nesta rodada:
 - [x] **5. O 3D reagindo à escolha** — caminhão chegando, escada encostada, boneco
       vestindo. **O cesto subindo NÃO foi feito**, ver abaixo.
 - [ ] 5b. Cesto do caminhão subindo (exige separar a lança em nó próprio no `.glb`)
-- [ ] 6. Menu com identidade e vestiário em etapas com ícone e veredito
+- [x] **6. Menu com personagem, vestiário em etapas com ícone, veredito e boneco respirando.**
 - [ ] 7. Povoar o trajeto (casas, escola, semáforo de longe, tráfego)
 
 ## Item 1 — som (feito)
@@ -1146,3 +1146,64 @@ Fica como item próprio. Vale notar que o efeito completo também pede alguém
 DENTRO do cesto, que não existe — e que o cesto aéreo reabre a pergunta de
 conteúdo já anotada: com ele, a escada deixa de ser obviamente a ferramenta
 certa no item do ferramental.
+
+
+## Item 5b adiado de propósito (não esquecido)
+
+Separar a lança exige refatorar `caminhao.montar()`, que junta **por material
+antes de juntar tudo** — os nomes individuais já não existem quando o objeto
+final se forma, então não dá para separar por nome no exportador. Some-se a
+isso: origem no pino (senão a rotação não é a da lança), cesto em nó próprio
+para ficar NIVELADO enquanto a lança sobe, reposicionamento pelo NOME no jogo
+(parentesco não sobrevive ao glTF) e um ciclo de reexport de 33 MB por
+tentativa.
+
+E o efeito completo pede alguém DENTRO do cesto, que não existe.
+
+Troquei a ordem com o item 6, que é o que o usuário descreveu em mais
+detalhe, e avisei em vez de pular calado.
+
+## Item 6 — menu e vestiário (feito)
+
+**O vestiário virou uma sequência de sete etapas**, uma por parte do corpo,
+com trilha de progresso no topo. As abas antigas deixavam pular de parte em
+parte e o sétimo rótulo estourava a largura do painel.
+
+**Cada peça tem ícone**, em SVG desenhado à mão (`src/icones.tsx`, doze
+formas). Nada de emoji: emoji entrega a aparência ao sistema operacional, e o
+capacete do Windows não é o do mac, nem nenhum dos dois é EPI de eletricista.
+Nada de pacote de ícones: licença para rastrear num jogo que vira `.exe`
+offline. **A variante é o que o traço mostra** — capacete COM jugular contra
+sem, luva com cobertura contra luva sozinha, luva com etiqueta de ensaio
+vencida: é nisso que está a resposta da fase.
+
+**O veredito aparece ao travar a escolha, e só no vestiário.** Trajeto e
+ocorrência seguem em silêncio até o relatório, como combinado. A escolha
+TRAVA junto com o veredito — explicação que ainda deixa trocar de resposta é
+gabarito, não ensino. As peças recusadas ficam na tela com opacidade baixa,
+em vez de sumir: continuar vendo o que não se escolheu é metade do
+aprendizado.
+
+**O boneco respira.** Não há animação de esqueleto, então é no grupo inteiro:
+6 mm de sobe-e-desce e 0,35% de escala, a 14 ciclos por minuto. Medido no
+jogo: 6,1 mm pico a pico. Dois períodos incomensuráveis (13 s e 7 s) somam um
+balanço lento de peso — sem ele a respiração vira metrônomo e o olho acha o
+compasso em dois ciclos.
+
+**A abertura deixou de ser um formulário.** Era um cartão escuro com um campo
+de nome; agora é o personagem de EPI completo em 3D, respirando, com o título
+e as três fases ao lado. A primeira coisa que se vê passou a ser um
+eletricista equipado, que é o assunto inteiro da fase 1.
+
+### O que ficou sem conferir, e por quê
+
+O painel do navegador ficou OCULTO a sessão inteira. Descobri uma limitação
+que vale anotar: **com o painel oculto E o viewport emulado, o R3F não roda** —
+o canvas fica no tamanho padrão de 300x150 e a cena nunca monta. Sem emulação
+ele roda normalmente (foi assim que a respiração foi medida).
+
+Então: o fluxo em etapas, os ícones, o veredito, o travamento e a respiração
+foram conferidos por medição no jogo. **O palco 3D da abertura em tela larga
+não foi visto.** A faixa estreita (438 px) foi conferida: sem rolagem
+horizontal, sem vazamento, botão de 394x60 visível, e o palco corretamente
+escondido abaixo de 880 px.

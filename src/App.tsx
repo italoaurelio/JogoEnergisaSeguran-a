@@ -4,7 +4,12 @@
  * As fases 2 e 3 ainda não estão montadas; o fluxo já prevê o lugar delas para
  * a pontuação ser somada de uma vez só no fim, que é como o cliente pediu.
  */
-import { useCallback, useState } from 'react'
+import { Suspense, useCallback, useState } from 'react'
+import { Canvas } from '@react-three/fiber'
+import { Environment } from '@react-three/drei'
+import Personagem from './cena/Personagem'
+import { Acabamento } from './cena/Acabamento'
+import { FISICO_INICIAL } from './conteudo/fisico'
 import { som } from './som'
 import Vestiario from './fases/Vestiario'
 import Fase2Cabine from './fases/Cabine'
@@ -157,6 +162,12 @@ function BotaoMudo() {
   )
 }
 
+/** O conjunto certo de EPI. A abertura mostra o resultado, não o problema. */
+const EPI_VITRINE = [
+  'vestimenta_fr', 'capacete_b', 'protetor_facial_arco',
+  'luva_isolante_cobertura', 'botina_isolante', 'paraquedista_talabarte',
+]
+
 function Abertura({
   nome, setNome, avancar,
 }: {
@@ -165,19 +176,70 @@ function Abertura({
   avancar: () => void
 }) {
   return (
-    <div className="tela">
-      <div className="cartao-tela">
+    <div className="abertura">
+      {/*
+        O personagem em 3D, equipado e respirando, no lugar do cartão escuro
+        que a abertura era antes. A tela anterior era um formulário com um
+        campo de nome: não dizia que aquilo é um jogo, nem do que trata.
+        Aqui a primeira coisa que se vê é um eletricista de EPI completo —
+        que é o assunto inteiro da fase 1.
+      */}
+      <div className="abertura-palco" aria-hidden>
+        <Canvas
+          dpr={[1, 1.5]}
+          shadows
+          camera={{ position: [0.12, 1.08, 3.0], fov: 32 }}
+          gl={{ antialias: true }}
+        >
+          <Suspense fallback={null}>
+            <Environment files="./hdri/ceu.hdr" environmentIntensity={0.10} />
+            <directionalLight
+              position={[-1.6, 3.0, 2.6]}
+              intensity={3.4}
+              castShadow
+              shadow-mapSize={[2048, 2048]}
+              shadow-camera-left={-1.4}
+              shadow-camera-right={1.4}
+              shadow-camera-top={2.4}
+              shadow-camera-bottom={-0.2}
+            />
+            <directionalLight position={[2.4, 1.4, 1.2]} intensity={1.0} color="#cfe0ff" />
+            <directionalLight position={[0.8, 2.2, -2.4]} intensity={1.8} color="#ffeccd" />
+            <group position={[0, -0.95, 0]}>
+              <Personagem
+                fisico={FISICO_INICIAL}
+                vestindo={EPI_VITRINE}
+                giro={-0.42}
+              />
+            </group>
+            <Acabamento raio={0.35} />
+          </Suspense>
+        </Canvas>
+      </div>
+
+      <div className="abertura-conteudo">
         <p className="sobretitulo">Treinamento de segurança do trabalho</p>
         <h1>Um dia de serviço</h1>
         <p className="chamada">
           Do vestiário até o reparo na rede. Cada decisão que você tomar no
           caminho vale ponto — e a conta só aparece no fim.
         </p>
-        <ol className="passos">
-          <li><b>Vestiário.</b> Monte o seu personagem e escolha o EPI.</li>
-          <li><b>Em trânsito.</b> Confira o veículo e dirija até a ocorrência.</li>
-          <li><b>Ocorrência.</b> Isole a área, separe o equipamento e faça o reparo.</li>
+
+        <ol className="etapas-cartao">
+          <li>
+            <b>Vestiário</b>
+            <span>Monte o seu personagem e escolha o EPI, peça por peça.</span>
+          </li>
+          <li>
+            <b>Em trânsito</b>
+            <span>Confira a cabine com o veículo desligado e dirija até a ocorrência.</span>
+          </li>
+          <li>
+            <b>Ocorrência</b>
+            <span>Isole a área, separe o equipamento e faça o reparo na ordem certa.</span>
+          </li>
         </ol>
+
         <label className="campo">
           <span>Seu nome (opcional)</span>
           <input

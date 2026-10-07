@@ -13,6 +13,8 @@ import { Environment } from '@react-three/drei'
 import Personagem, { type Fisico } from '../cena/Personagem'
 import { ALTURAS, TONS, FISICO_INICIAL } from '../conteudo/fisico'
 import { PECAS, VAGAS, type Peca, type Vaga } from '../conteudo/epi'
+import { IconePeca } from '../icones'
+import { som } from '../som'
 import type { Registro } from '../conteudo/pontuacao'
 
 const ORDEM_VAGAS: Vaga[] = [
@@ -35,7 +37,8 @@ export default function Vestiario({
   const [altura, setAltura] = useState(FISICO_INICIAL.altura)
   const [tom, setTom] = useState(FISICO_INICIAL.tom)
   const [escolhas, setEscolhas] = useState<Escolhas>({})
-  const [vaga, setVaga] = useState<Vaga>('cabeca')
+  const [passo, setPasso] = useState(0)
+  const vaga = ORDEM_VAGAS[passo]
   const [giro, setGiro] = useState(0)
   const arrasto = useRef<{ x: number; giro: number } | null>(null)
 
@@ -48,7 +51,6 @@ export default function Vestiario({
     return cobre ? ids : ['base_roupa', ...ids]
   }, [escolhas])
 
-  const faltam = ORDEM_VAGAS.filter((v) => VAGAS[v].obrigatoria && !escolhas[v])
 
   const aoDescer = useCallback((e: React.PointerEvent) => {
     arrasto.current = { x: e.clientX, giro }
@@ -158,12 +160,12 @@ export default function Vestiario({
           />
         ) : (
           <EtapaEpi
+            passo={passo}
             vaga={vaga}
-            setVaga={setVaga}
             escolhas={escolhas}
             escolher={(v, id) => setEscolhas((a) => ({ ...a, [v]: id }))}
-            faltam={faltam}
-            voltar={() => setEtapa('fisico')}
+            voltar={() => (passo === 0 ? setEtapa('fisico') : setPasso(passo - 1))}
+            avancar={() => setPasso(passo + 1)}
             concluir={concluir}
           />
         )}
@@ -232,40 +234,44 @@ function EtapaFisico({
 }
 
 function EtapaEpi({
-  vaga, setVaga, escolhas, escolher, faltam, voltar, concluir,
+  passo, vaga, escolhas, escolher, voltar, avancar, concluir,
 }: {
+  passo: number
   vaga: Vaga
-  setVaga: (v: Vaga) => void
   escolhas: Escolhas
   escolher: (v: Vaga, id: string) => void
-  faltam: Vaga[]
   voltar: () => void
+  avancar: () => void
   concluir: () => void
 }) {
   const opcoes = PECAS.filter((p) => p.vaga === vaga)
+  const escolhida = opcoes.find((p) => p.id === escolhas[vaga])
+  const ultimo = passo === ORDEM_VAGAS.length - 1
 
   return (
     <>
       <header className="painel-topo">
-        <p className="sobretitulo">Fase 1 · Vestiário</p>
-        <h2>Escolha o EPI</h2>
-        <p className="painel-texto">
-          Tem muito mais peça na arara do que você precisa. Escolha uma para
-          cada parte do corpo. Ninguém vai avisar se estiver errado.
+        <p className="sobretitulo">
+          Fase 1 · Vestiário · {passo + 1} de {ORDEM_VAGAS.length}
         </p>
+        <h2>{VAGAS[vaga].nome}</h2>
+        <p className="painel-texto">
+          {escolhida
+            ? 'Veja por que essa escolha vale o que vale, e siga.'
+            : 'Tem mais peça na arara do que você precisa. Escolha uma.'}
+        </p>
+        <ol className="trilha" aria-label="Progresso do vestiário">
+          {ORDEM_VAGAS.map((v, i) => (
+            <li
+              key={v}
+              className={
+                i === passo ? 'atual' : escolhas[v] ? 'feita' : ''
+              }
+              title={VAGAS[v].nome}
+            />
+          ))}
+        </ol>
       </header>
-
-      <nav className="abas">
-        {ORDEM_VAGAS.map((v) => (
-          <button
-            key={v}
-            className={`aba ${v === vaga ? 'ativa' : ''} ${escolhas[v] ? 'feita' : ''}`}
-            onClick={() => setVaga(v)}
-          >
-            {VAGAS[v].nome}
-          </button>
-        ))}
-      </nav>
 
       <ul className="arara">
         {opcoes.map((p) => (
@@ -273,27 +279,45 @@ function EtapaEpi({
             key={p.id}
             peca={p}
             escolhida={escolhas[vaga] === p.id}
-            escolher={() => escolher(vaga, p.id)}
+            travada={!!escolhida}
+            escolher={() => {
+              escolher(vaga, p.id)
+              som.veredito(p.veredito === 'correta')
+            }}
           />
         ))}
       </ul>
 
-      <div className="painel-rodape">
-        {faltam.length > 0 && (
-          <p className="painel-aviso">
-            Falta escolher: {faltam.map((v) => VAGAS[v].nome).join(' · ')}
+      {/*
+        O veredito aparece AQUI, no vestiário, e só aqui. Trajeto e ocorrência
+        seguem em silêncio até o relatório, como combinado: aquilo é prova.
+        Esta fase é onde se ENSINA o EPI, e não se reprova alguém em EPI antes
+        de ensinar. A escolha trava junto com o veredito — explicação que ainda
+        deixa trocar de resposta é gabarito, não ensino.
+      */}
+      {escolhida && (
+        <section className={`veredito veredito-${escolhida.veredito}`}>
+          <p className="veredito-selo">
+            {escolhida.veredito === 'correta' ? 'Escolha certa'
+              : escolhida.veredito === 'incompleta' ? 'Protege, mas não basta'
+              : 'Não protege'}
           </p>
-        )}
+          <p className="veredito-porque">{escolhida.porque}</p>
+          <p className="veredito-norma">{escolhida.norma}</p>
+        </section>
+      )}
+
+      <div className="painel-rodape">
         <div className="linha-botoes">
           <button className="btn btn-fraco" onClick={voltar}>
-            Voltar ao físico
+            {passo === 0 ? 'Voltar ao físico' : 'Voltar'}
           </button>
           <button
             className="btn btn-grande"
-            onClick={concluir}
-            disabled={faltam.length > 0}
+            onClick={ultimo ? concluir : avancar}
+            disabled={!escolhida}
           >
-            Sair para o serviço
+            {ultimo ? 'Sair para o serviço' : 'Próximo'}
           </button>
         </div>
       </div>
@@ -302,22 +326,27 @@ function EtapaEpi({
 }
 
 function ItemArara({
-  peca, escolhida, escolher,
+  peca, escolhida, travada, escolher,
 }: {
   peca: Peca
   escolhida: boolean
+  travada: boolean
   escolher: () => void
 }) {
   return (
     <li>
       <button
-        className={`item ${escolhida ? 'ativa' : ''}`}
+        className={`item ${escolhida ? 'ativa' : ''} ${travada && !escolhida ? 'recusada' : ''}`}
         onClick={escolher}
+        disabled={travada}
         aria-pressed={escolhida}
         aria-label={`${peca.nome} — ${peca.descricao}`}
       >
-        <span className="item-nome">{peca.nome}</span>
-        <span className="item-desc">{peca.descricao}</span>
+        <span className="item-icone"><IconePeca id={peca.id} /></span>
+        <span className="item-texto">
+          <span className="item-nome">{peca.nome}</span>
+          <span className="item-desc">{peca.descricao}</span>
+        </span>
       </button>
     </li>
   )

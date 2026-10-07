@@ -120,10 +120,27 @@ export default function Personagem({ fisico, vestindo, giro }: Props) {
   }, [scene, fisico.tom])
 
   // o giro é interpolado para o personagem não pular quando o jogador arrasta
-  useFrame((_, dt) => {
-    if (!grupo.current) return
-    const atual = grupo.current.rotation.y
-    grupo.current.rotation.y = atual + (giro - atual) * Math.min(1, dt * 9)
+  useFrame((estado, dt) => {
+    const g = grupo.current
+    if (!g) return
+    const atual = g.rotation.y
+    g.rotation.y = atual + (giro - atual) * Math.min(1, dt * 9)
+
+    // RESPIRAÇÃO. O corpo não tem animação de esqueleto, então ela é feita no
+    // grupo inteiro: 6 mm de sobe-e-desce e 0,35% de escala, a 14 ciclos por
+    // minuto, que é respiração de pessoa parada. É pouco de propósito — a
+    // 1 cm já lê como pulo, e o personagem está de pé numa arara, não
+    // correndo.
+    //
+    // Dois períodos incomensuráveis (13 s e 7 s) somam um balanço lento de
+    // peso nas pernas. Sem ele a respiração vira metrônomo: o olho acha o
+    // compasso em dois ciclos e o boneco volta a parecer um objeto.
+    const t = estado.clock.elapsedTime
+    const ar = Math.sin(t * 1.466)
+    g.position.y = ar * 0.006
+    const e = 1 + ar * 0.0035
+    g.scale.set(e, e, e)
+    g.rotation.z = Math.sin(t / 13) * 0.004 + Math.sin(t / 7) * 0.0022
   })
 
   const escala = fisico.altura / ALTURA_BASE
