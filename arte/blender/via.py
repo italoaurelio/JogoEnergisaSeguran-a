@@ -903,6 +903,69 @@ def _bolha_obj(nome, centro, raio):
     return o
 
 
+def pedestre(m, nome="via_pedestre", altura=1.72, roupa=(0.30, 0.10, 0.09)):
+    """Pessoa andando, de perfil, atravessando a pista (anda no eixo X).
+
+    A fase manda "pare e deixe atravessar" desde sempre, e nao havia NINGUEM
+    na faixa: o jogador parava por causa de um texto, nao do que via. E o
+    mesmo defeito do cinto que nao aparecia — a decisao sem a imagem.
+
+    De perfil e a 30 m, pessoa e: cabeca, ombro, e o V das pernas em passada.
+    O V e o que diz que ela esta ANDANDO, e andando e o que diz que ela vai
+    atravessar — gente parada na calcada nao obriga ninguem a frear. Por isso
+    as pernas sao a parte com mais cuidado aqui.
+
+    `altura` escala tudo: a mesma peca serve de crianca com 1,25.
+    """
+    pecas = []
+    k = altura / 1.72
+    pano = C.mat_simples(f"via_ped_roupa_{nome[-3:]}", roupa, rugosidade=0.80)
+    calca = C.mat_simples("via_ped_calca", (0.055, 0.065, 0.095), rugosidade=0.85)
+    pele = C.mat_simples("via_ped_pele", (0.265, 0.185, 0.135), rugosidade=0.72)
+    sapato = C.mat_simples("via_ped_sapato", (0.030, 0.028, 0.030), rugosidade=0.60)
+
+    def cx(n, tam, pos, mat, ch=0.03, rot=None):
+        o = C.caixa(f"{nome}_{n}", tuple(v * k for v in tam),
+                    tuple(v * k for v in pos), rot=rot)
+        if ch:
+            C.chanfrar(o, largura=ch * k, segmentos=2)
+        C.aplicar(o, mat)
+        pecas.append(o)
+        return o
+
+    cx("tronco", (0.30, 0.20, 0.52), (0, 0, 1.22), pano, 0.055)
+    cx("quadril", (0.28, 0.20, 0.18), (0, 0, 0.92), calca, 0.04)
+    cx("pescoco", (0.09, 0.09, 0.07), (0, 0, 1.52), pele, 0.02)
+    cx("cabeca", (0.17, 0.20, 0.23), (0, 0.01, 1.64), pele, 0.055)
+
+    # PASSADA: uma perna a frente, outra atras — e o V que le como caminhada
+    for lado, avanco in ((-1, 0.26), (1, -0.22)):
+        coxa = C.barra(f"{nome}_coxa_{lado}",
+                       (0, 0, 0.86 * k), (avanco * 0.55 * k, 0, 0.52 * k),
+                       secao=(0.125 * k, 0.145 * k))
+        C.aplicar(coxa, calca)
+        pecas.append(coxa)
+        canela = C.barra(f"{nome}_canela_{lado}",
+                         (avanco * 0.55 * k, 0, 0.52 * k),
+                         (avanco * k, 0, 0.09 * k),
+                         secao=(0.105 * k, 0.12 * k))
+        C.aplicar(canela, calca)
+        pecas.append(canela)
+        cx(f"pe_{lado}", (0.24, 0.11, 0.07), (avanco + 0.04, 0, 0.045),
+           sapato, 0.02)
+        # braco contrario a perna, como todo mundo anda
+        braco = C.barra(f"{nome}_braco_{lado}",
+                        (0, lado * 0.17 * k, 1.42 * k),
+                        (-avanco * 0.75 * k, lado * 0.19 * k, 0.94 * k),
+                        secao=(0.10 * k, 0.11 * k))
+        C.aplicar(braco, pano)
+        pecas.append(braco)
+
+    alvo = C.juntar(pecas, nome)
+    alvo.name = nome
+    return alvo
+
+
 def _mat_luz(nome, cor, forca=1.0):
     """Material que ACENDE. O jogo troca a intensidade por lampada."""
     mat = bpy.data.materials.new(nome)

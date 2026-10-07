@@ -38,6 +38,10 @@ def processar():
         "semaforo": V.semaforo(m),
         "onibus": V.onibus(m),
         "ciclista": V.ciclista(m),
+        "pedestre": V.pedestre(m),
+        # mesma peca a 1,25 m: crianca de embarque do onibus escolar
+        "crianca": V.pedestre(m, nome="via_crianca", altura=1.25,
+                              roupa=(0.12, 0.17, 0.34)),
     }
 
     exportaveis = []

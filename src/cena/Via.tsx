@@ -220,6 +220,56 @@ function Contrafluxo({
 }
 
 /**
+ * O pedestre da faixa.
+ *
+ * A fase manda "pare e deixe atravessar" desde sempre e não havia ninguém na
+ * faixa: o jogador parava por causa de um texto. É o mesmo defeito do cinto
+ * que não aparecia em quadro — a decisão sem a imagem.
+ *
+ * Ele ESPERA no meio-fio enquanto o veículo se aproxima e só atravessa depois
+ * que `liberado` vira — que é quando o jogador ficou parado 1,6 s. Essa ordem
+ * importa: pedestre que atravessa sozinho, antes de o motorista parar, ensina
+ * que dá para passar que ele se vira.
+ */
+function Pedestre({
+  molde, distancia, metro, liberado,
+}: {
+  molde: THREE.Object3D | null
+  distancia: React.RefObject<number>
+  metro: number | null
+  liberado: React.RefObject<boolean>
+}) {
+  const grupo = useRef<THREE.Group>(null)
+  const obj = useMemo(() => {
+    if (!molde) return null
+    const c = molde.clone(true)
+    c.visible = true
+    return c
+  }, [molde])
+  /** 0 parado no meio-fio, 1 do outro lado. */
+  const avanco = useRef(0)
+
+  useFrame((_, bruto) => {
+    const g = grupo.current
+    if (!g || metro == null) return
+    const dt = Math.min(bruto, 0.05)
+    const z = metro - (distancia.current ?? 0)
+    // 7 s para atravessar os 8,7 m: ~1,2 m/s, que é passo de gente comum
+    if (liberado.current) avanco.current = Math.min(1, avanco.current + dt / 7)
+    const x = DE_PE_X + (ATE_PE_X - DE_PE_X) * avanco.current
+    g.position.set(x, 0, z)
+    g.visible = z > -30 && z < ALCANCE
+  })
+
+  if (!obj) return null
+  return <group ref={grupo}><primitive object={obj} /></group>
+}
+
+/** Meio-fio de onde ele sai e meio-fio onde ele chega. */
+const DE_PE_X = BORDA_DIR - 0.85
+const ATE_PE_X = BORDA_ESQ + 0.85
+
+/**
  * O veículo que sai da garagem.
  *
  * Diferente do contrafluxo, este VALE NOTA — então a posição dele anda com o
@@ -274,7 +324,7 @@ function Garagem({
 }
 
 export function Mundo({
-  distancia, marcos, carro, tracado, sinal, garagem,
+  distancia, marcos, carro, tracado, sinal, garagem, faixa, pedestreLiberado,
 }: {
   distancia: React.RefObject<number>
   marcos: Marco[]
@@ -284,6 +334,9 @@ export function Mundo({
   tracado: NoTracado[]
   /** Lâmpada acesa do semáforo: 0 verde, 1 amarelo, 2 vermelho. */
   sinal?: React.RefObject<number>
+  /** Metro da faixa de pedestre, e se o pedestre já atravessou. */
+  faixa: number | null
+  pedestreLiberado: React.RefObject<boolean>
   /** Metro da saída de garagem, e se o jogador já cedeu passagem. */
   garagem?: { metro: number | null; liberada: React.RefObject<boolean> }
 }) {
@@ -399,7 +452,7 @@ export function Mundo({
   const moldes = useMemo(() => {
     const nomes = ['trecho', 'chao', 'poste', 'cabos', 'arvore', 'arbusto',
       'casa', 'placa', 'lombada', 'faixa_pedestre', 'carro', 'semaforo',
-      'onibus', 'ciclista', 'escola', 'moto'] as const
+      'onibus', 'ciclista', 'escola', 'moto', 'pedestre', 'crianca'] as const
     const mapa: Record<string, THREE.Object3D | null> = {}
     for (const n of nomes) mapa[n] = scene.getObjectByName(`via_${n}`) ?? null
     return mapa
@@ -458,6 +511,12 @@ export function Mundo({
       <group ref={grupoCarro} visible={false}>
         {carroClone && <primitive object={carroClone} />}
       </group>
+      <Pedestre
+        molde={moldes.pedestre}
+        distancia={distancia}
+        metro={faixa}
+        liberado={pedestreLiberado}
+      />
       <Contrafluxo molde={moldes.carro} distancia={distancia} />
       {/*
         Moto em fila PRÓPRIA, e não misturada na dos carros.

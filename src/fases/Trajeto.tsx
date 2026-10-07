@@ -246,6 +246,8 @@ export default function Fase2Trajeto({
             carro={carro}
             tracado={TRACADO}
             sinal={sinal}
+            faixa={evento('faixa')?.metro ?? null}
+            pedestreLiberado={pedestreLiberado}
             garagem={{
               metro: evento('garagem')?.metro ?? null,
               liberada: garagemLiberada,
@@ -534,6 +536,8 @@ function Motor({
         vao: carro.current == null ? null : +(carro.current - d).toFixed(1),
         trecho: trecho.id, limite: trecho.limite, dt: +dt.toFixed(4),
         faltas: { ...faltas.current },
+        paradoDesde: +paradoDesde.current.toFixed(2),
+        pedestreLiberado: pedestreLiberado.current,
       }
     }
 
