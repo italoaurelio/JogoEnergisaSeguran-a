@@ -30,6 +30,7 @@ def processar():
         "arvore": V.arvore(m),
         "arbusto": V.arbusto(m),
         "casa": V.casa(m),
+        "escola": V.escola(m),
         "carro": V.carro(m),
         "lombada": V.lombada(m),
         "faixa_pedestre": V.faixa_pedestre(m),

@@ -18,72 +18,31 @@ import {
   aplicarPerfil, criarDobra, dobrarMaterial, type NoTracado,
 } from './curva'
 import { uvPorPosicao, vestir } from './texturas'
+import {
+  ALCANCE, BORDA_DIR, BORDA_ESQ, POOL, TRECHO, paisagem, type Marco,
+} from './paisagem'
+
+export { ALCANCE, BORDA_DIR, BORDA_ESQ, POOL, TRECHO, paisagem }
+export type { Marco }
 
 const MODELO = './modelos/via.glb'
 const DRACO = './draco/gltf/'
 
 /** Comprimento de um trecho, em metros. Tem de bater com via.py. */
-export const TRECHO = 40
 /** Até onde o mundo é desenhado à frente. */
-const ALCANCE = 320
 /** Faixa contrária: do outro lado do eixo da via, que fica em x = +1,75. */
 const CONTRA_X = 3.5
 /** Velocidade de quem vem de frente, em m/s (≈ 50 km/h). */
 const VELOCIDADE_CONTRA = 14
 /** Distância entre um veículo e o seguinte na fila contrária. */
-const VAO_CONTRA = 95
+// 52 m, não 95: o que governa quantos carros se vê é o VÃO, não a contagem.
+// Com 95 m e 320 m de alcance passavam três no campo inteiro, e a via lia
+// como deserta mesmo com mais veículos no pool.
+const VAO_CONTRA = 52
 
 /** Borda do lado do motorista e borda oposta, em x. */
-export const BORDA_DIR = -1.75
-export const BORDA_ESQ = 5.25
 
 useGLTF.preload(MODELO, DRACO)
-
-/** Uma peça colocada em algum ponto do trajeto. */
-export type Marco = {
-  peca: 'poste' | 'cabos' | 'arvore' | 'arbusto' | 'casa' | 'placa'
-    | 'carro' | 'lombada' | 'faixa_pedestre' | 'semaforo' | 'onibus'
-    | 'ciclista'
-  /** Distância absoluta ao longo do trajeto, em metros. */
-  metro: number
-  x: number
-  giro?: number
-  /** Só para o carro: ele anda, então a posição vem de fora a cada quadro. */
-  movel?: boolean
-}
-
-/**
- * Espalha a paisagem ao longo do trajeto de forma determinística.
- *
- * Não usa Math.random: o cenário tem de ser o mesmo em toda sessão, senão dois
- * colaboradores fazem provas diferentes e a nota não é comparável.
- */
-export function paisagem(distanciaTotal: number): Marco[] {
-  const saida: Marco[] = []
-  const fim = distanciaTotal + ALCANCE
-  for (let m = 0; m < fim; m += TRECHO) {
-    saida.push({ peca: 'poste', metro: m + 6, x: BORDA_DIR - 1.5 })
-    saida.push({ peca: 'cabos', metro: m + 6, x: BORDA_DIR - 1.5 })
-  }
-  // embaralhamento barato e estável: um gerador linear congruente por índice
-  let semente = 7
-  const proximo = () => (semente = (semente * 1103515245 + 12345) % 2147483648) / 2147483648
-  for (let m = 0; m < fim; m += 18) {
-    const r = proximo()
-    if (r < 0.34) {
-      saida.push({ peca: 'arvore', metro: m + r * 12, x: BORDA_ESQ + 3.2 + r * 5,
-                   giro: r * 6 })
-    } else if (r < 0.52) {
-      saida.push({ peca: 'casa', metro: m + r * 10, x: BORDA_ESQ + 9.0 + r * 3 })
-    } else if (r < 0.70) {
-      saida.push({ peca: 'arvore', metro: m + r * 14, x: BORDA_DIR - 5.5 - r * 4,
-                   giro: r * 6 })
-    } else if (r < 0.86) {
-      saida.push({ peca: 'arbusto', metro: m + r * 16, x: BORDA_DIR - 3.4 })
-    }
-  }
-  return saida
-}
 
 /** Pool de cópias de uma peça, recicladas conforme o mundo corre. */
 function Fileira({
@@ -175,7 +134,7 @@ function Pista({
  * ser comparável entre colaboradores, e aqui não há o que comparar.
  */
 function Contrafluxo({
-  molde, distancia, quantos = 5,
+  molde, distancia, quantos = 11,
 }: {
   molde: THREE.Object3D | null
   distancia: React.RefObject<number>
@@ -216,8 +175,10 @@ function Contrafluxo({
     const p = posicoes.current
     for (let i = 0; i < copias.length; i++) {
       p[i] -= VELOCIDADE_CONTRA * dt
-      // passou do jogador: volta para o fim da fila, lá na frente
-      if (p[i] < d - 25) p[i] = d + ALCANCE + (i % 3) * 40
+      // passou do jogador: volta para o fim da fila, lá na frente. O resto da
+      // divisão por 5 (e não por 3) evita que os reciclados voltem sempre nas
+      // mesmas três distâncias e formem comboio visível.
+      if (p[i] < d - 25) p[i] = d + ALCANCE + (i % 5) * 32
       const z = p[i] - d
       copias[i].position.z = z
       copias[i].visible = z > -25 && z < ALCANCE
@@ -407,7 +368,7 @@ export function Mundo({
   const moldes = useMemo(() => {
     const nomes = ['trecho', 'chao', 'poste', 'cabos', 'arvore', 'arbusto',
       'casa', 'placa', 'lombada', 'faixa_pedestre', 'carro', 'semaforo',
-      'onibus', 'ciclista'] as const
+      'onibus', 'ciclista', 'escola'] as const
     const mapa: Record<string, THREE.Object3D | null> = {}
     for (const n of nomes) mapa[n] = scene.getObjectByName(`via_${n}`) ?? null
     return mapa
@@ -438,18 +399,29 @@ export function Mundo({
     g.position.set(0, 0, pos - (distancia.current ?? 0))
   })
 
+  // mesmo padrão de `__cabine` e `__ocorrencia`: sem um ponto de entrada não
+  // há como CONTAR o que está na tela, e densidade de cenário só se julga
+  // contando — "parece vazio" não é medida
+  const raiz = useRef<THREE.Group>(null)
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      ;(window as unknown as Record<string, unknown>).__via = raiz.current
+    }
+  }, [])
+
   return (
-    <group>
+    <group ref={raiz}>
       {chaoClone && <primitive object={chaoClone} position={[0, 0, 0]} />}
       <Pista molde={moldes.trecho} distancia={distancia} />
-      {(['poste', 'cabos', 'arvore', 'arbusto', 'casa', 'placa', 'lombada',
-        'faixa_pedestre', 'semaforo', 'onibus', 'ciclista'] as const).map((nome) => (
+      {(['poste', 'cabos', 'arvore', 'arbusto', 'casa', 'escola', 'placa',
+        'lombada', 'faixa_pedestre', 'semaforo', 'onibus',
+        'ciclista'] as const).map((nome) => (
         <Fileira
           key={nome}
           molde={moldes[nome]}
           marcos={porPeca[nome] ?? []}
           distancia={distancia}
-          limite={nome === 'poste' || nome === 'cabos' ? 12 : 10}
+          limite={POOL[nome] ?? 10}
         />
       ))}
       <group ref={grupoCarro} visible={false}>

@@ -590,6 +590,78 @@ def casa(m, nome="via_casa", largura=7.5, fundo=8.0, altura=2.9):
     return C.juntar(pecas, nome)
 
 
+def escola(m, nome="via_escola", modulo=10.0):
+    """Um MODULO de 10 m de frente de escola publica, feito para LADRILHAR.
+
+    O jogo repete a mesma peca a cada 10 m para formar a quadra inteira, entao
+    tudo aqui tem exatamente `modulo` de comprimento em X e emenda no vizinho
+    sem vao nem sobreposicao. E por isso que nao ha portao nem placa na peca:
+    um portao a cada 10 m viraria uma fileira de portoes.
+
+    O que distingue de casa, na ordem do que custa menos:
+
+      1. MURO alto na divisa com faixa de cor corrida. Casa de beira de
+         estrada tem muro baixo ou nenhum; escola tem muro de verdade, e e a
+         linha horizontal continua dele que o motorista le de longe.
+      2. PLATIBANDA no lugar de telhado de duas aguas. Predio publico tem topo
+         reto; so isso ja separa a silhueta da fileira de casas.
+      3. FITA DE JANELA corrida, nao janelinhas soltas. Sala de aula tem
+         esquadria contínua, e a repeticao dela e o que diz "escola" antes de
+         qualquer placa.
+
+    ~420 triangulos.
+    """
+    pecas = []
+    creme = C.mat_simples("via_escola_parede", (0.300, 0.285, 0.245),
+                          rugosidade=0.90)
+    faixa_cor = C.mat_simples("via_escola_faixa", (0.030, 0.105, 0.230),
+                              rugosidade=0.86)
+    vidro = C.mat_simples("via_casa_vidro", (0.022, 0.028, 0.036),
+                          rugosidade=0.14)
+
+    # muro na divisa, com coroamento
+    muro = C.caixa(f"{nome}_muro", (modulo, 0.18, 2.35), (0, 0, 1.175))
+    C.aplicar(muro, creme)
+    pecas.append(muro)
+    faixa = C.caixa(f"{nome}_faixa", (modulo, 0.21, 0.42), (0, 0, 1.85))
+    C.aplicar(faixa, faixa_cor)
+    pecas.append(faixa)
+    coroa = C.caixa(f"{nome}_coroa", (modulo, 0.30, 0.10), (0, 0, 2.40))
+    C.chanfrar(coroa, largura=0.02, segmentos=2)
+    C.aplicar(coroa, creme)
+    pecas.append(coroa)
+
+    # bloco recuado: o patio entre muro e predio e o que da profundidade
+    recuo, fundo, alt = 5.4, 9.0, 4.10
+    bloco = C.caixa(f"{nome}_bloco", (modulo, fundo, alt),
+                    (0, -recuo - fundo / 2, alt / 2))
+    C.aplicar(bloco, creme)
+    pecas.append(bloco)
+
+    # platibanda: topo reto, com a borda avancando 12 cm
+    plat = C.caixa(f"{nome}_platibanda", (modulo + 0.24, fundo + 0.24, 0.52),
+                   (0, -recuo - fundo / 2, alt + 0.14))
+    C.chanfrar(plat, largura=0.025, segmentos=2)
+    C.aplicar(plat, creme)
+    pecas.append(plat)
+
+    # fita de janela corrida nos dois pavimentos, so na face de quem passa
+    y_face = -recuo + 0.02
+    for z in (1.70, 3.10):
+        vao = C.caixa(f"{nome}_janela_{int(z * 10)}", (modulo - 1.1, 0.10, 0.95),
+                      (0, y_face, z))
+        C.aplicar(vao, vidro)
+        pecas.append(vao)
+        peitoril = C.caixa(f"{nome}_peitoril_{int(z * 10)}",
+                           (modulo - 1.0, 0.22, 0.12), (0, y_face, z - 0.53))
+        C.aplicar(peitoril, faixa_cor)
+        pecas.append(peitoril)
+
+    alvo = C.juntar(pecas, nome)
+    alvo.name = nome
+    return alvo
+
+
 def _vidraca(nome, a, b, largura, mat, espessura=0.05):
     """Painel inclinado de `a`=(y, z) a `b`=(y, z), com espessura.
 

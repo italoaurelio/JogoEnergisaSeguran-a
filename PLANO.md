@@ -875,7 +875,7 @@ Decisões do usuário nesta rodada:
       vestindo. **O cesto subindo NÃO foi feito**, ver abaixo.
 - [ ] 5b. Cesto do caminhão subindo (exige separar a lança em nó próprio no `.glb`)
 - [x] **6. Menu com personagem, vestiário em etapas com ícone, veredito e boneco respirando.**
-- [ ] 7. Povoar o trajeto (casas, escola, semáforo de longe, tráfego)
+- [x] **7. Trajeto povoado por zonas**, com escola nova e auto-teste de densidade.
 
 ## Item 1 — som (feito)
 
@@ -1207,3 +1207,67 @@ foram conferidos por medição no jogo. **O palco 3D da abertura em tela larga
 não foi visto.** A faixa estreita (438 px) foi conferida: sem rolagem
 horizontal, sem vazamento, botão de 394x60 visível, e o palco corretamente
 escondido abaixo de 880 px.
+
+
+## Item 7 — povoar o trajeto (feito)
+
+**A causa da "reta longa e monótona" era densidade, e ela estava medível o
+tempo todo.** A paisagem antiga sorteava UMA peça a cada 18 m entre quatro
+opções: na prática cada categoria caía a cada 70-100 m e, com 320 m de
+alcance, isso é uma casa, duas árvores e descampado verde até o horizonte.
+
+**Agora o trajeto atravessa ZONAS, não ruído uniforme:** pátio (mato e cerca
+viva), bairro (frontaria dos dois lados), entorno de escola (muro corrido de
+um lado, casas do outro) e bairro de novo chegando. **A fronteira entre elas
+é o que dá sensação de percurso** — num descampado uniforme ninguém sente que
+andou, por mais árvore que se jogue.
+
+**Entrou a escola** (`via.py`, ~420 triângulos), um MÓDULO de 10 m feito para
+ladrilhar: o jogo repete a mesma peça para formar a quadra. Por isso ela não
+tem portão nem placa — um portão a cada 10 m viraria uma fileira de portões.
+O que separa de casa, na ordem do que custa menos: muro alto com faixa de cor
+corrida (é a linha horizontal contínua que se lê de longe), platibanda no
+lugar de telhado de duas águas, e fita de janela corrida em vez de janelinhas
+soltas. Conferida em render com três módulos lado a lado e uma casa ao lado,
+para ver emenda e silhueta.
+
+**Tráfego no sentido oposto: o que governa é o VÃO, não a contagem.** Com 95 m
+de vão e 320 m de alcance passavam três carros no campo inteiro. Vão para
+52 m e pool para 11.
+
+### O teto de cópias era o defeito escondido
+
+`Fileira` tem um pool fixo de clones — 10 por peça. Adensar sem mexer nele faz
+a fileira **sumir a partir da décima cópia**: a frontaria vira buraco justo
+onde devia ser contínua.
+
+Por isso a paisagem saiu de `Via.tsx` para **`src/cena/paisagem.ts`, função
+pura** (sem three, sem React, sem GLB) com o `POOL` ao lado dela — os dois
+números são a mesma decisão vista de dois lados, e em arquivos diferentes
+saem de sincronia na primeira mudança de densidade.
+
+`npm run paisagem` roda o auto-teste: varre o trajeto de 20 em 20 m, mede o
+PICO de cada peça na tela e compara com o pool.
+
+**Ele achou o erro na primeira execução**, com números que eu tinha chutado:
+
+```
+FALHA arbusto: pico 29, pool 20
+FALHA arvore:  pico 32, pool 26
+FALHA casa:    pico 73, pool 34
+FALHA escola:  pico 30, pool 14
+```
+
+Casa com pico 73 também mostrou que a primeira densidade era cara demais para
+o mini-PC do totem — frontaria a cada 10 m com casa de 7,5 m é quase encostada.
+Passou para 20 m por lado, e na zona da escola a frontaria ficou só de um lado,
+porque muro e casas no mesmo trecho somavam objeto demais. Depois do acerto:
+
+```
+ok poste 9/12 · cabos 9/12 · arbusto 31/34 · arvore 28/31 · casa 37/40 · escola 30/33
+```
+
+**Não conferido na tela**: o painel do navegador seguiu oculto e o trajeto não
+chega a montar nesse estado (a cena 3D precisa de quadros para existir). A
+densidade foi medida pela função pura e a escola por render em Cycles; falta
+ver o conjunto em movimento.
