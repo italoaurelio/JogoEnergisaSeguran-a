@@ -237,6 +237,55 @@ function Contrafluxo({
  * importa: pedestre que atravessa sozinho, antes de o motorista parar, ensina
  * que dá para passar que ele se vira.
  */
+/**
+ * CICLO DE CAMINHADA das pessoas da via.
+ *
+ * A passada era ASSADA na malha: uma perna a frente, outra atras, congeladas.
+ * Lia como caminhada numa foto e como DESLIZE em movimento — a pessoa
+ * atravessava os 8,7 m da pista na mesma pose.
+ *
+ * Nao da para esfolar: `X.preparar()` roda convert(target="MESH"), que aplica
+ * a armadura e congela a pose, entao nada com osso chega ao .glb. Mas nao
+ * precisa de osso. As duas pernas saem do Blender como NOS PROPRIOS, com a
+ * origem no quadril, e girar no eixo Z local e o ciclo de caminhada mais
+ * antigo que existe — o mesmo truque da lanca do cesto aereo em Ocorrencia3D.
+ *
+ * O ciclo anda com os METROS PERCORRIDOS, nao com o relogio: assim a cadencia
+ * acompanha a velocidade sozinha, quem anda mais rapido da mais passos, e
+ * parar o movimento para a perna no lugar em vez de deixar ela pedalando.
+ */
+function pernasDe(obj: THREE.Object3D | null) {
+  if (!obj) return null
+  const achadas: Record<string, THREE.Object3D> = {}
+  obj.traverse((o) => {
+    if (o.name.endsWith('_perna_e')) achadas.e = o
+    if (o.name.endsWith('_perna_d')) achadas.d = o
+  })
+  if (!achadas.e || !achadas.d) return null
+  // a altura do quadril vem da propria peca (o no ja nasce transladado ate
+  // ele), entao a crianca de 1,25 m anda sem nenhum numero a mais
+  return { e: achadas.e, d: achadas.d, quadril: achadas.e.position.y }
+}
+
+const BALANCO = THREE.MathUtils.degToRad(24)
+
+function andar(
+  pernas: ReturnType<typeof pernasDe>,
+  corpo: THREE.Object3D | null,
+  metros: number,
+) {
+  if (!pernas || !corpo) return
+  // uma passada por ~0,8 do quadril: 0,72 m no adulto, 0,52 m na crianca
+  const ang = Math.sin((metros / (pernas.quadril * 0.8)) * Math.PI) * BALANCO
+  pernas.e.rotation.z = ang
+  pernas.d.rotation.z = -ang
+  // O quadril AFUNDA conforme a perna abre — perna rigida de comprimento L
+  // sustenta o corpo a L*cos(ang). Sem isso o pe flutua nos extremos da
+  // passada; com isso o pe fica no chao e sai de brinde o balanco vertical,
+  // que e o que mais faz uma silhueta ler como "andando".
+  corpo.position.y = pernas.quadril * (Math.cos(ang) - 1)
+}
+
 function Pedestre({
   molde, distancia, metro, liberado,
 }: {
@@ -254,6 +303,7 @@ function Pedestre({
   }, [molde])
   /** 0 parado no meio-fio, 1 do outro lado. */
   const avanco = useRef(0)
+  const pernas = useMemo(() => pernasDe(obj), [obj])
 
   useFrame((_, bruto) => {
     const g = grupo.current
@@ -262,8 +312,11 @@ function Pedestre({
     const z = metro - (distancia.current ?? 0)
     // 7 s para atravessar os 8,7 m: ~1,2 m/s, que é passo de gente comum
     if (liberado.current) avanco.current = Math.min(1, avanco.current + dt / 7)
-    const x = DE_PE_X + (ATE_PE_X - DE_PE_X) * avanco.current
+    const vao = ATE_PE_X - DE_PE_X
+    const x = DE_PE_X + vao * avanco.current
     g.position.set(x, 0, z)
+    // parado no meio-fio ele fica de pe; andando, anda
+    andar(pernas, obj, avanco.current * vao)
     g.visible = z > -30 && z < ALCANCE
   })
 
@@ -283,6 +336,16 @@ function Pedestre({
  * última o ônibus arranca. É a mesma regra do pedestre e da garagem: quem
  * fez o certo não fica preso, mas também não passa antes da hora.
  */
+/**
+ * Onde a criança entra, em coordenadas do ônibus.
+ *
+ * A porta estava modelada em x +1.23 — e o ônibus aponta para +z, parado em
+ * x -1.0: ela abria em x +0.23, no meio do asfalto, que vai de -1.75 a 5.25.
+ * Porta de ônibus ESCOLAR para o lado do trânsito. Movida para -1.23 em
+ * `via.py`; aqui a criança para rente a ela.
+ */
+const PORTA_ONIBUS = new THREE.Vector3(-1.9, 0, 3.0)
+
 function OnibusEscolar({
   molde, moldeCrianca, distancia, metro, liberado, onde,
 }: {
@@ -305,15 +368,27 @@ function OnibusEscolar({
   }, [molde])
   const filhos = useMemo(() => {
     if (!moldeCrianca) return []
+    // Fila NO LADO DO MEIO-FIO, atrás da porta, de frente para ela.
+    //
+    // Estavam em x -2,5 (fora do ônibus, do lado certo) mas em z negativo —
+    // atrás do eixo traseiro, com a porta 5 m à frente — e com rotation.y =
+    // PI, ou seja de costas para ela. Nada disso aparecia porque elas
+    // sumiam uma a uma em vez de andar: criança que pisca não revela que
+    // estava virada para o lado errado, na ponta errada do ônibus.
     return [0, 1, 2].map((i) => {
       const c = moldeCrianca.clone(true)
       c.visible = true
-      // enfileiradas atrás da porta, que fica na frente do ônibus
-      c.position.set(-2.5 - i * 0.55, 0, -2.4 + i * 0.75)
-      c.rotation.y = Math.PI
+      c.position.set(-1.95, 0, 1.8 - i * 0.8)
+      // o modelo anda no eixo X; -90° em Y vira ele para +z, que é onde
+      // está a porta
+      c.rotation.y = -Math.PI / 2
       return c
     })
   }, [moldeCrianca])
+  const pernasFilhos = useMemo(() => filhos.map((c) => pernasDe(c)), [filhos])
+  const saidas = useMemo(
+    () => filhos.map((c) => c.position.clone()), [filhos],
+  )
   /** Quantas já entraram, em fração: 0 nenhuma, 1 todas. */
   const embarcou = useRef(0)
   /** Quanto o ônibus já andou depois de arrancar, em metros. */
@@ -355,9 +430,22 @@ function OnibusEscolar({
       // trecho escolar vê uma arrancada normal e o ônibus sumindo à frente.
       saiu.current += Math.min(VEICULO.maxima, 2 + saiu.current * 0.6) * dt
     }
+    // Cada uma ANDA até a porta na sua vez, e some ao entrar. Antes elas
+    // piscavam no lugar: o embarque era uma contagem, não uma cena, e o
+    // jogador esperava sem ver por quê.
     for (let i = 0; i < filhos.length; i++) {
       const minha = (i + 1) / filhos.length
-      filhos[i].visible = embarcou.current < minha
+      const anterior = i / filhos.length
+      const visivel = embarcou.current < minha
+      filhos[i].visible = visivel
+      if (!visivel) continue
+      const t = Math.min(1, Math.max(0,
+        (embarcou.current - anterior) / (minha - anterior)))
+      const saida = saidas[i]
+      const x = saida.x + (PORTA_ONIBUS.x - saida.x) * t
+      const zz = saida.z + (PORTA_ONIBUS.z - saida.z) * t
+      filhos[i].position.set(x, 0, zz)
+      andar(pernasFilhos[i], filhos[i], t * saida.distanceTo(PORTA_ONIBUS))
     }
     // ELE FUGIA PARA SEMPRE.
     //
@@ -437,6 +525,10 @@ function PessoasDoPatio({
     })
   }, [molde])
 
+  // o corpo que afunda e a copia; a perna e filha dela
+  const corpos = copias
+  const pernas = useMemo(() => copias.map((c) => pernasDe(c)), [copias])
+
   useEffect(() => {
     const g = grupo.current
     if (!g) return
@@ -451,8 +543,14 @@ function PessoasDoPatio({
       const p = NO_PATIO[i]
       const z = p.metro - d
       // vai e volta entre as vagas: seno, não sorteio, para ser igual sempre
-      const anda = Math.sin(t * 0.42 + i * 1.7) * p.ida
+      const fase = t * 0.42 + i * 1.7
+      const anda = Math.sin(fase) * p.ida
       copias[i].position.set(p.x + anda, 0, z)
+      // vira para onde anda: perna andando para tras com o corpo de frente e
+      // moonwalk, e um colega moonwalking no patio custa a cena inteira
+      const paraFrente = Math.cos(fase) * p.ida >= 0
+      copias[i].rotation.y = p.giro + (paraFrente ? 0 : Math.PI)
+      andar(pernas[i], corpos[i], anda)
       copias[i].visible = z > -20 && z < ALCANCE
     }
   })
@@ -658,6 +756,26 @@ export function Mundo({
       'crianca']
     const mapa: Record<string, THREE.Object3D | null> = {}
     for (const n of nomes) mapa[n] = scene.getObjectByName(`via_${n}`) ?? null
+
+    // PARENTESCO NÃO SOBREVIVE AO glTF — de novo.
+    //
+    // As pernas saem do Blender como FILHAS do corpo, com a origem no
+    // quadril. O `optimize` do gltf-transform achata a hierarquia: os nós
+    // chegam com a translação certa, mas soltos, e clonar o corpo vem sem
+    // perna. Mesma armadilha da lança do cesto aéreo, e a mesma saída:
+    // a montagem é feita aqui.
+    for (const n of ['pedestre', 'crianca']) {
+      const corpo = mapa[n]
+      if (!corpo) continue
+      const g = new THREE.Group()
+      g.name = corpo.name
+      g.add(corpo.clone(true))
+      for (const lado of ['e', 'd']) {
+        const perna = scene.getObjectByName(`via_${n}_perna_${lado}`)
+        if (perna) g.add(perna.clone(true))
+      }
+      mapa[n] = g
+    }
     return mapa
   }, [scene])
 

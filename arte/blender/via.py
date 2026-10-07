@@ -1298,6 +1298,12 @@ def muro_patio(m, nome="via_muro_patio", modulo=10.0):
     return alvo
 
 
+# Altura do quadril do pedestre de 1,72 m. E o pivo da passada: a perna
+# gira aqui, e o jogo le essa altura da propria caixa da peca, entao a
+# crianca de 1,25 m funciona sem numero a mais.
+QUADRIL_Z = 0.90
+
+
 def pedestre(m, nome="via_pedestre", altura=1.72, roupa=(0.30, 0.10, 0.09)):
     """Pessoa andando, de perfil, atravessando a pista (anda no eixo X).
 
@@ -1395,28 +1401,54 @@ def pedestre(m, nome="via_pedestre", altura=1.72, roupa=(0.30, 0.10, 0.09)):
                (0.000, 0, 1.757, 0.024, 0.024)], segmentos=10)
     _fechar_bm(bm, f"{nome}_cabelo", cabelo, pecas)
 
-    # PASSADA: uma perna a frente, outra atras — e o V que le como caminhada.
-    # As pernas nascem SEPARADAS em Y: nascendo as duas de x=0 elas se cruzam
-    # no quadril e de frente a pessoa fica com uma perna so.
-    for lado, avanco in ((-1, 0.26), (1, -0.22)):
+    # PERNAS SOLTAS, EM PE, PARA O JOGO ANIMAR (3a rodada, 07/10).
+    #
+    # Ate aqui a passada era ASSADA na malha: uma perna a frente, outra atras,
+    # congeladas. Lia como caminhada numa foto e como DESLIZE em movimento —
+    # a pessoa atravessava a pista inteira na mesma pose, e foi o que o
+    # usuario apontou.
+    #
+    # Nao da para esfolar (skinning): `X.preparar()` roda
+    # convert(target="MESH"), que aplica a armadura e congela a pose, entao
+    # nada com osso chega ao .glb. Mas nao PRECISA de osso: perna inteira
+    # girando no quadril e o ciclo de caminhada mais antigo que existe, e o
+    # jogo ja faz exatamente isso com a lanca do cesto aereo (Ocorrencia3D).
+    #
+    # Entao: pernas NEUTRAS (x=0, em pe), cada uma num objeto proprio com a
+    # ORIGEM NO QUADRIL — assim o no do glTF ja nasce com a translacao certa
+    # e o three.js so precisa girar, sem conta de pivo.
+    #
+    # Perna rigida nao afunda no chao: girando no quadril, o pe fica MAIS
+    # ALTO nos extremos da passada e mais baixo na vertical. Posto o pe no
+    # chao na vertical, ele nunca atravessa. Joelho custaria dois lofts por
+    # perna e nao se le a 30 m, que e a distancia em que o jogador decide.
+    pernas = []
+    for lado in (-1, 1):
         dy = lado * 0.072
+        soltas = []
         bm = bmesh.new()
         _loft(bm, [(0.00, dy, 0.90, 0.088, 0.086),
-                   (avanco * 0.26, dy, 0.72, 0.078, 0.076),
-                   (avanco * 0.55, dy, 0.52, 0.062, 0.062),   # joelho
-                   (avanco * 0.78, dy, 0.30, 0.056, 0.054),
-                   (avanco * 1.00, dy, 0.09, 0.048, 0.046)], segmentos=8)
-        _fechar_bm(bm, f"{nome}_perna_{lado}", calca, pecas)
-        cx(f"pe_{lado}", (0.25, 0.105, 0.07), (avanco + 0.045, dy, 0.042),
-           sapato, 0.02)
+                   (0.00, dy, 0.72, 0.078, 0.076),
+                   (0.00, dy, 0.52, 0.062, 0.062),   # joelho
+                   (0.00, dy, 0.30, 0.056, 0.054),
+                   (0.00, dy, 0.09, 0.048, 0.046)], segmentos=8)
+        _fechar_bm(bm, f"{nome}_perna_malha_{lado}", calca, soltas)
+        o = C.caixa(f"{nome}_pe_{lado}", (0.25, 0.105, 0.07),
+                    (0.045, dy, 0.042))
+        C.chanfrar(o, largura=0.02, segmentos=2)
+        C.aplicar(o, sapato)
+        soltas.append(o)
+        pernas.append((C.juntar(soltas, f"{nome}_perna_{'e' if lado < 0 else 'd'}"),
+                       dy))
 
-        # braco contrario a perna, como todo mundo anda. Braco (manga) ate o
-        # cotovelo ja saiu no tronco; aqui vai do cotovelo a mao, em pele.
+        # Bracos ficam no corpo, parados e caidos. Braco congelado no meio da
+        # balancada ao lado de perna que anda e pior que braco quieto; e e o
+        # V das pernas que diz "andando", nao o braco.
         bm = bmesh.new()
-        _loft(bm, [(-avanco * 0.14, lado * 0.200, 1.23, 0.049, 0.049),
-                   (-avanco * 0.46, lado * 0.206, 1.07, 0.042, 0.042),
-                   (-avanco * 0.70, lado * 0.210, 0.94, 0.036, 0.036),
-                   (-avanco * 0.80, lado * 0.210, 0.87, 0.040, 0.034)],
+        _loft(bm, [(0.00, lado * 0.200, 1.23, 0.049, 0.049),
+                   (0.00, lado * 0.206, 1.07, 0.042, 0.042),
+                   (0.00, lado * 0.210, 0.94, 0.036, 0.036),
+                   (0.00, lado * 0.210, 0.87, 0.040, 0.034)],
               segmentos=8)
         _fechar_bm(bm, f"{nome}_antebraco_{lado}", pele, pecas)
 
@@ -1428,6 +1460,17 @@ def pedestre(m, nome="via_pedestre", altura=1.72, roupa=(0.30, 0.10, 0.09)):
 
     alvo = C.juntar(pecas, nome)
     alvo.name = nome
+
+    # Origem de cada perna no quadril, e filha do corpo: o exportador arrasta
+    # os filhos (`com_filhos`) e o no do glTF sai com translation = quadril.
+    for perna, dy in pernas:
+        perna.name = perna.name  # ja nomeada em C.juntar
+        quadril = Vector((0.0, dy * k, QUADRIL_Z * k))
+        for v in perna.data.vertices:
+            v.co = v.co * k - quadril
+        perna.location = quadril
+        perna.parent = alvo
+        perna.matrix_parent_inverse.identity()
     return alvo
 
 
@@ -1656,12 +1699,20 @@ def onibus(m, nome="via_onibus"):
     # PORTA dianteira, do lado da calcada. Depois da roda, e o que mais diz
     # "onibus" numa silhueta: a fita de janela e continua, e a porta e o unico
     # rasgo vertical nela.
+    # A PORTA FICA NO LADO DO MEIO-FIO, e estava no outro.
+    #
+    # O para-brisa esta em y -4.29, entao o onibus aponta para +z no jogo,
+    # mesma direcao do caminhao. Com a porta em x +1.23 e o onibus parado em
+    # x -1.0, ela caia em x +0.23 — e o asfalto vai de -1.75 a +5.25. A porta
+    # do onibus ESCOLAR abria para o meio da pista, do lado do transito.
+    # Passou batido porque as criancas sumiam uma a uma em vez de andar ate
+    # ela: ninguem nunca viu alguem usar aquela porta.
     porta = C.caixa(f"{nome}_porta", (0.07, 0.86, 1.52),
-                    (1.23, -3.20, 1.85))
+                    (-1.23, -3.20, 1.85))
     C.aplicar(porta, vidro)
     pecas.append(porta)
     batente = C.caixa(f"{nome}_porta_batente", (0.05, 0.96, 1.62),
-                      (1.225, -3.20, 1.85))
+                      (-1.225, -3.20, 1.85))
     C.aplicar(batente, preto)
     pecas.append(batente)
 
