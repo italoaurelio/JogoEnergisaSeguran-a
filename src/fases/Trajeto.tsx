@@ -441,6 +441,7 @@ function Motor({
   const buzinou = useRef(false)
   const esperouOnibus = useRef(0)
   const chegou = useRef(false)
+  const guinchou = useRef(false)
   // mesmo motivo do pedestreLiberado: o que ficou para trás já está resolvido
   const passouNoSinal = useRef(
     (distancia.current ?? 0) > (evento('semaforo')?.metro ?? 0),
@@ -693,7 +694,15 @@ function Motor({
       // é decaimento exponencial, e os últimos 70 m levariam 21 s com o
       // caminhão quase parado no fim. Com o piso ele encosta andando, e quem
       // para o movimento é o esmaecer.
-      v = Math.min(v, Math.max(1.5, restante / 4))
+      const freado = Math.max(1.5, restante / 4)
+      // Guincho uma vez so, e so se a rampa estiver REDUZINDO de verdade.
+      // Quem ja vinha devagar encosta sem freada — carro que chia parando a
+      // 10 km/h soa errado, e e justamente quem obedeceu o limite.
+      if (!guinchou.current && v - freado > 4) {
+        guinchou.current = true
+        som.freada(Math.min(1, (v - freado) / 12))
+      }
+      v = Math.min(v, freado)
     }
 
     if (teto != null && d >= teto) {

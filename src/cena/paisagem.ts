@@ -67,7 +67,8 @@ const ARVORE_DIR = BORDA_DIR - 4.15
 
 /** Uma peça colocada em algum ponto do trajeto. */
 export type Marco = {
-  peca: 'poste' | 'cabos' | 'arvore' | 'arbusto' | 'casa' | 'placa'
+  peca: 'poste' | 'cabos' | 'arvore' | 'arbusto' | 'casa'
+    | 'casa_b' | 'casa_c' | 'placa'
     | 'carro' | 'lombada' | 'faixa_pedestre' | 'semaforo' | 'onibus'
     | 'ciclista' | 'escola' | 'muro_patio'
   /** Distância absoluta ao longo do trajeto, em metros. */
@@ -113,6 +114,18 @@ export const ZONA_ESCOLA = (() => {
   }
   return { de: 470, ate: 640 }
 })()
+
+/**
+ * Qual das tres fachadas usar.
+ *
+ * Clone de three.js divide o material, entao variacao por cor nao existe:
+ * so peca separada no catalogo. Sem isto a mesma casa se repete 37 vezes
+ * em 1.340 m, e fachada repetida e papel de parede, nao bairro.
+ */
+function casaVar(n: number): 'casa' | 'casa_b' | 'casa_c' {
+  const t = ((n * 7.13) % 1 + 1) % 1
+  return t < 0.4 ? 'casa' : t < 0.72 ? 'casa_b' : 'casa_c'
+}
 
 export function paisagem(distanciaTotal: number): Marco[] {
   const saida: Marco[] = []
@@ -201,7 +214,7 @@ export function paisagem(distanciaTotal: number): Marco[] {
       // direita, senão as duas somam objeto demais no mesmo trecho
       saida.push({ peca: 'escola', metro: m, x: BORDA_ESQ + 7.6 })
       if (casaAqui) {
-        saida.push({ peca: 'casa', metro: m + 4, x: CASA_DIR - r * 1.6 })
+        saida.push({ peca: casaVar(r), metro: m + 4, x: CASA_DIR - r * 1.6 })
       }
       if (r < 0.55) {
         saida.push({ peca: 'arvore', metro: m + r * 9, x: ARVORE_DIR,
@@ -218,10 +231,11 @@ export function paisagem(distanciaTotal: number): Marco[] {
       // começa depois que a escola acaba de verdade.
       const saindoDaEscola = m >= ZONA_ESCOLA.ate && m < ZONA_ESCOLA.ate + 15
       if (!saindoDaEscola) {
-        saida.push({ peca: 'casa', metro: m, x: CASA_ESQ + r * 1.6,
+        saida.push({ peca: casaVar(r + 0.37), metro: m, x: CASA_ESQ + r * 1.6,
                      giro: Math.PI })
       }
-      saida.push({ peca: 'casa', metro: m + 6 + r * 3, x: CASA_DIR - r * 1.6 })
+      saida.push({ peca: casaVar(r + 0.81), metro: m + 6 + r * 3,
+                   x: CASA_DIR - r * 1.6 })
     }
 
     // arborização de calçada, alternando o lado para não virar corredor
@@ -266,7 +280,7 @@ export function paisagem(distanciaTotal: number): Marco[] {
  */
 export const POOL: Record<Marco['peca'], number> = {
   poste: 12, cabos: 12,
-  casa: 40,
+  casa: 24, casa_b: 18, casa_c: 15,
   escola: 33,
   // duas fileiras, uma a cada 10 m, nos dois lados do pátio
   muro_patio: 30,

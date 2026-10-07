@@ -210,7 +210,12 @@ function Contrafluxo({
       const z = p[i] - d
       // cruzou o jogador neste quadro: é agora que o "fiuu" tem de soar,
       // senão o som chega depois do carro já ter sumido do retrovisor
-      if ((antes.current[i] ?? 999) > 2 && z <= 2) som.passagem(forcaSom)
+      // A lateral e a da propria fila: a moto anda no corredor, entao passa
+      // mais perto, soa mais alto e com Doppler mais inclinado — de graca,
+      // sem numero escrito a mao pra cada fila.
+      if ((antes.current[i] ?? 999) > 2 && z <= 2) {
+        som.passagem(forcaSom, Math.abs(x))
+      }
       antes.current[i] = z
       copias[i].position.z = z
       copias[i].visible = z > -25 && z < ALCANCE
@@ -646,10 +651,11 @@ export function Mundo({
   // todos os moldes de uma vez: buscar peça a peça dentro do map quebraria a
   // regra dos hooks (useMemo em laço)
   const moldes = useMemo(() => {
-    const nomes = ['trecho', 'chao', 'poste', 'cabos', 'arvore', 'arbusto',
-      'casa', 'placa', 'lombada', 'faixa_pedestre', 'carro', 'semaforo',
-      'onibus', 'ciclista', 'escola', 'moto', 'pedestre', 'crianca',
-      'muro_patio'] as const
+    // Mesma armadilha que FILEIRAS: escrita a mao, esta lista sai de
+    // sincronia com o POOL em silencio — molde faltando vira null, e peca
+    // sem molde nao desenha nem reclama. Sai do POOL, mais o que nao e marco.
+    const nomes = [...FILEIRAS, 'trecho', 'chao', 'moto', 'pedestre',
+      'crianca']
     const mapa: Record<string, THREE.Object3D | null> = {}
     for (const n of nomes) mapa[n] = scene.getObjectByName(`via_${n}`) ?? null
     return mapa
