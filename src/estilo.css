@@ -378,16 +378,32 @@ body {
   pointer-events: none;
 }
 .trajeto-barra {
-  height: 5px; border-radius: 999px; background: #ffffff1f; overflow: hidden;
+  position: relative; height: 6px; border-radius: 999px;
+  background: #ffffff1c; overflow: hidden;
 }
 .trajeto-barra i {
-  display: block; height: 100%; background: var(--verde);
+  display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, #108a57, var(--verde-claro));
   transition: width 0.12s linear;
 }
-.trajeto-aviso {
-  margin-top: 10px; font-size: 15px; color: var(--texto);
-  text-shadow: 0 1px 3px #000a;
+/* fronteira de trecho: o jogador vê quanto falta para o PRÓXIMO lugar */
+.trajeto-barra u {
+  position: absolute; top: 0; width: 2px; height: 100%;
+  background: #0b0f14; transform: translateX(-1px);
 }
+
+/* Nome do trecho em destaque e o resto do aviso em seguida. O aviso era uma
+   frase corrida ("Avenida · 60 km/h · ...") num tamanho só: o limite da via,
+   que é o dado que o jogador consulta o tempo todo, ficava no meio dela. Hoje
+   o limite mora no velocímetro e aqui fica o LUGAR. */
+.trajeto-trecho {
+  margin-top: 11px; display: flex; align-items: baseline; gap: 10px;
+  flex-wrap: wrap; text-shadow: 0 1px 4px #000b;
+}
+.trajeto-trecho b {
+  font-size: 19px; font-weight: 650; letter-spacing: -0.01em;
+}
+.trajeto-trecho span { font-size: 14px; color: #c3d2e0; }
 
 .trajeto-alerta {
   position: absolute; top: 74px; left: 50%; transform: translateX(-50%);
@@ -450,32 +466,69 @@ body {
 .chamada-recusa { border-color: #1d6b4a; background: #14302a; }
 .chamada-atende { border-color: #6b2b22; background: #2a1512; }
 
+/* Velocímetro de ARCO.
+   A caixa de antes era um número grande num retângulo — lia como depuração.
+   O arco dá o que o número sozinho não dá: posição. O jogador vê de relance
+   onde está dentro da escala e, principalmente, onde está em relação ao
+   TRAÇO DO LIMITE, que anda junto com o trecho. */
 .trajeto-velocimetro {
-  position: absolute; left: 22px; bottom: 26px;
-  display: grid; grid-template-columns: auto auto; align-items: baseline;
-  gap: 0 8px; background: #0b0f14cc; padding: 12px 18px;
-  border: 1px solid var(--borda); border-radius: 14px; pointer-events: none;
+  position: absolute; left: 22px; bottom: 24px;
+  width: 152px; height: 152px; display: grid; place-items: center;
+  pointer-events: none;
 }
+.trajeto-velocimetro svg {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  overflow: visible;
+}
+.trajeto-velocimetro circle {
+  fill: none; stroke-width: 9; stroke-linecap: round;
+  transform: rotate(135deg); transform-origin: 60px 60px;
+}
+.veloc-trilho { stroke: #ffffff1c; stroke-dasharray: 75 100; }
+.veloc-valor {
+  stroke: var(--verde-claro);
+  transition: stroke-dasharray 0.1s linear, stroke 0.2s ease;
+}
+.veloc-limite {
+  stroke: #e9f2fb; stroke-width: 2.5; stroke-linecap: round; opacity: .85;
+}
+/* acima do limite o arco inteiro vira vermelho: a cor chega na visão
+   periférica, o número não */
+.trajeto-velocimetro:has(strong.acima) .veloc-valor { stroke: var(--vermelho); }
+
 .trajeto-velocimetro strong {
-  font-size: 46px; line-height: 1; font-variant-numeric: tabular-nums;
+  font-size: 44px; line-height: 1; font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em; margin-top: 10px;
+  text-shadow: 0 2px 10px #000c;
 }
 .trajeto-velocimetro strong.acima { color: var(--vermelho); }
-.trajeto-velocimetro span { font-size: 15px; color: var(--texto-fraco); }
+.trajeto-velocimetro span {
+  position: absolute; top: 94px; font-size: 13px; color: var(--texto-fraco);
+}
 .trajeto-velocimetro em {
-  grid-column: 1 / -1; font-style: normal; font-size: 13px;
-  color: var(--texto-fraco);
+  position: absolute; bottom: 14px; font-style: normal; font-size: 13px;
+  font-weight: 600; color: var(--texto-fraco);
+  font-variant-numeric: tabular-nums;
 }
 
 .trajeto-pedais {
   position: absolute; right: 22px; bottom: 26px; display: flex; gap: 14px;
 }
 .pedal {
-  width: 132px; height: 92px; border-radius: 16px; font: inherit;
-  font-size: 18px; font-weight: 600; cursor: pointer; color: var(--texto);
+  width: 132px; height: 96px; border-radius: 18px; font: inherit;
+  font-size: 17px; font-weight: 600; cursor: pointer; color: var(--texto);
   border: 1px solid var(--borda); background: #161d26cc;
   touch-action: none; user-select: none;
+  display: grid; justify-items: center; align-content: center; gap: 6px;
+  box-shadow: 0 10px 26px #0007, inset 0 1px 0 #ffffff14;
+  transition: transform .08s ease, box-shadow .08s ease;
 }
-.pedal:active { transform: translateY(2px); }
+.pedal svg {
+  width: 24px; height: 24px; fill: none; stroke: currentColor;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+.pedal-acel svg { fill: currentColor; stroke: none; }
+.pedal:active { transform: translateY(3px); box-shadow: 0 3px 10px #0008; }
 .pedal-acel { border-color: #1d6b4a; background: #14302acc; }
 .pedal-freio { border-color: #6b2b22; background: #2a1512cc; }
 

@@ -27,6 +27,26 @@ import {
 } from '../conteudo/trajeto'
 import type { Registro } from '../conteudo/pontuacao'
 
+/** Fim de escala do velocímetro. O trecho mais rápido é 60 km/h. */
+const ESCALA_VELOCIMETRO = 80
+
+/**
+ * Onde cada trecho começa, em % do trajeto — os traços da barra de progresso.
+ *
+ * Sem eles a barra só diz "falta muito": com eles o jogador vê que está
+ * chegando no fim da avenida, que é a informação que ele usa para decidir se
+ * acelera ou já começa a reduzir.
+ */
+const MARCAS_DE_TRECHO: number[] = (() => {
+  const saida: number[] = []
+  let soma = 0
+  for (const t of TRAJETO.slice(0, -1)) {
+    soma += t.metros
+    saida.push((soma / DISTANCIA_TOTAL) * 100)
+  }
+  return saida
+})()
+
 /** A cabine fica 52 cm acima da pista. */
 const ALTURA_CABINE = 0.52
 /**
@@ -572,7 +592,10 @@ const Painel = forwardRef<
   function Painel({ pedal, celular }, ref) {
     const kmhEl = useRef<HTMLElement>(null)
     const maxEl = useRef<HTMLElement>(null)
-    const avisoEl = useRef<HTMLParagraphElement>(null)
+    const arcoEl = useRef<SVGCircleElement>(null)
+    const tracoEl = useRef<SVGLineElement>(null)
+    const trechoEl = useRef<HTMLElement>(null)
+    const avisoEl = useRef<HTMLElement>(null)
     const barraEl = useRef<HTMLElement>(null)
     const alertaEl = useRef<HTMLDivElement>(null)
     const sinalEl = useRef<HTMLDivElement>(null)
@@ -592,7 +615,25 @@ const Painel = forwardRef<
           )
         }
         if (maxEl.current) maxEl.current.textContent = `máx ${s.limite}`
-        if (avisoEl.current) avisoEl.current.textContent = s.trecho.aviso
+        // O arco varre 270°, de 7h30 a 4h30. `pathLength=100` deixa a conta
+        // ser porcentagem direto: 75 das 100 unidades são os 270°.
+        if (arcoEl.current) {
+          const f = Math.max(0, Math.min(1, kmh / ESCALA_VELOCIMETRO))
+          arcoEl.current.style.strokeDasharray = `${f * 75} 100`
+        }
+        // o traço do limite da via anda com o trecho: é contra ele que o
+        // jogador compara, não contra o fim da escala
+        if (tracoEl.current) {
+          const g = -135 + 270 * (s.limite / ESCALA_VELOCIMETRO)
+          tracoEl.current.setAttribute('transform', `rotate(${g} 60 60)`)
+        }
+        if (trechoEl.current) trechoEl.current.textContent = s.trecho.nome
+        if (avisoEl.current) {
+          // o aviso do trecho já começa com o nome e o limite, que agora têm
+          // lugar próprio na tela; aqui fica só o que sobra
+          const resto = s.trecho.aviso.split(' · ').slice(2).join(' · ')
+          avisoEl.current.textContent = resto
+        }
         if (barraEl.current) {
           barraEl.current.style.width =
             `${(s.distancia / DISTANCIA_TOTAL) * 100}%`
@@ -637,8 +678,18 @@ const Painel = forwardRef<
         <header className="trajeto-topo">
           <div className="trajeto-barra" aria-hidden>
             <i ref={barraEl} style={{ width: '0%' }} />
+            {/* um traço por fronteira de trecho: o jogador vê quanto falta
+                PARA O PRÓXIMO lugar, não só quanto falta para o fim */}
+            {MARCAS_DE_TRECHO.map((pc) => (
+              <u key={pc} style={{ left: `${pc}%` }} />
+            ))}
           </div>
-          <p className="trajeto-aviso" ref={avisoEl}>{TRAJETO[0].aviso}</p>
+          <p className="trajeto-trecho">
+            <b ref={trechoEl}>{TRAJETO[0].nome}</b>
+            <span ref={avisoEl}>
+              {TRAJETO[0].aviso.split(' · ').slice(2).join(' · ')}
+            </span>
+          </p>
         </header>
 
         <div className="trajeto-alerta" ref={alertaEl} style={{ display: 'none' }} />
@@ -666,14 +717,36 @@ const Painel = forwardRef<
         )}
 
         <div className="trajeto-velocimetro">
+          <svg viewBox="0 0 120 120" aria-hidden>
+            <circle className="veloc-trilho" cx="60" cy="60" r="50" pathLength={100} />
+            <circle
+              className="veloc-valor" ref={arcoEl} cx="60" cy="60" r="50"
+              pathLength={100} style={{ strokeDasharray: '0 100' }}
+            />
+            <line
+              className="veloc-limite" ref={tracoEl}
+              x1="60" y1="3" x2="60" y2="17"
+              transform={`rotate(${-135 + 270 * (TRAJETO[0].limite / ESCALA_VELOCIMETRO)} 60 60)`}
+            />
+          </svg>
           <strong ref={kmhEl}>0</strong>
           <span>km/h</span>
           <em ref={maxEl}>máx {TRAJETO[0].limite}</em>
         </div>
 
         <div className="trajeto-pedais">
-          <button className="pedal pedal-freio" {...segurar('freia')}>Frear</button>
-          <button className="pedal pedal-acel" {...segurar('acelera')}>Acelerar</button>
+          <button className="pedal pedal-freio" {...segurar('freia')}>
+            <svg viewBox="0 0 24 24" aria-hidden>
+              <path d="M5 17V7M19 17V7" />
+            </svg>
+            Frear
+          </button>
+          <button className="pedal pedal-acel" {...segurar('acelera')}>
+            <svg viewBox="0 0 24 24" aria-hidden>
+              <path d="M6 5l9 7-9 7z" />
+            </svg>
+            Acelerar
+          </button>
         </div>
         <p className="trajeto-dica">Segure os botões · ou use as setas ↑ e ↓</p>
       </>

@@ -1351,3 +1351,40 @@ correção visível), chegada, ferramental (13 itens, seleção múltipla), repa
 **O trajeto.** Com o painel do navegador oculto o rAF é estrangulado e a fase
 anda **1 metro a cada 22 segundos** — 1.340 m levariam horas. A fase monta e
 o piloto responde, mas dirigir ponta a ponta exige o painel visível.
+
+
+## O que ficou de fora da fila, e o usuário cobrou
+
+A fila de 7 itens era um RESUMO do pedido, escrito nos primeiros 20 minutos,
+e perdeu coisa. O usuário conferiu e achou:
+
+- **"motos"** sumiu entre a mensagem dele e o item 7.
+- **"uma ui mais bonita"** eu escrevi dentro do item 7 ("UI de direção
+  decente"), fiz só a paisagem e **marquei o item como feito**. `git diff`
+  confirma: zero linhas de `.trajeto-*` tocadas.
+- **criação de personagem** continua 3 alturas e 5 tons; "mais animada" foi
+  atendido só pela respiração.
+
+Lição que vale mais que os itens: **marcar feito o que está pela metade é pior
+do que não começar**, porque fecha a fila e o loop para.
+
+## Item A — UI do trajeto (feito)
+
+O HUD tinha mais peça do que parecia (alerta, semáforo, chamada já
+estilizados). O que estava pobre era o **estado de repouso**, que é 90% do
+tempo de tela: barra fina, frase corrida e um número grande num retângulo.
+
+- **Velocímetro de arco** no lugar da caixa. O arco dá o que o número sozinho
+  não dá: POSIÇÃO. E o traço do limite anda junto com o trecho, então a
+  comparação que o jogador faz o tempo todo (estou acima?) virou geometria em
+  vez de aritmética. Acima do limite o arco inteiro vira vermelho — cor chega
+  na visão periférica, número não.
+  Conferido no jogo: 5 km/h → 4,69 de 75 unidades de arco; traço do limite em
+  `rotate(-67,5)` para limite 20 (−135 + 270·20/80).
+- **Aviso com hierarquia.** Era "Avenida · 60 km/h · ..." num tamanho só, com
+  o limite — o dado mais consultado — perdido no meio. Agora o LUGAR fica em
+  destaque e o limite mora no velocímetro.
+- **Barra de progresso com as fronteiras de trecho.** Sem elas a barra só diz
+  "falta muito"; com elas o jogador vê que está acabando a avenida, que é o
+  que ele usa para decidir se acelera ou já reduz.
+- **Pedais** com ícone, alvo maior e estado de pressionado.
