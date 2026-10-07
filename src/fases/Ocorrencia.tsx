@@ -75,7 +75,16 @@ const AREA: Record<string, Colocada[]> = {
 /** Ferramental e escada aparecem junto do poste a partir da etapa 3b. */
 const APOIO: Colocada[] = [
   { peca: 'oc_caixa', pos: [-1.9, 0, -1.1], giro: 0.3 },
-  { peca: 'oc_escada', pos: [0.55, 2.3, -0.9], giro: 0 },
+  // A escada é uma peça de 4,63 m centrada no próprio meio. Com giro 0 e
+  // y 2,3 ela ficava EM PÉ, perfeitamente vertical, equilibrada no nada —
+  // é a "escada que não encosta no poste" do retorno.
+  //
+  // Agora: pé em (0,85, 0, −1,15), topo em (0,15, 4,45, −0,20), ou seja
+  // encostando no poste 25 cm fora do eixo dele. O vetor pé→topo tem 4,60 m,
+  // que é o comprimento da peça, e faz 15° com a vertical — o ângulo de
+  // ~75° com o chão que a NR-18 pede para escada de encosto.
+  { peca: 'oc_escada', pos: [0.50, 2.253, -0.675], giro: 0.928,
+    tombo: [0, 0.257] },
 ]
 
 const VISTA_FERRAMENTAL: Vista = { de: [-4.2, 2.3, 3.4], para: [-1.6, 0.5, -0.8], lente: 30 }

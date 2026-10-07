@@ -871,7 +871,9 @@ Decisões do usuário nesta rodada:
       na malha POSADA; agora roda em repouso. Detalhe abaixo.
 - [x] **3. Cabine: volante em quadro, pilar A, hastes.** Detalhe abaixo.
 - [x] **4. Cinto e veículo em quadro; as seis câmeras da fase 2a refeitas.**
-- [ ] 5. O 3D reagindo à escolha (carro chegando, cesto subindo, escada no poste)
+- [x] **5. O 3D reagindo à escolha** — caminhão chegando, escada encostada, boneco
+      vestindo. **O cesto subindo NÃO foi feito**, ver abaixo.
+- [ ] 5b. Cesto do caminhão subindo (exige separar a lança em nó próprio no `.glb`)
 - [ ] 6. Menu com identidade e vestiário em etapas com ícone e veredito
 - [ ] 7. Povoar o trajeto (casas, escola, semáforo de longe, tráfego)
 
@@ -1095,3 +1097,52 @@ aprovado pelo cliente.
 inteira): as seis vistas foram julgadas por render em Cycles com a câmera
 copiada verbatim de `cabine.ts`, e a chegada da ocorrência só por código e
 `tsc`. Falta abrir a fase 2a e a 3a.
+
+
+## Item 5 — o 3D reagindo à escolha (feito, menos o cesto)
+
+Este é o item que separa "o 3D é papel de parede" de "o 3D é a consequência
+da escolha". Três das quatro partes entraram.
+
+**O caminhão chega e estaciona, e a reconciliação do React faz isso de
+graça.** Enquanto a pergunta "onde parar" está aberta, a peça `oc_veiculo`
+existe na posição de espera; escolhida a posição, a MESMA chave de React
+recebe um alvo novo, então é o MESMO componente — e um `lerp` no `useFrame`
+vira a manobra. Não foi preciso nenhuma máquina de animação.
+
+Medido no jogo: x -19,5 -> -13,96 -> -11,20 -> -9,88 -> -9,18 -> -8,83 ->
+-8,67 -> -8,59. Desacelera no fim, que é o que estacionar parece.
+
+A velocidade da peça alimenta `som.motor`: o caminhão que manobra se ouve, e
+para de se ouvir quando encosta. O motor é desligado na saída da fase, senão
+fica roncando no relatório.
+
+**As peças pequenas não andam, caem.** Nascem 60 cm acima e assentam. Cone
+que aparece pronto no chão não parece colocado por ninguém.
+
+**A escada estava EM PÉ, equilibrada no nada.** É uma peça de 4,63 m centrada
+no próprio meio, e estava em `y 2,3` com giro 0: perfeitamente vertical,
+encostada em coisa nenhuma. Agora o pé fica em (0,855, 0, -1,149) e o topo em
+(0,15, 4,45, -0,21), a 25 cm do eixo do poste — e o vetor pé-topo faz **14,7°
+com a vertical**, que é o ângulo de ~75° com o chão que a NR-18 pede para
+escada de encosto. Conferido por conta (a matriz de Euler XYZ do three),
+porque o painel do navegador estava oculto.
+
+**Vestir virou um gesto.** A peça que acaba de entrar assenta de 4 cm acima
+em 0,22 s, com ease-out. Antes a roupa trocava entre dois quadros e a escolha
+virava só um texto mudando na lista ao lado. Medido: 0,0239 -> 0,0159 ->
+0,0065 -> 0,0011 -> 0.
+
+### O que NÃO foi feito: o cesto subindo
+
+Precisa da lança como NÓ SEPARADO no `.glb`, e hoje `caminhao.montar()`
+junta o caminhão inteiro num objeto só — de propósito, para preservar a
+separação por material (foi juntar tudo que transformou cromo em plástico na
+caminhonete antiga). Separar a lança exige mexer em `montar`, no
+`exportar_ocorrencia.py`, reexportar os 33 MB e reposicionar a lança pelo
+nome no jogo, porque **parentesco não sobrevive ao glTF**.
+
+Fica como item próprio. Vale notar que o efeito completo também pede alguém
+DENTRO do cesto, que não existe — e que o cesto aéreo reabre a pergunta de
+conteúdo já anotada: com ele, a escada deixa de ser obviamente a ferramenta
+certa no item do ferramental.

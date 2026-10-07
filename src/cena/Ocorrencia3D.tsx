@@ -6,9 +6,10 @@
  * conforme as decisões da fase 3a. É o mesmo padrão do EPI e da cabine: o que
  * o jogador decide, ele vê acontecer.
  */
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
+import { som } from '../som'
 import * as THREE from 'three'
 
 const MODELO = './modelos/ocorrencia.glb'
@@ -24,6 +25,8 @@ export type Colocada = {
   giro?: number
   /** A fita tem 3 m de vão; esticar é mais barato que exportar vários tamanhos. */
   escala?: [number, number, number]
+  /** Inclinação em X e Z (rad). A escada encosta no poste, não fica em pé. */
+  tombo?: [number, number]
 }
 
 export function CenaOcorrencia({ colocadas }: { colocadas: Colocada[] }) {
@@ -43,24 +46,70 @@ export function CenaOcorrencia({ colocadas }: { colocadas: Colocada[] }) {
     }
   }, [scene])
 
-  const copias = useMemo(() => {
-    return colocadas.map((c, i) => {
-      const molde = scene.getObjectByName(c.peca)
-      if (!molde) return null
-      const clone = molde.clone(true)
-      clone.visible = true
-      clone.position.set(...c.pos)
-      clone.rotation.y = c.giro ?? 0
-      if (c.escala) clone.scale.set(...c.escala)
-      clone.name = `${c.peca}_copia_${i}`
-      return clone
-    }).filter((c): c is THREE.Object3D => c !== null)
-  }, [scene, colocadas])
-
   return (
     <group>
       <primitive object={scene} />
-      {copias.map((c) => <primitive key={c.name} object={c} />)}
+      {colocadas.map((c, i) => (
+        <Peca key={`${c.peca}_${i}`} molde={scene} c={c} />
+      ))}
+    </group>
+  )
+}
+
+/**
+ * Uma peça colocada, que ANDA até o lugar em vez de aparecer lá.
+ *
+ * É o que separa "o 3D é papel de parede" de "o 3D é a consequência da
+ * escolha". O caminhão é o caso que importa: enquanto a pergunta "onde parar"
+ * está aberta ele está parado na pista, antes da área; escolhida a posição, a
+ * MESMA peça (mesma chave de React, então o mesmo componente) recebe um alvo
+ * novo e dirige até lá. Chegar e estacionar sai de graça da reconciliação.
+ *
+ * As peças pequenas não andam, caem: nascem 60 cm acima e assentam. Cone que
+ * aparece pronto no chão não parece colocado por ninguém.
+ */
+function Peca({ molde, c }: { molde: THREE.Object3D; c: Colocada }) {
+  const obj = useMemo(() => {
+    const base = molde.getObjectByName(c.peca)
+    if (!base) return null
+    const clone = base.clone(true)
+    clone.visible = true
+    return clone
+  }, [molde, c.peca])
+
+  const grupo = useRef<THREE.Group>(null)
+  const alvo = useMemo(() => new THREE.Vector3(...c.pos), [c.pos])
+  const inicio = useRef(true)
+  // sem isto o motor fica roncando depois que a fase sai de cena
+  useEffect(() => () => { if (c.peca === 'oc_veiculo') som.motor(null) }, [c.peca])
+
+  useFrame((_, dt) => {
+    const g = grupo.current
+    if (!g) return
+    if (inicio.current) {
+      inicio.current = false
+      // o caminhão já entra no lugar certo (ele está CHEGANDO); o resto cai
+      g.position.copy(alvo)
+      if (c.peca !== 'oc_veiculo') g.position.y += 0.6
+    }
+    const antes = g.position.x
+    g.position.lerp(alvo, Math.min(1, dt * 2.6))
+    if (c.peca === 'oc_veiculo') {
+      // velocidade real da peça vira rotação de motor: o caminhão que
+      // manobra se ouve, e para de se ouvir quando estaciona
+      const v = Math.abs(g.position.x - antes) / Math.max(dt, 1e-3)
+      som.motor(v > 0.05 ? Math.min(v, 9) : null)
+    }
+  })
+
+  if (!obj) return null
+  return (
+    <group
+      ref={grupo}
+      rotation={[c.tombo?.[0] ?? 0, c.giro ?? 0, c.tombo?.[1] ?? 0]}
+      scale={c.escala ?? [1, 1, 1]}
+    >
+      <primitive object={obj} />
     </group>
   )
 }

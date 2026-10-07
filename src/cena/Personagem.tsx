@@ -77,6 +77,9 @@ export default function Personagem({ fisico, vestindo, giro }: Props) {
     }
   }, [scene, vestindo])
 
+  /** Peças ainda assentando no corpo: nó -> quanto falta (1 a 0). */
+  const entrando = useRef(new Map<THREE.Object3D, number>())
+
   useEffect(() => {
     // só os nós do primeiro nível, nunca `traverse`. Uma peça com mais de um
     // material vira um grupo cujas malhas filhas herdam o nome (`epi_botina_
@@ -85,9 +88,29 @@ export default function Personagem({ fisico, vestindo, giro }: Props) {
     // acabara de ser mostrado.
     for (const no of scene.children) {
       if (!no.name.startsWith('epi_')) continue
-      no.visible = vestidos.has(no.name.slice(4))
+      const mostrar = vestidos.has(no.name.slice(4))
+      // peça que ACABOU de entrar assenta de 4 cm acima, em ~0,22 s. Sem
+      // isto a roupa troca entre dois quadros e o jogador não vê que vestiu
+      // nada — a escolha vira só um texto mudando na lista ao lado.
+      if (mostrar && !no.visible) entrando.current.set(no, 1)
+      no.visible = mostrar
     }
   }, [scene, vestidos])
+
+  useFrame((_, dt) => {
+    if (!entrando.current.size) return
+    for (const [no, t] of entrando.current) {
+      const novo = t - dt / 0.22
+      if (novo <= 0) {
+        no.position.y = 0
+        entrando.current.delete(no)
+      } else {
+        entrando.current.set(no, novo)
+        // ease-out: cai rápido e encosta devagar
+        no.position.y = 0.04 * novo * novo
+      }
+    }
+  })
 
   useEffect(() => {
     scene.traverse((o) => {
