@@ -211,6 +211,82 @@ def _tubo(bm, pontos, segmentos=7, topo=False):
     return aneis
 
 
+def _loft(bm, secoes, segmentos=8, fechar=True, giro=0.0):
+    """Loft de aneis ELIPTICOS: `secoes` = [(x, y, z, rx, ry)], de baixo p/ cima.
+
+    `_tubo` so faz secao circular, e e isso que faz tronco e membro lerem como
+    cano — ou, quando feitos de caixa, como tabua. Gente e muito mais larga de
+    ombro a ombro do que de peito a costas, e e essa razao que o olho usa para
+    reconhecer um corpo antes de qualquer detalhe. A elipse custa exatamente o
+    mesmo numero de poligonos que o circulo.
+
+    As secoes sao HORIZONTAIS mesmo quando o membro e inclinado: a 20 m de
+    distancia o cisalhamento nao aparece, e um loft orientado ao longo da
+    tangente custaria matriz de rotacao por anel sem mudar um pixel.
+    """
+    aneis = []
+    for x, y, z, rx, ry in secoes:
+        anel = []
+        for i in range(segmentos):
+            a = 2 * math.pi * i / segmentos + giro
+            anel.append(bm.verts.new(
+                (x + math.cos(a) * rx, y + math.sin(a) * ry, z)))
+        aneis.append(anel)
+    for k in range(len(aneis) - 1):
+        A, B = aneis[k], aneis[k + 1]
+        for i in range(segmentos):
+            j = (i + 1) % segmentos
+            bm.faces.new((A[i], A[j], B[j], B[i]))
+    if fechar:
+        bm.faces.new(list(reversed(aneis[0])))
+        bm.faces.new(aneis[-1])
+    return aneis
+
+
+def _roda_vazada(nome, r_ext, r_int, espessura, centro, mat, segmentos=16):
+    """Aro VAZADO no plano YZ, eixo em X — roda de veiculo que corre em -Y.
+
+    `C.cilindro` faz disco CHEIO. Era por isso que a roda da bicicleta saia no
+    render uma bolacha preta: o aro claro estava modelado a 0,28 de raio,
+    DENTRO de um pneu macico de 0,34, e nunca apareceu um pixel dele. Roda de
+    bicicleta so le como roda quando se enxerga o chao atraves dela — e e a
+    roda que diferencia o ciclista de um pedestre na pista.
+    """
+    bm = bmesh.new()
+    cx, cy, cz = centro
+    e = espessura / 2
+    voltas = []
+    for r, dx in ((r_ext, -e), (r_ext, e), (r_int, e), (r_int, -e)):
+        voltas.append([bm.verts.new(
+            (cx + dx, cy + math.cos(2 * math.pi * i / segmentos) * r,
+             cz + math.sin(2 * math.pi * i / segmentos) * r))
+            for i in range(segmentos)])
+    for k in range(4):
+        A, B = voltas[k], voltas[(k + 1) % 4]
+        for i in range(segmentos):
+            j = (i + 1) % segmentos
+            bm.faces.new((A[i], A[j], B[j], B[i]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    obj = C.obj_de_bmesh(bm, nome)
+    C.suavizar(obj, 40)
+    C.aplicar(obj, mat)
+    return obj
+
+
+def _fechar_bm(bm, nome, mat, pecas, suave=70):
+    """recalc_face_normals + objeto + material + entra na lista. Tres linhas
+    que se repetiam em toda peca nova; e a recalculada que nao pode faltar,
+    porque o exportador liga backface culling em tudo e normal invertida vira
+    buraco."""
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    obj = C.obj_de_bmesh(bm, nome)
+    if suave:
+        C.suavizar(obj, suave)
+    C.aplicar(obj, mat)
+    pecas.append(obj)
+    return obj
+
+
 def _bolha(bm, centro, raio, achatado=0.86, semente=0, u=7, v=5, aspero=0.30):
     """Massa de folhagem: esfera de poucos segmentos com o raio SORTEADO por
     vertice.
@@ -433,8 +509,24 @@ def arvore(m, nome="via_arvore", altura=5.6, semente=11):
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     tronco = C.obj_de_bmesh(bm, f"{nome}_tronco")
     C.suavizar(tronco, 50)
-    C.aplicar(tronco, C.mat_simples("via_casca", (0.135, 0.110, 0.082),
-                                    rugosidade=0.93))
+    # CASCA (07/10). Era (0.135, 0.110, 0.082) — que sob o sol e o AgX saia um
+    # bege ROSADO, uniforme da raiz ao colo: no render o tronco lia como um
+    # poste de concreto pintado, nao como madeira. Casca de verdade e escura e
+    # dessaturada, e nunca de um tom so: o lado que pega sol descasca claro e
+    # o resto fica quase preto. Duas cores separadas por orientacao custam
+    # zero triangulo e sao o que a via pode fazer (ruido procedural nao
+    # exporta — ver `_pintar_por_normal`).
+    escura = bpy.data.materials.get("via_casca") or C.mat_simples(
+        "via_casca", (0.038, 0.031, 0.025), rugosidade=0.95)
+    clara = bpy.data.materials.get("via_casca_sol") or C.mat_simples(
+        "via_casca_sol", (0.088, 0.072, 0.052), rugosidade=0.92)
+    tronco.data.materials.clear()
+    tronco.data.materials.append(escura)
+    tronco.data.materials.append(clara)
+    for p in tronco.data.polygons:
+        # faces viradas para o mesmo quadrante do sol da prova (-X, +Y)
+        p.material_index = 1 if (-0.62 * p.normal.x + 0.78 * p.normal.y
+                                 + 0.3 * p.normal.z) > 0.32 else 0
     pecas.append(tronco)
 
     # Copa em cinco massas de tamanhos diferentes. Massas iguais voltam a ler
@@ -464,25 +556,78 @@ def arvore(m, nome="via_arvore", altura=5.6, semente=11):
 
 
 def arbusto(m, nome="via_arbusto", semente=5):
-    """Moita de beira: tres massas de alturas diferentes, nao um disco.
+    """Moita de beira: massas de alturas diferentes, nao um disco.
 
     A versao antiga era UMA icosfera achatada: de perfil lia como uma pedra
-    lisa plantada no mato.
+    lisa plantada no mato. A de tres massas, medida no render de 07/10, ainda
+    lia como pedra — porque as tres eram BAIXAS (1,1 m no total) e larguinhas,
+    e o olho le massa larga-e-baixa como pedra independentemente da cor.
+
+    Duas mudancas: a moita ficou VERTICAL (1,75 m de alto, 1,5 de largura, que
+    e proporcao de arbusto de calcada e nao de pedra) e ganhou dois ramos
+    secos saindo do topo — e a ponta irregular saindo do volume que separa
+    vegetacao de mineral na silhueta.
     """
+    pecas = []
     bm = bmesh.new()
-    for i, (dx, dy, rz, rr) in enumerate(((0.0, 0.0, 0.46, 0.62),
-                                          (-0.46, 0.18, 0.34, 0.44),
-                                          (0.38, -0.22, 0.30, 0.40))):
-        _bolha(bm, (dx, dy, rz), rr, achatado=0.80,
+    for i, (dx, dy, rz, rr) in enumerate(((0.00, 0.00, 0.62, 0.56),
+                                          (-0.34, 0.16, 0.95, 0.44),
+                                          (0.30, -0.18, 1.12, 0.40),
+                                          (0.08, 0.26, 0.52, 0.38),
+                                          (-0.14, -0.22, 1.38, 0.30),
+                                          (0.36, 0.12, 0.72, 0.33))):
+        _bolha(bm, (dx, dy, rz), rr, achatado=0.86,
                semente=semente * 13 + i, u=8, v=5, aspero=0.34)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    obj = C.obj_de_bmesh(bm, nome)
+    obj = C.obj_de_bmesh(bm, nome + "_massa")
     C.suavizar(obj, 70)
     _pintar_por_normal(obj, _mats_folha())
-    return obj
+    pecas.append(obj)
+
+    bm = bmesh.new()
+    _tubo(bm, [(0, 0, 0.00, 0.075), (0.02, 0.01, 0.42, 0.048),
+               (0.05, 0.02, 0.80, 0.030)], segmentos=5, topo=True)
+    for ang in (1.1, 4.0):
+        dx, dy = math.cos(ang), math.sin(ang)
+        _tubo(bm, [(0.05, 0.02, 0.72, 0.030),
+                   (0.05 + dx * 0.22, 0.02 + dy * 0.22, 1.24, 0.020),
+                   (0.05 + dx * 0.40, 0.02 + dy * 0.40, 1.62, 0.012)],
+              segmentos=4, topo=True)
+    _fechar_bm(bm, nome + "_ramo",
+               bpy.data.materials.get("via_casca")
+               or C.mat_simples("via_casca", (0.038, 0.031, 0.025),
+                                rugosidade=0.95), pecas, suave=50)
+    alvo = C.juntar(pecas, nome)
+    alvo.name = nome
+    return alvo
 
 
-def casa(m, nome="via_casa", largura=7.5, fundo=8.0, altura=2.9):
+# Tres casas, nao uma.
+#
+# A casa aparece ate 40 vezes na tela ao mesmo tempo (ver POOL em
+# paisagem.ts) e o jogo CLONA a mesma malha: clone de three.js compartilha o
+# material, entao nao ha como variar cor por copia do lado do jogo. A unica
+# variacao que sobrevive e a que vem de PECAS DIFERENTES no catalogo.
+#
+# Cada linha troca o que o olho percebe primeiro, nesta ordem: cor de parede,
+# tipo de cobertura (duas aguas x laje com platibanda), cor de telha e tipo de
+# fecho na frente (muro cheio x grade). Nao e cor aleatoria: sao tres casas de
+# beira de estrada que existem de verdade, lado a lado, em qualquer rodovia do
+# interior.
+CASAS = (
+    dict(parede=(0.255, 0.238, 0.205), barra=(0.125, 0.118, 0.105),
+         telha=(0.165, 0.062, 0.038), teto="duas_aguas", cxa=True,
+         fecho="muro", altura=2.90),
+    dict(parede=(0.145, 0.185, 0.200), barra=(0.072, 0.092, 0.100),
+         telha=(0.100, 0.098, 0.092), teto="platibanda", cxa=True,
+         fecho="grade", altura=3.15),
+    dict(parede=(0.310, 0.225, 0.190), barra=(0.165, 0.112, 0.090),
+         telha=(0.062, 0.058, 0.060), teto="duas_aguas", cxa=False,
+         fecho="muro", altura=2.70),
+)
+
+
+def casa(m, nome="via_casa", largura=7.5, fundo=8.0, altura=None, variante=0):
     """Casa de beira de estrada, de frente para +Y (o lado de quem chega).
 
     A versao antiga era caixa + prisma + muro, e lia exatamente como isso. O
@@ -496,14 +641,27 @@ def casa(m, nome="via_casa", largura=7.5, fundo=8.0, altura=2.9):
       3. CAIXA D'AGUA e platibanda do muro, que quebram o contorno reto no
          alto e dao o jeitao de casa brasileira de beira de estrada.
 
-    Em ~700 triangulos, que cabe folgado agora que o vao de cabos parou de
-    comer o catalogo inteiro.
+    07/10, duas coisas novas:
+
+      4. `variante` escolhe uma das tres linhas de `CASAS`. Sao peças
+         separadas no catalogo (`via_casa`, `via_casa_b`, `via_casa_c`) porque
+         o jogo clona a malha e o clone divide o material — variar cor por
+         copia do lado do three.js nao da.
+      5. FUNDOS. Metade das casas da fase e colocada com `giro: Math.PI`, ou
+         seja o motorista ve as COSTAS delas, e as costas eram uma parede cega
+         de 7,5 x 2,9 m. Agora tem porta de servico, janelinha de banheiro e
+         tanque — e e o fundo que fica em cena pelo lado esquerdo inteiro.
+
+    ~900 triangulos por variante.
     """
+    cfg = CASAS[variante % len(CASAS)]
+    altura = altura if altura is not None else cfg["altura"]
+    sufm = ("", "_b", "_c")[variante % 3]
     pecas = []
-    parede = C.mat_simples("via_parede", (0.255, 0.238, 0.205), rugosidade=0.90)
-    barra_cor = C.mat_simples("via_parede_barra", (0.125, 0.118, 0.105),
+    parede = C.mat_simples(f"via_parede{sufm}", cfg["parede"], rugosidade=0.90)
+    barra_cor = C.mat_simples(f"via_parede_barra{sufm}", cfg["barra"],
                               rugosidade=0.92)
-    telha = C.mat_simples("via_telha", (0.165, 0.062, 0.038), rugosidade=0.88)
+    telha = C.mat_simples(f"via_telha{sufm}", cfg["telha"], rugosidade=0.88)
     vidro = C.mat_simples("via_casa_vidro", (0.022, 0.028, 0.036),
                           rugosidade=0.14)
 
@@ -523,12 +681,21 @@ def casa(m, nome="via_casa", largura=7.5, fundo=8.0, altura=2.9):
     # telhado de duas aguas COM beiral: avanca em X e em Y, e tem espessura,
     # entao a aresta de baixo vira uma testeira visivel e nao um corte seco
     aba = 0.45
-    bm = bmesh.new()
     meia = largura / 2 + aba
-    cume = 1.30
+    cume = 1.30 if cfg["teto"] == "duas_aguas" else 0.52
+    if cfg["teto"] == "duas_aguas":
+        perfil = ((-meia, 0.0), (0.0, cume), (meia, 0.0),
+                  (meia, -0.16), (0.0, cume - 0.16), (-meia, -0.16))
+    else:
+        # LAJE COM PLATIBANDA: o topo e reto e a parede sobe 52 cm acima dele,
+        # escondendo a cobertura. E a outra metade das casas de beira de
+        # estrada no Brasil, e a silhueta reta e o contraste mais forte que
+        # existe contra a fileira de triangulos da variante de duas aguas.
+        perfil = ((-meia, 0.0), (-meia, cume), (meia, cume), (meia, 0.0),
+                  (meia - 0.16, 0.0), (meia - 0.16, cume - 0.14),
+                  (-meia + 0.16, cume - 0.14), (-meia + 0.16, 0.0))
+    bm = bmesh.new()
     y0, y1 = aba, -fundo - aba
-    perfil = ((-meia, 0.0), (0.0, cume), (meia, 0.0),
-              (meia, -0.16), (0.0, cume - 0.16), (-meia, -0.16))
     frentes = []
     for y in (y0, y1):
         frentes.append([bm.verts.new((x, y, z)) for x, z in perfil])
@@ -539,7 +706,6 @@ def casa(m, nome="via_casa", largura=7.5, fundo=8.0, altura=2.9):
                       frentes[1][j], frentes[1][i]))
     bm.faces.new(list(reversed(frentes[0])))
     bm.faces.new(frentes[1])
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     # O exportador liga `use_backface_culling` em TODO material. Face com
     # normal para dentro vira buraco: era o "teto meio transparente" — via-se
     # o ceu atraves da agua do telhado. Recalcular antes de virar objeto.
@@ -556,15 +722,58 @@ def casa(m, nome="via_casa", largura=7.5, fundo=8.0, altura=2.9):
     for p in telhado.data.polygons:
         p.material_index = 1 if abs(p.normal.y) > 0.9 else 0
     pecas.append(telhado)
+    if cfg["teto"] == "platibanda":
+        # a laje que a platibanda esconde do lado; vista de cima ela aparece
+        laje = C.caixa(f"{nome}_laje", (largura + 0.4, fundo + 0.4, 0.12),
+                       (0, -fundo / 2, altura + 0.18))
+        C.aplicar(laje, C.mat_simples("via_casa_laje", (0.118, 0.115, 0.108),
+                                      rugosidade=0.92))
+        pecas.append(laje)
 
     # caixa d'agua sobre a laje dos fundos: 20 triangulos que tiram a
     # silhueta do triangulo perfeito
-    cxa = C.cilindro(f"{nome}_caixa_dagua", 0.46, 0.62,
-                     (largura * 0.22, -fundo * 0.72, altura + cume + 0.10),
-                     segmentos=10)
-    C.aplicar(cxa, C.mat_simples("via_caixa_dagua", (0.105, 0.115, 0.125),
-                                 rugosidade=0.72))
-    pecas.append(cxa)
+    if cfg["cxa"]:
+        zc = altura + cume + (0.10 if cfg["teto"] == "duas_aguas" else -0.14)
+        px, py = largura * 0.22, -fundo * 0.72
+        # base de alvenaria, nao um pedestal fino: com o pe de 5,5 cm a caixa
+        # d'agua saia no render um abajur em cima do telhado
+        pe = C.caixa(f"{nome}_cxa_base", (0.70, 0.70, 0.66), (px, py, zc - 0.60))
+        C.aplicar(pe, parede)
+        pecas.append(pe)
+        tq = C.cilindro(f"{nome}_caixa_dagua", 0.46, 0.62, (px, py, zc),
+                        segmentos=10)
+        C.aplicar(tq, C.mat_simples("via_caixa_dagua", (0.105, 0.115, 0.125),
+                                    rugosidade=0.72))
+        pecas.append(tq)
+        tampa = C.cilindro(f"{nome}_cxa_tampa", 0.24, 0.07, (px, py, zc + 0.33),
+                           segmentos=8)
+        C.aplicar(tampa, C.mat_simples("via_caixa_dagua_tampa",
+                                       (0.055, 0.060, 0.068), rugosidade=0.70))
+        pecas.append(tampa)
+
+    # FUNDOS. Metade das casas entra em cena girada 180 graus e o que o
+    # motorista ve e esta face; era uma parede cega.
+    # y cresce para a FRENTE: o fundo da casa esta em y = -fundo, e o quintal
+    # fica ainda mais negativo que isso.
+    fy = -fundo
+    quintal = C.caixa(f"{nome}_tanque", (0.90, 0.55, 0.85),
+                      (-largura * 0.28, fy - 0.30, 0.42))
+    C.chanfrar(quintal, largura=0.03, segmentos=2)
+    C.aplicar(quintal, C.mat_simples("via_casa_tanque", (0.330, 0.325, 0.305),
+                                     rugosidade=0.80))
+    pecas.append(quintal)
+    # telheiro da area de servico: 1,7 m de abano em caimento, sobre dois
+    # pilares. Sao os dois pilares finos que quebram a parede cega do fundo.
+    telheiro = C.caixa(f"{nome}_telheiro", (largura * 0.62, 1.80, 0.10),
+                       (-largura * 0.14, fy - 0.88, 2.20),
+                       rot=(math.radians(-7), 0, 0))
+    C.aplicar(telheiro, telha)
+    pecas.append(telheiro)
+    for dx in (-largura * 0.42, largura * 0.12):
+        pil = C.caixa(f"{nome}_telheiro_pil_{dx:+.1f}", (0.11, 0.11, 2.12),
+                      (dx, fy - 1.68, 1.06))
+        C.aplicar(pil, parede)
+        pecas.append(pil)
 
     def abertura(sufixo, centro, tamanho, eixo="y"):
         """Vao com batente: o batente e o que da relevo. So o vidro escuro
@@ -590,23 +799,58 @@ def casa(m, nome="via_casa", largura=7.5, fundo=8.0, altura=2.9):
     # a lateral e o que o motorista ve por mais tempo, passando
     abertura("jan_lat", (largura / 2 - 0.02, -2.6, 1.75), (1.30, 1.05),
              eixo="x")
+    # fundos: porta de servico e janelinha de banheiro (as casas giradas 180
+    # graus mostram esta face, e so esta)
+    abertura("porta_fundo", (largura * 0.12, fy - 0.02, 1.05), (0.88, 2.02))
+    abertura("jan_fundo", (-largura * 0.30, fy - 0.02, 1.86), (0.70, 0.62))
 
-    # muro com pilaretes e portao: muro liso e outra caixa
-    muro = C.caixa(f"{nome}_muro", (largura + 1.0, 0.16, 1.35),
-                   (0, 1.3, 0.675))
-    C.aplicar(muro, m["concreto"])
-    pecas.append(muro)
+    portao_cor = C.mat_simples("via_casa_portao", (0.085, 0.095, 0.105),
+                               rugosidade=0.45, metalico=0.7)
+    if cfg["fecho"] == "muro":
+        # muro com pilaretes e portao: muro liso e outra caixa
+        muro = C.caixa(f"{nome}_muro", (largura + 1.0, 0.16, 1.35),
+                       (0, 1.3, 0.675))
+        C.aplicar(muro, m["concreto"])
+        pecas.append(muro)
+        portao = C.caixa(f"{nome}_portao", (2.30, 0.07, 1.40), (0, 1.3, 0.70))
+        C.aplicar(portao, portao_cor)
+        pecas.append(portao)
+    else:
+        # GRADE sobre mureta: deixa ver o terreno atras, e e o vazado que
+        # distingue esta casa da vizinha a 40 m — muro cheio e muro cheio,
+        # nao importa a cor.
+        mureta = C.caixa(f"{nome}_mureta", (largura + 1.0, 0.18, 0.52),
+                         (0, 1.3, 0.26))
+        C.aplicar(mureta, m["concreto"])
+        pecas.append(mureta)
+        n_barras = 22
+        for i in range(n_barras):
+            x = -(largura + 0.7) / 2 + (largura + 0.7) * i / (n_barras - 1)
+            b = C.caixa(f"{nome}_grade_{i}", (0.045, 0.045, 1.00),
+                        (x, 1.3, 1.02))
+            C.aplicar(b, portao_cor)
+            pecas.append(b)
+        trav = C.caixa(f"{nome}_grade_trav", (largura + 0.8, 0.06, 0.07),
+                       (0, 1.3, 1.49))
+        C.aplicar(trav, portao_cor)
+        pecas.append(trav)
     for dx in (-1, 1):
         pil = C.caixa(f"{nome}_pilar_{dx}", (0.30, 0.30, 1.62),
                       (dx * (largura + 1.0) / 2, 1.3, 0.81))
         C.chanfrar(pil, largura=0.02, segmentos=2)
         C.aplicar(pil, m["concreto"])
         pecas.append(pil)
-    portao = C.caixa(f"{nome}_portao", (2.30, 0.07, 1.40), (0, 1.3, 0.70))
-    C.aplicar(portao, C.mat_simples("via_casa_portao", (0.085, 0.095, 0.105),
-                                    rugosidade=0.45, metalico=0.7))
-    pecas.append(portao)
     return C.juntar(pecas, nome)
+
+
+def casa_b(m, nome="via_casa_b"):
+    """Casa de laje com platibanda e grade. Ver `CASAS`."""
+    return casa(m, nome=nome, variante=1)
+
+
+def casa_c(m, nome="via_casa_c"):
+    """Casa baixa de telha escura, sem caixa d'agua. Ver `CASAS`."""
+    return casa(m, nome=nome, variante=2, largura=6.8, fundo=7.2)
 
 
 def escola(m, nome="via_escola", modulo=10.0):
@@ -855,18 +1099,28 @@ def moto(m, nome="via_moto"):
 
     # PILOTO. De frente, ele e a peca que se ve — por isso leva mais
     # poligono que a moto inteira.
-    tronco = C.caixa(f"{nome}_tronco", (0.46, 0.30, 0.58), (0, 0.10, 1.18),
-                     rot=(math.radians(-14), 0, 0))
-    C.chanfrar(tronco, largura=0.09, segmentos=3)
-    C.aplicar(tronco, colete)
-    pecas.append(tronco)
+    # mesmo tratamento do pedestre e do ciclista (07/10): o tronco era uma
+    # caixa de 46 x 30 cm e, de frente, a moto E o piloto — a peca mais vista
+    # da moto era a mais chapada dela.
+    bm = bmesh.new()
+    _loft(bm, [(0, 0.190, 0.93, 0.150, 0.105),   # quadril, no banco
+               (0, 0.150, 1.06, 0.156, 0.108),
+               (0, 0.100, 1.19, 0.170, 0.112),   # peito
+               (0, 0.045, 1.34, 0.206, 0.115),   # ombro
+               (0, 0.020, 1.43, 0.162, 0.096)], segmentos=10)
     for lado in (-1, 1):
-        braco = C.caixa(f"{nome}_braco_{lado}", (0.13, 0.52, 0.13),
-                        (lado * 0.20, -0.17, 1.17),
-                        rot=(math.radians(16), 0, 0))
-        C.chanfrar(braco, largura=0.045, segmentos=2)
-        C.aplicar(braco, colete)
-        pecas.append(braco)
+        _loft(bm, [(lado * 0.195, 0.040, 1.345, 0.062, 0.062),
+                   (lado * 0.205, -0.080, 1.300, 0.056, 0.056),
+                   (lado * 0.210, -0.170, 1.255, 0.050, 0.050)], segmentos=8)
+    _fechar_bm(bm, f"{nome}_tronco", colete, pecas)
+    for lado in (-1, 1):
+        # antebraco esticado ate o guidao, em pele: e a diagonal dos dois
+        # bracos que diz, de frente, que ha alguem pilotando
+        bm = bmesh.new()
+        _loft(bm, [(lado * 0.208, -0.160, 1.258, 0.048, 0.048),
+                   (lado * 0.215, -0.320, 1.165, 0.042, 0.042),
+                   (lado * 0.220, -0.430, 1.075, 0.036, 0.036)], segmentos=8)
+        _fechar_bm(bm, f"{nome}_antebraco_{lado}", pele, pecas)
         perna = C.caixa(f"{nome}_perna_{lado}", (0.16, 0.40, 0.18),
                         (lado * 0.17, 0.02, 0.74))
         C.chanfrar(perna, largura=0.05, segmentos=2)
@@ -916,31 +1170,126 @@ def muro_patio(m, nome="via_muro_patio", modulo=10.0):
     marca do sistema, e e ela que faz o muro ler como industrial em vez de
     muro de casa comprido.
 
-    ~260 triangulos.
+    SEGUNDA RODADA (07/10) — a primeira versao foi feita em meia hora e saiu
+    uma chapa cinza com uma tarja verde por cima. Cinco defeitos, achados no
+    render e nao no codigo:
+
+      1. **A placa flutuava.** Centro em 1,18 com 2,05 de altura punha a base
+         em +0,155: havia 15 cm de luz entre o muro e o chao, por onde se via
+         a grama do outro lado. Agora ha baldrame assentado no terreno.
+      2. **Buraco de 15 cm na emenda.** A placa ia ate 4,85 e o pilar so ate
+         5,00, enquanto a placa do modulo seguinte so comecava em 5,15. A cada
+         10 m de muro havia uma fresta. A placa agora cobre o modulo INTEIRO e
+         o pilar monta em cima da junta.
+      3. **Zero sombra propria.** Uma caixa de face lisa iluminada de frente e
+         exatamente o "chapado" do retorno do cliente. As placas pre-moldadas
+         de verdade sao PRANCHAS horizontais encaixadas entre pilares em H: as
+         juntas rebaixadas desenham linhas de sombra a cada 50 cm, de graca.
+      4. **Sem nada no alto.** Patio de concessionaria tem concertina ou arame
+         farpado sobre maos-francesas inclinadas — e a silhueta recortada no
+         ceu que diz "area restrita" antes de qualquer outra coisa. Era o que
+         mais faltava na saida do patio.
+      5. **Concreto de uma cor so.** O rodape de um muro de patio e sempre
+         mais escuro: respingo de roda, barro e limo. Material proprio na
+         faixa de baixo resolve sem ruido procedural (que a via nao pode usar,
+         ver `_pintar_por_normal`).
+
+    ~900 triangulos, contra 260. Cabe: o muro aparece 30 vezes, mas so nos
+    120 m do patio.
     """
     pecas = []
-    concreto = C.mat_simples("via_patio_concreto", (0.215, 0.212, 0.200),
+    concreto = C.mat_simples("via_patio_concreto", (0.235, 0.230, 0.216),
                              rugosidade=0.92)
+    # o pilar e pre-moldado em forma de aco: sai mais liso e mais claro que a
+    # prancha, e essa diferenca de tom e metade do que separa um do outro
+    concreto_pil = C.mat_simples("via_patio_pilar", (0.285, 0.280, 0.265),
+                                 rugosidade=0.80)
+    sujo = C.mat_simples("via_patio_rodape", (0.115, 0.112, 0.098),
+                         rugosidade=0.95)
     verde = C.mat_simples("via_patio_faixa", (0.020, 0.235, 0.105),
                           rugosidade=0.80)
     refl = C.mat_simples("via_patio_refl", (0.56, 0.52, 0.36), rugosidade=0.40)
+    arame = C.mat_simples("via_patio_arame", (0.195, 0.200, 0.205),
+                          rugosidade=0.55, metalico=1.0)
 
-    placa = C.caixa(f"{nome}_placa", (modulo - 0.30, 0.16, 2.05), (0, 0, 1.18))
-    C.aplicar(placa, concreto)
-    pecas.append(placa)
-    # pilar na junta: e ele que diz "pre-moldado"
-    pilar = C.caixa(f"{nome}_pilar", (0.30, 0.26, 2.32),
-                    (modulo / 2 - 0.15, 0, 1.16))
-    C.chanfrar(pilar, largura=0.02, segmentos=2)
-    C.aplicar(pilar, concreto)
-    pecas.append(pilar)
-    faixa = C.caixa(f"{nome}_faixa", (modulo - 0.30, 0.19, 0.34), (0, 0, 2.05))
+    # baldrame: assenta o muro no terreno e e a faixa suja de respingo
+    base = C.caixa(f"{nome}_baldrame", (modulo, 0.30, 0.34), (0, 0, 0.15))
+    C.chanfrar(base, largura=0.02, segmentos=2)
+    C.aplicar(base, sujo)
+    pecas.append(base)
+
+    # miolo que fecha o vao atras das pranchas: sem ele as juntas rebaixadas
+    # viram frestas vazadas e se ve o patio pelo buraco
+    miolo = C.caixa(f"{nome}_miolo", (modulo, 0.10, 1.92), (0, 0, 1.26))
+    C.aplicar(miolo, sujo)
+    pecas.append(miolo)
+
+    # PRANCHAS: 4 de 46 cm com junta rebaixada de 4 cm entre elas.
+    # Tons alternados de proposito: prancha pre-moldada sai de forma e de lote
+    # diferentes e NUNCA fica da mesma cor que a de cima. Era o resto do
+    # "chapado" depois que as juntas apareceram — 30 m de cinza unico.
+    concreto_b = C.mat_simples("via_patio_concreto_b", (0.198, 0.196, 0.188),
+                               rugosidade=0.94)
+    z = 0.32
+    for i in range(4):
+        pr = C.caixa(f"{nome}_prancha_{i}", (modulo, 0.17, 0.46),
+                     (0, 0, z + 0.23))
+        C.chanfrar(pr, largura=0.012, segmentos=2)
+        C.aplicar(pr, (sujo, concreto_b, concreto, concreto_b)[i])
+        pecas.append(pr)
+        z += 0.50
+
+    # faixa da empresa na prancha de cima, NA FRENTE dela (sobressai 1 cm, o
+    # que lhe da uma sombra propria em vez de ser adesivo)
+    faixa = C.caixa(f"{nome}_faixa", (modulo, 0.19, 0.30), (0, 0, 2.03))
     C.aplicar(faixa, verde)
     pecas.append(faixa)
-    # refletivo na altura do farol de quem manobra
+
+    # coroamento com pingadeira: 6 cm de abano de cada lado, e a linha de
+    # sombra horizontal continua que o olho le de longe
+    coroa = C.caixa(f"{nome}_coroa", (modulo, 0.32, 0.10), (0, 0, 2.27))
+    C.chanfrar(coroa, largura=0.018, segmentos=2)
+    C.aplicar(coroa, concreto_pil)
+    pecas.append(coroa)
+
+    # PILAR em H montado sobre a junta: a aba de cada lado e o que encaixa a
+    # prancha, e e ela que faz o perfil ler como H e nao como poste
+    xp = modulo / 2
+    alma = C.caixa(f"{nome}_pilar", (0.22, 0.26, 2.40), (xp, 0, 1.20))
+    C.chanfrar(alma, largura=0.018, segmentos=2)
+    C.aplicar(alma, concreto_pil)
+    pecas.append(alma)
+    for dy in (-0.145, 0.145):
+        aba = C.caixa(f"{nome}_aba_{dy:+.2f}", (0.13, 0.07, 2.30),
+                      (xp, dy, 1.17))
+        C.aplicar(aba, concreto_pil)
+        pecas.append(aba)
+
+    # MAO-FRANCESA + 3 fios: a silhueta recortada no ceu. A mao inclina 45
+    # para dentro do patio (+Y), como manda o uso.
+    for sx in (-modulo / 2, modulo / 2):
+        mao = C.barra(f"{nome}_mao_{sx:+.0f}", (sx, 0.02, 2.32),
+                      (sx, 0.42, 2.74), secao=(0.055, 0.045))
+        C.aplicar(mao, arame)
+        pecas.append(mao)
+    for t in (0.30, 0.62, 0.95):
+        fio = C.caixa(f"{nome}_fio_{t:.2f}", (modulo, 0.016, 0.016),
+                      (0, 0.02 + 0.40 * t, 2.32 + 0.42 * t))
+        C.aplicar(fio, arame)
+        pecas.append(fio)
+
+    # OLHO DE GATO na altura do farol de quem manobra, pregado na junta entre
+    # pranchas (que e onde se prega na vida real). Chapa escura por tras e
+    # lente pequena na frente: o retangulo claro solto de antes lia como um
+    # papel colado no muro.
     for dx in (-modulo / 4, modulo / 4):
-        olho = C.caixa(f"{nome}_refl_{dx:.1f}", (0.36, 0.21, 0.09),
-                       (dx, 0, 0.92))
+        chapa = C.caixa(f"{nome}_refl_chapa_{dx:.1f}", (0.30, 0.185, 0.13),
+                        (dx, 0, 0.82))
+        C.aplicar(chapa, C.mat_simples("via_patio_refl_chapa",
+                                       (0.022, 0.024, 0.026), rugosidade=0.60))
+        pecas.append(chapa)
+        olho = C.caixa(f"{nome}_refl_{dx:.1f}", (0.21, 0.195, 0.065),
+                       (dx, 0, 0.82))
         C.aplicar(olho, refl)
         pecas.append(olho)
 
@@ -962,54 +1311,130 @@ def pedestre(m, nome="via_pedestre", altura=1.72, roupa=(0.30, 0.10, 0.09)):
     as pernas sao a parte com mais cuidado aqui.
 
     `altura` escala tudo: a mesma peca serve de crianca com 1,25.
+
+    SEGUNDA RODADA (07/10). A versao de caixas chanfradas (648 faces) saia no
+    render como RECORTE DE PAPELAO: tronco de 20 cm de espessura visto de
+    frente vira uma tabua, cabeca de caixa vira um dado, e os bracos, da
+    mesma cor da camisa e colados no tronco, sumiam. Quatro trocas:
+
+      1. **Tronco em secao eliptica**, de quadril a ombro, com a cintura mais
+         estreita que os dois. Gente tem 44 cm de ombro por 24 cm de peito —
+         e essa razao, e nao o detalhe, que o olho usa para reconhecer um
+         corpo. Caixa chanfrada tem razao 1:1 em toda a altura.
+      2. **Cabeca de verdade**, em aneis: nuca, maca do rosto, cranio e topo.
+         Custa 100 triangulos e e o que mais muda a leitura, porque a cabeca
+         e a primeira coisa que o olho procura numa silhueta humana.
+      3. **Braco com COTOVELO** e antebraco de pele. Sem a dobra o braco e um
+         pau pendurado; e a mudanca de cor no cotovelo que separa o braco do
+         tronco quando os dois sao da cor da camisa.
+      4. **Ombro saliente**: o tronco termina mais largo do que a cabeca e o
+         pescoco nasce recuado. E o degrau ombro-pescoco-cabeca que diz
+         "pessoa" a 40 m, que e a distancia em que o jogador decide frear.
+
+    ~980 triangulos contra 648 faces de caixa. Vale: na faixa de pedestre e
+    nas quatro pessoas do patio esta peca e o conteudo da decisao.
     """
     pecas = []
     k = altura / 1.72
     pano = C.mat_simples(f"via_ped_roupa_{nome[-3:]}", roupa, rugosidade=0.80)
     calca = C.mat_simples("via_ped_calca", (0.055, 0.065, 0.095), rugosidade=0.85)
     pele = C.mat_simples("via_ped_pele", (0.265, 0.185, 0.135), rugosidade=0.72)
+    cabelo = C.mat_simples("via_ped_cabelo", (0.035, 0.026, 0.020),
+                           rugosidade=0.78)
     sapato = C.mat_simples("via_ped_sapato", (0.030, 0.028, 0.030), rugosidade=0.60)
 
     def cx(n, tam, pos, mat, ch=0.03, rot=None):
-        o = C.caixa(f"{nome}_{n}", tuple(v * k for v in tam),
-                    tuple(v * k for v in pos), rot=rot)
+        # sem `k` aqui: a peca inteira e escalada no fim desta funcao
+        o = C.caixa(f"{nome}_{n}", tam, pos, rot=rot)
         if ch:
-            C.chanfrar(o, largura=ch * k, segmentos=2)
+            C.chanfrar(o, largura=ch, segmentos=2)
         C.aplicar(o, mat)
         pecas.append(o)
         return o
 
-    cx("tronco", (0.30, 0.20, 0.52), (0, 0, 1.22), pano, 0.055)
-    cx("quadril", (0.28, 0.20, 0.18), (0, 0, 0.92), calca, 0.04)
-    cx("pescoco", (0.09, 0.09, 0.07), (0, 0, 1.52), pele, 0.02)
-    cx("cabeca", (0.17, 0.20, 0.23), (0, 0.01, 1.64), pele, 0.055)
+    # A pessoa ANDA no eixo X (atravessa a pista); X e a direcao da passada e
+    # Y e a largura de ombro a ombro. Por isso rx < ry no tronco.
+    bm = bmesh.new()
+    _loft(bm, [(0.00, 0, 0.84, 0.098, 0.128),   # quadril
+               (0.00, 0, 0.96, 0.094, 0.124),
+               (0.00, 0, 1.08, 0.086, 0.110),   # cintura
+               (0.01, 0, 1.26, 0.100, 0.158),   # peito
+               (0.01, 0, 1.40, 0.102, 0.196),   # ombro
+               (0.00, 0, 1.47, 0.082, 0.148)], segmentos=10)
+    # mangas curtas: o volume que separa o braco do tronco na silhueta
+    for lado in (-1, 1):
+        _loft(bm, [(0.005, lado * 0.185, 1.41, 0.062, 0.062),
+                   (0.005, lado * 0.198, 1.30, 0.056, 0.056),
+                   (0.005, lado * 0.200, 1.22, 0.050, 0.050)], segmentos=8)
+    _fechar_bm(bm, f"{nome}_tronco", pano, pecas)
 
-    # PASSADA: uma perna a frente, outra atras — e o V que le como caminhada
+    bm = bmesh.new()
+    cx_q = _loft(bm, [(0, 0, 0.78, 0.100, 0.122),
+                      (0, 0, 0.90, 0.104, 0.130),
+                      (0, 0, 0.99, 0.096, 0.124)], segmentos=10)
+    del cx_q
+    _fechar_bm(bm, f"{nome}_quadril", calca, pecas)
+
+    # pescoco + cabeca na mesma malha: a emenda some e sobra o degrau que
+    # importa, que e o do ombro
+    bm = bmesh.new()
+    _loft(bm, [(0.00, 0, 1.44, 0.052, 0.058),
+               (0.00, 0, 1.53, 0.050, 0.054),   # pescoco
+               (0.01, 0, 1.565, 0.072, 0.074),  # mandibula
+               (0.015, 0, 1.615, 0.090, 0.084),  # maca do rosto
+               (0.010, 0, 1.675, 0.088, 0.082),  # cranio
+               (0.000, 0, 1.725, 0.062, 0.060),
+               (0.000, 0, 1.752, 0.022, 0.022)], segmentos=10)
+    _fechar_bm(bm, f"{nome}_cabeca", pele, pecas)
+
+    # calota de cabelo: so a parte de tras e o alto, que e o que se ve
+    bm = bmesh.new()
+    _loft(bm, [(-0.012, 0, 1.600, 0.086, 0.086),
+               (-0.010, 0, 1.672, 0.094, 0.088),
+               (-0.004, 0, 1.728, 0.066, 0.064),
+               (0.000, 0, 1.757, 0.024, 0.024)], segmentos=10)
+    _fechar_bm(bm, f"{nome}_cabelo", cabelo, pecas)
+
+    # PASSADA: uma perna a frente, outra atras — e o V que le como caminhada.
+    # As pernas nascem SEPARADAS em Y: nascendo as duas de x=0 elas se cruzam
+    # no quadril e de frente a pessoa fica com uma perna so.
     for lado, avanco in ((-1, 0.26), (1, -0.22)):
-        coxa = C.barra(f"{nome}_coxa_{lado}",
-                       (0, 0, 0.86 * k), (avanco * 0.55 * k, 0, 0.52 * k),
-                       secao=(0.125 * k, 0.145 * k))
-        C.aplicar(coxa, calca)
-        pecas.append(coxa)
-        canela = C.barra(f"{nome}_canela_{lado}",
-                         (avanco * 0.55 * k, 0, 0.52 * k),
-                         (avanco * k, 0, 0.09 * k),
-                         secao=(0.105 * k, 0.12 * k))
-        C.aplicar(canela, calca)
-        pecas.append(canela)
-        cx(f"pe_{lado}", (0.24, 0.11, 0.07), (avanco + 0.04, 0, 0.045),
+        dy = lado * 0.072
+        bm = bmesh.new()
+        _loft(bm, [(0.00, dy, 0.90, 0.088, 0.086),
+                   (avanco * 0.26, dy, 0.72, 0.078, 0.076),
+                   (avanco * 0.55, dy, 0.52, 0.062, 0.062),   # joelho
+                   (avanco * 0.78, dy, 0.30, 0.056, 0.054),
+                   (avanco * 1.00, dy, 0.09, 0.048, 0.046)], segmentos=8)
+        _fechar_bm(bm, f"{nome}_perna_{lado}", calca, pecas)
+        cx(f"pe_{lado}", (0.25, 0.105, 0.07), (avanco + 0.045, dy, 0.042),
            sapato, 0.02)
-        # braco contrario a perna, como todo mundo anda
-        braco = C.barra(f"{nome}_braco_{lado}",
-                        (0, lado * 0.17 * k, 1.42 * k),
-                        (-avanco * 0.75 * k, lado * 0.19 * k, 0.94 * k),
-                        secao=(0.10 * k, 0.11 * k))
-        C.aplicar(braco, pano)
-        pecas.append(braco)
+
+        # braco contrario a perna, como todo mundo anda. Braco (manga) ate o
+        # cotovelo ja saiu no tronco; aqui vai do cotovelo a mao, em pele.
+        bm = bmesh.new()
+        _loft(bm, [(-avanco * 0.14, lado * 0.200, 1.23, 0.049, 0.049),
+                   (-avanco * 0.46, lado * 0.206, 1.07, 0.042, 0.042),
+                   (-avanco * 0.70, lado * 0.210, 0.94, 0.036, 0.036),
+                   (-avanco * 0.80, lado * 0.210, 0.87, 0.040, 0.034)],
+              segmentos=8)
+        _fechar_bm(bm, f"{nome}_antebraco_{lado}", pele, pecas)
+
+    # a escala vem no fim: escalar vertice a vertice evita `obj.scale`, que o
+    # exportador aplicaria no no e o jogo herdaria ao instanciar
+    for o in pecas:
+        for v in o.data.vertices:
+            v.co *= k
 
     alvo = C.juntar(pecas, nome)
     alvo.name = nome
     return alvo
+
+
+def crianca(m, nome="via_crianca"):
+    """A mesma peca a 1,25 m. Existe como funcao para a prova poder pedi-la
+    pelo nome, como pede todas as outras."""
+    return pedestre(m, nome=nome, altura=1.25, roupa=(0.12, 0.17, 0.34))
 
 
 def _mat_luz(nome, cor, forca=1.0):
@@ -1116,11 +1541,53 @@ def onibus(m, nome="via_onibus"):
     C.aplicar(corpo, amarelo)
     pecas.append(corpo)
 
+    # TETO ABAULADO (07/10). O teto era o topo chato da caixa: de tres
+    # quartos, que e como o onibus aparece na fase, o que se via era um
+    # planalto amarelo de 2,4 x 8,6 m — a cara de tijolo que o repasse
+    # apontou. Onibus nao tem teto plano: tem arco transversal de uns 15 cm
+    # de flecha, e e esse arco que faz a luz correr de uma agua para a outra
+    # em vez de bater chapada numa face so.
+    #
+    # Feito como perfil fechado extrudado em Y, no mesmo molde do telhado da
+    # casa: 9 pontos no arco, 2 no fundo, tampado nas duas pontas.
+    meia, y0, y1 = 1.255, 4.33, -4.33
+    perfil = [(-meia + 2 * meia * i / 8,
+               3.04 + 0.19 * math.sin(math.pi * i / 8)) for i in range(9)]
+    perfil += [(meia, 2.78), (-meia, 2.78)]
+    bm = bmesh.new()
+    frentes = [[bm.verts.new((x, y, z)) for x, z in perfil] for y in (y0, y1)]
+    n = len(perfil)
+    for i in range(n):
+        j = (i + 1) % n
+        bm.faces.new((frentes[0][i], frentes[0][j],
+                      frentes[1][j], frentes[1][i]))
+    bm.faces.new(list(reversed(frentes[0])))
+    bm.faces.new(frentes[1])
+    teto = _fechar_bm(bm, f"{nome}_teto", amarelo, pecas, suave=24)
+    del teto
+    # friso de chuva na emenda teto/lateral: a linha escura horizontal que
+    # percorre o onibus inteiro e o que separa as duas superficies
+    for lado in (-1, 1):
+        friso = C.caixa(f"{nome}_friso_{lado}", (0.07, 8.68, 0.08),
+                        (lado * 1.245, 0, 3.02))
+        C.aplicar(friso, preto)
+        pecas.append(friso)
+    # escotilhas: dois volumes claros no alto que quebram os 8,6 m de teto
+    for dy in (-2.2, 1.9):
+        esc = C.caixa(f"{nome}_escotilha_{dy:+.1f}", (0.62, 0.58, 0.10),
+                      (0, dy, 3.24))
+        C.chanfrar(esc, largura=0.025, segmentos=2)
+        C.aplicar(esc, C.mat_simples("via_onibus_escotilha",
+                                     (0.42, 0.44, 0.46), rugosidade=0.45))
+        pecas.append(esc)
+
     # para-brisa e painel de destino: e a frente que diz que e um onibus
     frente = C.caixa(f"{nome}_parabrisa", (2.10, 0.07, 0.86), (0, -4.29, 2.50))
     C.aplicar(frente, vidro)
     pecas.append(frente)
-    destino = C.caixa(f"{nome}_destino", (1.30, 0.06, 0.26), (0, -4.31, 3.10))
+    # sobe para a TESTA do teto abaulado: no lugar antigo (z 3,10, y -4,31)
+    # ele ficava dentro do volume novo do teto e sumia por completo
+    destino = C.caixa(f"{nome}_destino", (1.30, 0.06, 0.26), (0, -4.355, 3.02))
     C.aplicar(destino, preto)
     pecas.append(destino)
     for lado in (-1, 1):
@@ -1158,6 +1625,16 @@ def onibus(m, nome="via_onibus"):
             C.aplicar(roda, C.mat_simples("via_pneu", (0.018, 0.018, 0.020),
                                           rugosidade=0.92))
             pecas.append(roda)
+            # CAIXA DE RODA. A roda saia direto de uma saia reta, e roda sem
+            # arco e o que mais faz um veiculo ler como caixa com cilindros
+            # colados — o mesmo defeito que o carro ja tinha resolvido e o
+            # onibus nao. O arco e um trapezio simples: so precisa existir a
+            # sombra em volta do pneu.
+            arco = C.caixa(f"{nome}_arco_{lado}_{dy:+.1f}", (0.09, 1.34, 0.80),
+                           (lado * 1.19, dy, 0.80))
+            C.chanfrar(arco, largura=0.07, segmentos=3)
+            C.aplicar(arco, preto)
+            pecas.append(arco)
 
     # placa de PARE do escolar, aberta do lado do motorista que ultrapassa
     braco = C.caixa(f"{nome}_pare_braco", (0.70, 0.06, 0.06), (-1.55, -1.2, 1.83))
@@ -1193,6 +1670,17 @@ def onibus(m, nome="via_onibus"):
     C.aplicar(saia, preto)
     pecas.append(saia)
 
+    # PARA-CHOQUES nas duas pontas: a frente e a traseira acabavam numa quina
+    # viva de 2,4 m, que e quina de caixa e nao de veiculo. O para-choque
+    # avanca 10 cm e tem chanfro gordo — e a linha horizontal escura que diz
+    # onde o onibus acaba.
+    for dy, dz in ((-4.38, 1.28), (4.38, 1.32)):
+        pc = C.caixa(f"{nome}_choque_{dy:+.1f}", (2.44, 0.22, 0.40),
+                     (0, dy, dz))
+        C.chanfrar(pc, largura=0.08, segmentos=3)
+        C.aplicar(pc, preto)
+        pecas.append(pc)
+
     return C.juntar(pecas, nome)
 
 
@@ -1207,18 +1695,28 @@ def ciclista(m, nome="via_ciclista"):
     pele = C.mat_simples("via_ciclista_pele", (0.30, 0.19, 0.13),
                          rugosidade=0.70)
 
+    aco = C.mat_simples("via_bike_aro", (0.44, 0.45, 0.46), rugosidade=0.28,
+                        metalico=1.0)
     for dy in (-0.52, 0.52):
-        roda = C.cilindro(f"{nome}_roda_{dy:+.2f}", 0.34, 0.052, (0, dy, 0.34),
-                          segmentos=16, rot=(0, math.radians(90), 0))
-        C.aplicar(roda, pneu)
-        pecas.append(roda)
+        pecas.append(_roda_vazada(f"{nome}_pneu_{dy:+.2f}", 0.340, 0.300,
+                                  0.045, (0, dy, 0.34), pneu))
         # aro claro: o pneu preto sozinho sumia contra o asfalto, e e a roda
         # que diz que aquilo na pista e uma bicicleta e nao um pedestre
-        aro = C.cilindro(f"{nome}_aro_{dy:+.2f}", 0.28, 0.030, (0, dy, 0.34),
-                         segmentos=16, rot=(0, math.radians(90), 0))
-        C.aplicar(aro, C.mat_simples("via_bike_aro", (0.38, 0.39, 0.40),
-                                     rugosidade=0.30, metalico=0.9))
-        pecas.append(aro)
+        pecas.append(_roda_vazada(f"{nome}_aro_{dy:+.2f}", 0.302, 0.268,
+                                  0.028, (0, dy, 0.34), aco))
+        cubo = C.cilindro(f"{nome}_cubo_{dy:+.2f}", 0.035, 0.09, (0, dy, 0.34),
+                          segmentos=8, rot=(0, math.radians(90), 0))
+        C.aplicar(cubo, aco)
+        pecas.append(cubo)
+        # 6 raios: finos de proposito. A 25 m eles nao se contam um a um, mas
+        # a malha clara que formam e o que impede o miolo da roda de ficar um
+        # buraco vazio quando ha ceu atras.
+        for i in range(6):
+            a = math.pi * i / 6
+            raio = C.caixa(f"{nome}_raio_{dy:+.2f}_{i}", (0.010, 0.010, 0.56),
+                           (0, dy, 0.34), rot=(a, 0, 0))
+            C.aplicar(raio, aco)
+            pecas.append(raio)
 
     for a, b in (((0, -0.52, 0.34), (0, 0.10, 0.62)),
                  ((0, 0.52, 0.34), (0, 0.10, 0.62)),
@@ -1246,44 +1744,75 @@ def ciclista(m, nome="via_ciclista"):
                                       rugosidade=0.20))
     pecas.append(refletor)
 
-    tronco = C.caixa(f"{nome}_tronco", (0.36, 0.26, 0.58), (0, -0.02, 1.14),
-                     rot=(math.radians(-18), 0, 0))
-    C.chanfrar(tronco, largura=0.04, segmentos=2)
-    C.aplicar(tronco, roupa)
-    pecas.append(tronco)
+    # TRONCO (07/10): era um bloco reto de 36 cm — o maior volume da peca, e o
+    # mais chapado. Ciclista pedalando esta DEITADO sobre a bicicleta: o
+    # quadril fica atras e baixo, o ombro a frente e alto, e e essa diagonal
+    # que diz "pedalando" em vez de "sentado num banquinho". Em aneis
+    # elipticos a diagonal sai de graca, e o estreitamento na cintura separa o
+    # tronco do quadril sem precisar de uma peca a mais.
+    bm = bmesh.new()
+    _loft(bm, [(0, 0.175, 0.93, 0.138, 0.098),   # quadril, atras e baixo
+               (0, 0.105, 1.045, 0.142, 0.100),
+               (0, 0.020, 1.155, 0.152, 0.102),  # cintura
+               (0, -0.075, 1.265, 0.178, 0.104),
+               (0, -0.145, 1.355, 0.186, 0.098),  # ombro, a frente e alto
+               (0, -0.180, 1.405, 0.148, 0.082)], segmentos=10)
+    _fechar_bm(bm, f"{nome}_tronco", roupa, pecas)
 
-    cabeca = C.caixa(f"{nome}_cabeca", (0.20, 0.22, 0.24), (0, -0.19, 1.50))
-    C.chanfrar(cabeca, largura=0.05, segmentos=3)
-    C.aplicar(cabeca, pele)
-    pecas.append(cabeca)
+    # cabeca inclinada para a frente, como quem olha a pista 10 m adiante
+    bm = bmesh.new()
+    _loft(bm, [(0, -0.175, 1.385, 0.052, 0.056),  # pescoco
+               (0, -0.195, 1.445, 0.072, 0.078),  # mandibula
+               (0, -0.200, 1.495, 0.088, 0.092),  # maca do rosto
+               (0, -0.196, 1.550, 0.086, 0.090),
+               (0, -0.190, 1.590, 0.064, 0.066)], segmentos=10)
+    _fechar_bm(bm, f"{nome}_cabeca", pele, pecas)
 
-    capacete = C.caixa(f"{nome}_capacete", (0.23, 0.25, 0.12), (0, -0.19, 1.60))
-    C.chanfrar(capacete, largura=0.05, segmentos=3)
-    C.aplicar(capacete, C.mat_simples("via_ciclista_capacete",
-                                      (0.56, 0.52, 0.48), rugosidade=0.30))
-    pecas.append(capacete)
+    # CAPACETE de verdade: casco abaulado com aba sobre os olhos. O bloco
+    # chanfrado de antes saia no render como um tijolo claro na cabeca.
+    bm = bmesh.new()
+    _loft(bm, [(0, -0.199, 1.527, 0.098, 0.104),
+               (0, -0.196, 1.570, 0.102, 0.108),
+               (0, -0.192, 1.612, 0.084, 0.090),
+               (0, -0.190, 1.642, 0.040, 0.044)], segmentos=10)
+    capacete = _fechar_bm(
+        bm, f"{nome}_capacete",
+        C.mat_simples("via_ciclista_capacete", (0.56, 0.52, 0.48),
+                      rugosidade=0.30), pecas)
+    aba = C.caixa(f"{nome}_capacete_aba", (0.17, 0.11, 0.022),
+                  (0, -0.278, 1.536), rot=(math.radians(-12), 0, 0))
+    C.aplicar(aba, capacete.data.materials[0])
+    pecas.append(aba)
 
     for lado in (-1, 1):
         # DUAS secoes, nao uma: perna reta do quadril ao pedal e o que fazia
         # o ciclista parecer uma boneca de pau em cima da bicicleta. Coxa
         # para a frente e canela para tras e a forma de quem pedala — e e o
         # joelho dobrado que da a leitura, nao o detalhe.
-        coxa = C.barra(f"{nome}_coxa_{lado}", (lado * 0.11, 0.08, 0.92),
-                       (lado * 0.13, -0.22, 0.72), secao=(0.13, 0.13))
+        # o quadril agora fica em y=+0,175: a coxa nasce de la, e nao de +0,08
+        coxa = C.barra(f"{nome}_coxa_{lado}", (lado * 0.105, 0.145, 0.90),
+                       (lado * 0.125, -0.21, 0.71), secao=(0.135, 0.135))
         C.aplicar(coxa, roupa)
         pecas.append(coxa)
-        perna = C.barra(f"{nome}_perna_{lado}", (lado * 0.13, -0.22, 0.72),
-                        (lado * 0.12, -0.04, 0.30), secao=(0.11, 0.11))
-        C.aplicar(perna, roupa)
+        perna = C.barra(f"{nome}_perna_{lado}", (lado * 0.125, -0.21, 0.71),
+                        (lado * 0.115, -0.04, 0.30), secao=(0.105, 0.105))
+        C.aplicar(perna, pele)
         pecas.append(perna)
         pe = C.caixa(f"{nome}_pe_{lado}", (0.10, 0.22, 0.07),
-                     (lado * 0.12, -0.02, 0.26))
+                     (lado * 0.115, -0.02, 0.26))
         C.aplicar(pe, C.mat_simples("via_bike_tenis", (0.045, 0.045, 0.050),
                                     rugosidade=0.60))
         pecas.append(pe)
-        braco = C.barra(f"{nome}_braco_{lado}", (lado * 0.15, -0.10, 1.42),
-                        (lado * 0.18, -0.38, 1.00), secao=(0.09, 0.09))
+        # braco do ombro novo (y -0,145, z 1,355) ao guidao, com cotovelo:
+        # o braco reto fazia o ciclista parecer de muletas
+        braco = C.barra(f"{nome}_braco_{lado}", (lado * 0.155, -0.125, 1.33),
+                        (lado * 0.185, -0.30, 1.11), secao=(0.088, 0.088))
         C.aplicar(braco, roupa)
         pecas.append(braco)
+        antebraco = C.barra(f"{nome}_antebraco_{lado}",
+                            (lado * 0.185, -0.30, 1.11),
+                            (lado * 0.200, -0.40, 1.00), secao=(0.072, 0.072))
+        C.aplicar(antebraco, pele)
+        pecas.append(antebraco)
 
     return C.juntar(pecas, nome)

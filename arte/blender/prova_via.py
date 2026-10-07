@@ -59,7 +59,35 @@ GRUPOS = {
     "decisao": dict(
         pecas=[("semaforo", (-5.2, 0, 0)), ("onibus", (4.0, -4.0, 0)),
                ("ciclista", (0.0, 2.0, 0))],
-        vistas={"frente": ((0.0, 22.0, 4.6), (0.0, -1.0, 2.6), 44)},
+        vistas={"frente": ((0.0, 22.0, 4.6), (0.0, -1.0, 2.6), 44),
+                "tres_quartos": ((13.0, 14.0, 5.0), (2.0, -2.0, 2.2), 50)},
+    ),
+    # Grupo que faltava: muro do patio, gente e moto nao tinham prova nenhuma.
+    # O muro entra LADRILHADO (tres modulos), que e como o jogo o usa — modulo
+    # solto esconde justamente o defeito da emenda.
+    "patio": dict(
+        pecas=[("muro_patio", (-10.0, 0, 0)), ("muro_patio", (0.0, 0, 0)),
+               ("muro_patio", (10.0, 0, 0)),
+               ("pedestre", (-2.0, 7.0, 0)), ("crianca", (-0.6, 7.6, 0)),
+               ("moto", (4.5, 6.0, 0))],
+        vistas={"frente": ((0.0, 30.0, 4.4), (0.0, 0.0, 2.0), 45),
+                "rasante": ((13.0, 16.0, 2.4), (-4.0, 0.0, 1.6), 50)},
+    ),
+    # As tres variantes lado a lado, de frente e DE COSTAS: metade das casas
+    # da fase entra girada 180 graus e o motorista ve os fundos delas.
+    "casas": dict(
+        pecas=[("casa", (-10.0, 0, 0)), ("casa_b", (0.0, 0, 0)),
+               ("casa_c", (9.6, 0, 0))],
+        vistas={"frente": ((0.0, 34.0, 7.0), (0.0, -3.0, 2.6), 42),
+                "fundos": ((2.0, -42.0, 8.0), (0.0, -5.0, 2.6), 42),
+                "rua": ((16.0, 20.0, 4.0), (-6.0, -3.0, 2.4), 48)},
+    ),
+    # Gente de perto: a silhueta so se julga com a peca ocupando a tela.
+    "gente": dict(
+        pecas=[("pedestre", (-1.4, 0, 0)), ("crianca", (0.6, 0.3, 0)),
+               ("ciclista", (2.8, 0, 0))],
+        vistas={"frente": ((0.3, 9.0, 1.6), (0.3, 0.0, 1.0), 52),
+                "perfil": ((8.5, 2.0, 1.7), (0.3, 0.0, 1.0), 55)},
     ),
 }
 

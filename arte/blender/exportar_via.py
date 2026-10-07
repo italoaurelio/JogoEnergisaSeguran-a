@@ -29,7 +29,14 @@ def processar():
         "placa": V.placa(m),
         "arvore": V.arvore(m),
         "arbusto": V.arbusto(m),
+        # Tres casas, nao uma. O jogo clona a malha e clone de three.js
+        # compartilha o material, entao a unica variacao possivel e por peca
+        # separada no catalogo. `casa` continua sendo a de sempre, para nada
+        # no jogo quebrar; `casa_b` e `casa_c` ficam disponiveis para o
+        # sorteio em `paisagem.ts` (ver Marco['peca']).
         "casa": V.casa(m),
+        "casa_b": V.casa_b(m),
+        "casa_c": V.casa_c(m),
         "escola": V.escola(m),
         "carro": V.carro(m),
         "moto": V.moto(m),
@@ -41,8 +48,7 @@ def processar():
         "muro_patio": V.muro_patio(m),
         "pedestre": V.pedestre(m),
         # mesma peca a 1,25 m: crianca de embarque do onibus escolar
-        "crianca": V.pedestre(m, nome="via_crianca", altura=1.25,
-                              roupa=(0.12, 0.17, 0.34)),
+        "crianca": V.crianca(m),
     }
 
     exportaveis = []
