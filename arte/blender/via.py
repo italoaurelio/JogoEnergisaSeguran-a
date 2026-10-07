@@ -101,11 +101,26 @@ def trecho(m, nome="via_trecho", comprimento=TRECHO):
 
 
 def faixa_pedestre(m, nome="via_faixa_pedestre"):
-    """Faixa de pedestre: barras paralelas ao sentido da via."""
+    """Faixa de pedestre: barras paralelas ao sentido da via.
+
+    DOIS defeitos consertados em 07/10, os dois achados dirigindo a fase:
+
+    1. **Ela estava pintada fora da pista.** As barras comecavam em
+       `BORDA_ESQ + 0,55` = 5,80 e iam ate 12,04 — e a pista acaba em
+       BORDA_ESQ = 5,25. A faixa inteira ficava na grama, ao lado da estrada.
+       Agora ela atravessa os 7 m de asfalto, de borda a borda.
+    2. **3 mm de altura e invisivel.** Tinta a 0,003 do asfalto, vista de
+       raspao a 50 m, briga por profundidade com a propria pista e pisca ou
+       some. 12 mm resolve e continua sendo espessura de tinta na escala do
+       jogo.
+    """
     pecas = []
+    # 9 barras de 44 cm com passo de 78 cm cobrem 6,68 m dos 7,0 da pista
+    largo = BORDA_ESQ - BORDA_DIR
+    passo = (largo - 0.44) / 8
     for i in range(9):
-        x = BORDA_ESQ + 0.55 + i * 0.78
-        barra = C.caixa(f"{nome}_{i}", (0.44, 3.0, 0.004), (x, -1.5, 0.003))
+        x = BORDA_DIR + 0.22 + i * passo
+        barra = C.caixa(f"{nome}_{i}", (0.44, 3.0, 0.012), (x, -1.5, 0.009))
         C.aplicar(barra, m["tinta"])
         pecas.append(barra)
     return C.juntar(pecas, nome)
@@ -524,6 +539,10 @@ def casa(m, nome="via_casa", largura=7.5, fundo=8.0, altura=2.9):
                       frentes[1][j], frentes[1][i]))
     bm.faces.new(list(reversed(frentes[0])))
     bm.faces.new(frentes[1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    # O exportador liga `use_backface_culling` em TODO material. Face com
+    # normal para dentro vira buraco: era o "teto meio transparente" — via-se
+    # o ceu atraves da agua do telhado. Recalcular antes de virar objeto.
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     telhado = C.obj_de_bmesh(bm, f"{nome}_telhado")
     for v in telhado.data.vertices:

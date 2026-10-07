@@ -16,6 +16,7 @@ import {
 import { Canvas, useFrame } from '@react-three/fiber'
 import { som } from '../som'
 import { Acabamento } from '../cena/Acabamento'
+import { ZONA_ESCOLA } from '../cena/paisagem'
 import { Environment, Sky } from '@react-three/drei'
 import * as THREE from 'three'
 import { Mundo, paisagem, type Marco } from '../cena/Via'
@@ -138,7 +139,9 @@ export default function Fase2Trajeto({
   // o motor vive no useFrame do Mundo; quem o desliga é a saída da fase
   useEffect(() => {
     som.ambiente(true)
-    return () => { som.motor(null); som.ambiente(false) }
+    return () => {
+      som.motor(null); som.ambiente(false); som.criancas(false)
+    }
   }, [])
   const pedal = useRef<Pedal>(null)
   const carro = useRef<number | null>(null)
@@ -509,6 +512,16 @@ function Motor({
 
     velocidade.current = v
     som.motor(v)
+    // Pátio de escola: entra e sai junto com o muro, e sobe conforme chega.
+    // É o aviso sonoro de que ali se reduz — chega antes da placa.
+    {
+      const emEscola = d > ZONA_ESCOLA.de - 90 && d < ZONA_ESCOLA.ate + 60
+      const centro = (ZONA_ESCOLA.de + ZONA_ESCOLA.ate) / 2
+      const meia = (ZONA_ESCOLA.ate - ZONA_ESCOLA.de) / 2 + 80
+      som.criancas(emEscola, emEscola
+        ? Math.max(0.15, 1 - Math.abs(d - centro) / meia)
+        : 0)
+    }
     distancia.current = Math.min(DISTANCIA_TOTAL, d + v * dt)
 
     if (import.meta.env.DEV) {

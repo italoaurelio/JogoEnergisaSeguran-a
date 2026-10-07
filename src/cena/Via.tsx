@@ -18,6 +18,7 @@ import {
   aplicarPerfil, criarDobra, dobrarMaterial, type NoTracado,
 } from './curva'
 import { uvPorPosicao, vestir } from './texturas'
+import { som } from '../som'
 import {
   ALCANCE, BORDA_DIR, BORDA_ESQ, POOL, TRECHO, paisagem, type Marco,
 } from './paisagem'
@@ -135,7 +136,7 @@ function Pista({
  */
 function Contrafluxo({
   molde, distancia, quantos = 11, vao = VAO_CONTRA, deslocamento = 0,
-  velocidade = VELOCIDADE_CONTRA, x = CONTRA_X,
+  velocidade = VELOCIDADE_CONTRA, x = CONTRA_X, forcaSom = 1,
 }: {
   molde: THREE.Object3D | null
   distancia: React.RefObject<number>
@@ -148,6 +149,8 @@ function Contrafluxo({
   velocidade?: number
   /** Posição lateral. A moto anda no corredor, não no meio da faixa. */
   x?: number
+  /** Volume do "fiuu" ao cruzar. A moto passa mais perto, então soa mais. */
+  forcaSom?: number
 }) {
   const grupo = useRef<THREE.Group>(null)
 
@@ -174,12 +177,15 @@ function Contrafluxo({
   // partir de onde o jogador começa — o atalho `?m=` pode largar a fase no
   // meio, e nascer todos em zero deixaria a estrada vazia até alcançá-los.
   const posicoes = useRef<number[] | null>(null)
+  /** z do quadro anterior, para saber QUANDO cada um cruza o jogador. */
+  const antes = useRef<number[]>([])
 
   useFrame((_, bruto) => {
     const dt = Math.min(bruto, 0.05)
     const d = distancia.current ?? 0
     if (!posicoes.current) {
       posicoes.current = copias.map((_, i) => d + 60 + deslocamento + i * vao)
+      antes.current = posicoes.current.map((v) => v - d)
     }
     const p = posicoes.current
     for (let i = 0; i < copias.length; i++) {
@@ -201,6 +207,10 @@ function Contrafluxo({
         p[i] = ultimo + vao
       }
       const z = p[i] - d
+      // cruzou o jogador neste quadro: é agora que o "fiuu" tem de soar,
+      // senão o som chega depois do carro já ter sumido do retrovisor
+      if ((antes.current[i] ?? 999) > 2 && z <= 2) som.passagem(forcaSom)
+      antes.current[i] = z
       copias[i].position.z = z
       copias[i].visible = z > -25 && z < ALCANCE
     }
@@ -468,7 +478,7 @@ export function Mundo({
       <Contrafluxo
         molde={moldes.moto} distancia={distancia} quantos={5}
         vao={118} deslocamento={37} velocidade={VELOCIDADE_CONTRA * 1.18}
-        x={CONTRA_X - 1.05}
+        x={CONTRA_X - 1.05} forcaSom={1.45}
       />
       {garagem && (
         <Garagem

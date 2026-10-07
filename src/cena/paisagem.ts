@@ -8,6 +8,8 @@
  * oculto.
  */
 
+import { TRAJETO } from '../conteudo/trajeto.ts'
+
 /** Comprimento de um trecho de pista, em metros. */
 export const TRECHO = 40
 /** Até onde o cenário é desenhado à frente do jogador, em metros. */
@@ -35,6 +37,26 @@ export type Marco = {
  * Não usa Math.random: o cenário tem de ser o mesmo em toda sessão, senão dois
  * colaboradores fazem provas diferentes e a nota não é comparável.
  */
+/**
+ * Trecho do trajeto com entorno de escola, em metros, LIDO DO TRAJETO.
+ *
+ * Era fixo em 700-1000, chutado por mim — e o trecho `escola` do trajeto, que
+ * é o que baixa o limite para 30, vai de 470 a 640. O muro aparecia 230 m
+ * depois da placa de 30: o jogador reduzia num bairro comum e passava a 30
+ * por uma escola que ainda não tinha começado.
+ *
+ * Agora sai do próprio `TRAJETO`. Cenário, limite de velocidade e som de
+ * pátio passam a ser o mesmo trecho por construção.
+ */
+export const ZONA_ESCOLA = (() => {
+  let acumulado = 0
+  for (const t of TRAJETO) {
+    if (t.id === 'escola') return { de: acumulado, ate: acumulado + t.metros }
+    acumulado += t.metros
+  }
+  return { de: 470, ate: 640 }
+})()
+
 export function paisagem(distanciaTotal: number): Marco[] {
   const saida: Marco[] = []
   const fim = distanciaTotal + ALCANCE
@@ -59,8 +81,8 @@ export function paisagem(distanciaTotal: number): Marco[] {
   // sensação de percurso — num descampado uniforme ninguém sente que andou.
   const zonaDe = (m: number) =>
     m < 240 ? 'patio'
-      : m < 700 ? 'bairro'
-      : m < 1000 ? 'escola'
+      : m < ZONA_ESCOLA.de ? 'bairro'
+      : m < ZONA_ESCOLA.ate ? 'escola'
       : 'bairro'
 
   // O passo é 10 m porque é o módulo do muro da escola, que TEM de ladrilhar

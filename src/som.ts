@@ -228,6 +228,114 @@ export const som = {
     }
   })(),
 
+  /**
+   * Veículo passando em sentido contrário: o "fiuu" que sobe e desce.
+   *
+   * É efeito Doppler de pobre, e de propósito — o Doppler de verdade do Web
+   * Audio (PannerNode com velocidade) foi tirado da especificação e os
+   * navegadores ignoram. Duas varreduras de filtro sobre ruído dão a mesma
+   * leitura por um décimo do custo.
+   */
+  passagem(forte = 1) {
+    const c = ligar()
+    if (!c || !mestre || !ruido) return
+    const t = c.currentTime
+    const f = c.createBufferSource()
+    f.buffer = ruido
+    f.loop = true
+    const bp = c.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.Q.value = 0.9
+    // aproximando: agudo subindo. passando: cai de uma vez — é a queda
+    // brusca que o ouvido lê como "passou por mim"
+    bp.frequency.setValueAtTime(380, t)
+    bp.frequency.exponentialRampToValueAtTime(1150, t + 0.55)
+    bp.frequency.exponentialRampToValueAtTime(260, t + 0.95)
+    const g = c.createGain()
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(0.085 * forte, t + 0.55)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.25)
+    f.connect(bp).connect(g).connect(mestre)
+    f.start(t)
+    f.stop(t + 1.3)
+  },
+
+  /** Buzina de carro — mais aguda que a do caminhão, e mais curta. */
+  buzinaCarro() {
+    const c = ligar()
+    if (!c || !mestre) return
+    const t = c.currentTime
+    const g = c.createGain()
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(0.10, t + 0.02)
+    g.gain.setValueAtTime(0.10, t + 0.22)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.34)
+    const lp = c.createBiquadFilter()
+    lp.type = 'lowpass'
+    lp.frequency.value = 2600
+    for (const f of [440, 554]) {
+      const o = c.createOscillator()
+      o.type = 'square'
+      o.frequency.value = f
+      o.connect(lp)
+      o.start(t)
+      o.stop(t + 0.4)
+    }
+    lp.connect(g).connect(mestre)
+  },
+
+  /**
+   * Pátio de escola: vozes agudas, sem palavra nenhuma.
+   *
+   * Som de criança é o que diz "escola" antes da placa e antes do muro — e
+   * tem função na fase, porque é o aviso de que ali se reduz. Formantes
+   * altos sobre ruído filtrado: a 40 m ninguém distingue palavra, só registra
+   * que são crianças.
+   */
+  criancas: (() => {
+    let g: GainNode | null = null
+    let timer: number | null = null
+    return (ligado: boolean, forte = 1) => {
+      const c = ligado ? ligar() : ctx
+      if (!c || !mestre || !ruido) return
+      if (!ligado) {
+        if (g) { g.gain.setTargetAtTime(0.0001, c.currentTime, 0.5); g = null }
+        if (timer) { clearInterval(timer); timer = null }
+        return
+      }
+      if (!g) {
+        const f = c.createBufferSource()
+        f.buffer = ruido
+        f.loop = true
+        const bp = c.createBiquadFilter()
+        bp.type = 'bandpass'
+        bp.frequency.value = 1750
+        bp.Q.value = 1.1
+        g = c.createGain()
+        g.gain.value = 0.0001
+        f.connect(bp).connect(g).connect(mestre)
+        f.start()
+        // gritinhos esparsos por cima do bafo: é a irregularidade que separa
+        // pátio de escola de chiado de rádio
+        timer = window.setInterval(() => {
+          if (!ctx || !g) return
+          const t = ctx.currentTime + Math.random() * 0.6
+          const o = ctx.createOscillator()
+          const gg = ctx.createGain()
+          o.type = 'sine'
+          const base = 620 + Math.random() * 520
+          o.frequency.setValueAtTime(base, t)
+          o.frequency.exponentialRampToValueAtTime(base * (1.3 + Math.random()), t + 0.22)
+          bater(gg, 0.016, 0.3, t)
+          o.connect(gg).connect(mestre!)
+          o.start(t)
+          o.stop(t + 0.4)
+        }, 1500)
+      }
+      g.gain.setTargetAtTime(0.030 * forte, c.currentTime, 0.6)
+    }
+  })(),
+
   get mudo() { return mudo },
 
   alternarMudo() {
