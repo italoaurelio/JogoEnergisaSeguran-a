@@ -32,6 +32,7 @@ def processar():
         "casa": V.casa(m),
         "escola": V.escola(m),
         "carro": V.carro(m),
+        "moto": V.moto(m),
         "lombada": V.lombada(m),
         "faixa_pedestre": V.faixa_pedestre(m),
         "semaforo": V.semaforo(m),

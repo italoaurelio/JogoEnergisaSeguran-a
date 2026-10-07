@@ -776,6 +776,114 @@ def carro(m, nome="via_carro"):
 # destas pecas o lado +Y. E para +Y que a lente do semaforo e a traseira do
 # onibus tem de apontar.
 
+def moto(m, nome="via_moto"):
+    """Moto com piloto, de frente para -Y, como o carro.
+
+    O que importa numa peca que passa a 60 km/h e cruza em um segundo e meio:
+    a SILHUETA. De frente, moto nao e a moto — e o piloto. Por isso o corpo
+    dele e a peca maior aqui, e o farol unico no meio e o que diz "moto" antes
+    de qualquer detalhe de motor.
+
+    O piloto vai de capacete e colete refletivo: a moto do contrafluxo passa
+    perto do para-brisa, e numa fase que avalia conducao vale o cenario
+    mostrar o certo. ~380 triangulos.
+    """
+    pecas = []
+    pintura = C.mat_simples("via_moto_pintura", (0.045, 0.085, 0.165),
+                            rugosidade=0.25)
+    preto = C.mat_simples("via_carro_preto", (0.016, 0.016, 0.018),
+                          rugosidade=0.50)
+    pneu = C.mat_simples("via_pneu", (0.018, 0.018, 0.020), rugosidade=0.92)
+    colete = C.mat_simples("via_moto_colete", (0.62, 0.30, 0.02),
+                           rugosidade=0.80)
+    pele = C.mat_simples("via_moto_pele", (0.235, 0.165, 0.120),
+                         rugosidade=0.72)
+
+    # rodas: cilindro deitado no eixo X, que e o eixo do raio da roda
+    for y, r in ((-0.62, 0.30), (0.60, 0.30)):
+        roda = C.cilindro(f"{nome}_roda_{'d' if y < 0 else 't'}", r, 0.11,
+                          (0, y, r), segmentos=18,
+                          rot=(0, math.pi / 2, 0))
+        C.aplicar(roda, pneu)
+        pecas.append(roda)
+
+    # quadro e tanque: uma cunha entre as rodas, estreita
+    quadro = C.caixa(f"{nome}_quadro", (0.22, 1.10, 0.26), (0, 0.02, 0.62))
+    C.chanfrar(quadro, largura=0.045, segmentos=2)
+    C.aplicar(quadro, pintura)
+    pecas.append(quadro)
+    motor = C.caixa(f"{nome}_motor", (0.26, 0.42, 0.28), (0, 0.02, 0.40))
+    C.chanfrar(motor, largura=0.035, segmentos=2)
+    C.aplicar(motor, preto)
+    pecas.append(motor)
+
+    # carenagem dianteira com o FAROL: e o unico ponto claro no meio da
+    # silhueta, e e por ele que se reconhece a moto de longe
+    frente = C.caixa(f"{nome}_frente", (0.26, 0.20, 0.34), (0, -0.52, 0.86))
+    C.chanfrar(frente, largura=0.05, segmentos=2)
+    C.aplicar(frente, pintura)
+    pecas.append(frente)
+    farol = C.cilindro(f"{nome}_farol", 0.09, 0.05, (0, -0.63, 0.86),
+                       segmentos=14, rot=(math.pi / 2, 0, 0))
+    C.aplicar(farol, _mat_luz("via_moto_farol", (1.0, 0.94, 0.80), forca=3.0))
+    pecas.append(farol)
+
+    # guidao
+    guidao = C.cilindro(f"{nome}_guidao", 0.022, 0.62, (0, -0.44, 1.06),
+                        segmentos=10, rot=(0, math.pi / 2, 0))
+    C.aplicar(guidao, preto)
+    pecas.append(guidao)
+
+    # PILOTO. De frente, ele e a peca que se ve — por isso leva mais
+    # poligono que a moto inteira.
+    tronco = C.caixa(f"{nome}_tronco", (0.46, 0.30, 0.58), (0, 0.10, 1.18),
+                     rot=(math.radians(-14), 0, 0))
+    C.chanfrar(tronco, largura=0.09, segmentos=3)
+    C.aplicar(tronco, colete)
+    pecas.append(tronco)
+    for lado in (-1, 1):
+        braco = C.caixa(f"{nome}_braco_{lado}", (0.13, 0.52, 0.13),
+                        (lado * 0.20, -0.17, 1.17),
+                        rot=(math.radians(16), 0, 0))
+        C.chanfrar(braco, largura=0.045, segmentos=2)
+        C.aplicar(braco, colete)
+        pecas.append(braco)
+        perna = C.caixa(f"{nome}_perna_{lado}", (0.16, 0.40, 0.18),
+                        (lado * 0.17, 0.02, 0.74))
+        C.chanfrar(perna, largura=0.05, segmentos=2)
+        C.aplicar(perna, preto)
+        pecas.append(perna)
+
+    pescoco = C.cilindro(f"{nome}_pescoco", 0.065, 0.10, (0, 0.03, 1.50),
+                         segmentos=10)
+    C.aplicar(pescoco, pele)
+    pecas.append(pescoco)
+    capacete = _bolha_obj(f"{nome}_capacete", (0, 0.02, 1.62), 0.145)
+    C.aplicar(capacete, C.mat_simples("via_moto_capacete", (0.52, 0.52, 0.54),
+                                      rugosidade=0.18))
+    pecas.append(capacete)
+    viseira = C.caixa(f"{nome}_viseira", (0.20, 0.07, 0.10), (0, -0.10, 1.63))
+    C.aplicar(viseira, C.mat_simples("via_moto_viseira", (0.015, 0.018, 0.024),
+                                     rugosidade=0.12))
+    pecas.append(viseira)
+
+    alvo = C.juntar(pecas, nome)
+    alvo.name = nome
+    return alvo
+
+
+def _bolha_obj(nome, centro, raio):
+    """Esfera achatada avulsa — o `_bolha` do arquivo escreve num bmesh."""
+    import bpy as _bpy
+    _bpy.ops.mesh.primitive_uv_sphere_add(radius=raio, segments=14,
+                                          ring_count=8, location=centro)
+    o = _bpy.context.active_object
+    o.name = nome
+    o.scale = (1.0, 1.12, 1.05)
+    C.suavizar(o, 40)
+    return o
+
+
 def _mat_luz(nome, cor, forca=1.0):
     """Material que ACENDE. O jogo troca a intensidade por lampada."""
     mat = bpy.data.materials.new(nome)

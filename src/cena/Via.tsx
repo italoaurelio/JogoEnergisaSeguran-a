@@ -134,11 +134,20 @@ function Pista({
  * ser comparável entre colaboradores, e aqui não há o que comparar.
  */
 function Contrafluxo({
-  molde, distancia, quantos = 11,
+  molde, distancia, quantos = 11, vao = VAO_CONTRA, deslocamento = 0,
+  velocidade = VELOCIDADE_CONTRA, x = CONTRA_X,
 }: {
   molde: THREE.Object3D | null
   distancia: React.RefObject<number>
   quantos?: number
+  /** Metros entre um veículo e o seguinte desta fila. */
+  vao?: number
+  /** Desencontra esta fila da outra, para não nascerem lado a lado. */
+  deslocamento?: number
+  /** m/s. Fila mais rápida nunca fica emparelhada com a mais lenta. */
+  velocidade?: number
+  /** Posição lateral. A moto anda no corredor, não no meio da faixa. */
+  x?: number
 }) {
   const grupo = useRef<THREE.Group>(null)
 
@@ -148,7 +157,7 @@ function Contrafluxo({
       const c = molde.clone(true)
       // meia-volta: ele vem de frente
       c.rotation.y = Math.PI
-      c.position.x = CONTRA_X
+      c.position.x = x
       c.visible = false
       return c
     })
@@ -170,15 +179,15 @@ function Contrafluxo({
     const dt = Math.min(bruto, 0.05)
     const d = distancia.current ?? 0
     if (!posicoes.current) {
-      posicoes.current = copias.map((_, i) => d + 60 + i * VAO_CONTRA)
+      posicoes.current = copias.map((_, i) => d + 60 + deslocamento + i * vao)
     }
     const p = posicoes.current
     for (let i = 0; i < copias.length; i++) {
-      p[i] -= VELOCIDADE_CONTRA * dt
+      p[i] -= velocidade * dt
       // passou do jogador: volta para o fim da fila, lá na frente. O resto da
       // divisão por 5 (e não por 3) evita que os reciclados voltem sempre nas
       // mesmas três distâncias e formem comboio visível.
-      if (p[i] < d - 25) p[i] = d + ALCANCE + (i % 5) * 32
+      if (p[i] < d - 25) p[i] = d + ALCANCE + deslocamento + (i % 5) * 32
       const z = p[i] - d
       copias[i].position.z = z
       copias[i].visible = z > -25 && z < ALCANCE
@@ -368,7 +377,7 @@ export function Mundo({
   const moldes = useMemo(() => {
     const nomes = ['trecho', 'chao', 'poste', 'cabos', 'arvore', 'arbusto',
       'casa', 'placa', 'lombada', 'faixa_pedestre', 'carro', 'semaforo',
-      'onibus', 'ciclista', 'escola'] as const
+      'onibus', 'ciclista', 'escola', 'moto'] as const
     const mapa: Record<string, THREE.Object3D | null> = {}
     for (const n of nomes) mapa[n] = scene.getObjectByName(`via_${n}`) ?? null
     return mapa
@@ -428,6 +437,27 @@ export function Mundo({
         {carroClone && <primitive object={carroClone} />}
       </group>
       <Contrafluxo molde={moldes.carro} distancia={distancia} />
+      {/*
+        Moto em fila PRÓPRIA, e não misturada na dos carros.
+        Duas correções, e a segunda é a que resolve:
+
+        1. O deslocamento inicial não basta — andando na mesma velocidade, o
+           desencontro sobrevivia até a primeira reciclagem e depois moto e
+           carro apareciam a 1 m um do outro (medido). A moto é 18% mais
+           rápida, que é o que moto faz.
+        2. Mas velocidade diferente na MESMA faixa significa que uma hora ela
+           ultrapassa, e aí as duas se atravessam. Por isso a moto anda no
+           CORREDOR: 2,45 em vez de 3,5, ou seja encostada na faixa central (que
+           fica em ~1,75). É onde moto anda no Brasil, e é o que a torna
+           visível como moto e não como carro pequeno.
+
+        Mais esparsa de propósito: moto demais no contrafluxo vira desfile.
+      */}
+      <Contrafluxo
+        molde={moldes.moto} distancia={distancia} quantos={5}
+        vao={118} deslocamento={37} velocidade={VELOCIDADE_CONTRA * 1.18}
+        x={CONTRA_X - 1.05}
+      />
       {garagem && (
         <Garagem
           molde={moldes.carro}

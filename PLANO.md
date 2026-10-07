@@ -1388,3 +1388,30 @@ tempo de tela: barra fina, frase corrida e um número grande num retângulo.
   "falta muito"; com elas o jogador vê que está acabando a avenida, que é o
   que ele usa para decidir se acelera ou já reduz.
 - **Pedais** com ícone, alvo maior e estado de pressionado.
+
+
+## Item B — motos (feito)
+
+Pedidas na mensagem original ("outros carros, motos") e perdidas quando o
+pedido virou fila. Entra `moto` em `via.py`, 674 faces.
+
+**De frente, moto não é a moto — é o PILOTO.** A peça cruza a tela em um
+segundo e meio, então o corpo dele é a maior peça do modelo e o farol único no
+meio é o que diz "moto" antes de qualquer detalhe de motor. Piloto de capacete
+com viseira e colete refletivo: numa fase que avalia condução, vale o cenário
+mostrar o certo.
+
+**Duas correções no tráfego, e a segunda é a que resolve.** As duas filas
+andavam na mesma velocidade: o deslocamento inicial sobrevivia até a primeira
+reciclagem e depois moto e carro apareciam **a 1 m um do outro** — medido no
+jogo, não suposto. Dar 18% a mais de velocidade à moto desfaz o emparelhamento
+— mas velocidade diferente na MESMA faixa significa que uma hora ela
+ultrapassa, e aí as duas se atravessam.
+
+Por isso a moto anda no **corredor**: x 2,45 em vez de 3,5, encostada na faixa
+central. É onde moto anda no Brasil, e é o que a faz ler como moto e não como
+carro pequeno.
+
+**Não foi feito:** moto no MESMO sentido, ultrapassando o jogador. Exige lógica
+de ultrapassagem (aproximar, desviar, voltar) e, se valer nota, teria de andar
+com o metro e não com o relógio. Fica anotado, não escondido.
