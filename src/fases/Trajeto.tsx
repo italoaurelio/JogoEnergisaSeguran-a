@@ -28,6 +28,15 @@ import {
 } from '../conteudo/trajeto'
 import type { Registro } from '../conteudo/pontuacao'
 
+/**
+ * Onde o caminhão para atrás do ônibus em embarque.
+ *
+ * 9 m: o ônibus tem 8,6 m e está centrado no próprio metro, então a traseira
+ * dele fica a 4,3 m; mais 4,7 m de distância de segurança e o bico do
+ * caminhão. Menos que isso e a câmera entra dentro da lataria.
+ */
+const PARAR_ATRAS_DO_ONIBUS = 9
+
 /** Fim de escala do velocímetro. O trecho mais rápido é 60 km/h. */
 const ESCALA_VELOCIMETRO = 80
 
@@ -156,6 +165,11 @@ export default function Fase2Trajeto({
   // 'dormindo' → 'tocando' → o jogador decide. A resposta volta pelo painel.
   // o carro da garagem já saiu quando o jogador cedeu — ou quando o atalho
   // `?m=` largou a fase depois dela
+  // o ônibus já arrancou? também vale para o atalho `?m=`, que resolve o que
+  // ficou para trás
+  const onibusLiberado = useRef(
+    distancia.current > (evento('onibus')?.metro ?? Infinity),
+  )
   const garagemLiberada = useRef(
     distancia.current > (evento('garagem')?.metro ?? Infinity),
   )
@@ -248,6 +262,8 @@ export default function Fase2Trajeto({
             sinal={sinal}
             faixa={evento('faixa')?.metro ?? null}
             pedestreLiberado={pedestreLiberado}
+            onibus={evento('onibus')?.metro ?? null}
+            onibusLiberado={onibusLiberado}
             garagem={{
               metro: evento('garagem')?.metro ?? null,
               liberada: garagemLiberada,
@@ -260,6 +276,7 @@ export default function Fase2Trajeto({
             carro={carro}
             faltas={faltas}
             pedestreLiberado={pedestreLiberado}
+            onibusLiberado={onibusLiberado}
             garagemLiberada={garagemLiberada}
             sinal={sinal}
             celular={celular}
@@ -301,7 +318,7 @@ function CameraFixa({ distancia }: { distancia: React.RefObject<number> }) {
 }
 
 function Motor({
-  distancia, velocidade, pedal, carro, faltas, pedestreLiberado,
+  distancia, velocidade, pedal, carro, faltas, pedestreLiberado, onibusLiberado,
   garagemLiberada, sinal, celular, painel, aoTerminar,
 }: {
   distancia: React.RefObject<number>
@@ -310,6 +327,7 @@ function Motor({
   carro: React.RefObject<number | null>
   faltas: React.RefObject<Record<string, number>>
   pedestreLiberado: React.RefObject<boolean>
+  onibusLiberado: React.RefObject<boolean>
   garagemLiberada: React.RefObject<boolean>
   sinal: React.RefObject<number>
   celular: React.RefObject<'dormindo' | 'tocando' | 'atendeu' | 'ignorou'>
@@ -322,6 +340,7 @@ function Motor({
   const paradoNoSinal = useRef(0)
   const esperouGaragem = useRef(0)
   const buzinou = useRef(false)
+  const esperouOnibus = useRef(0)
   // mesmo motivo do pedestreLiberado: o que ficou para trás já está resolvido
   const passouNoSinal = useRef(
     (distancia.current ?? 0) > (evento('semaforo')?.metro ?? 0),
@@ -459,6 +478,32 @@ function Motor({
       contar(faltas, 'celular', 1)
     }
 
+    /** Até onde o veículo pode ir neste quadro. Null = sem obstáculo. */
+    let teto: number | null = null
+
+    // ÔNIBUS ESCOLAR EM EMBARQUE — é obstáculo, não aviso.
+    //
+    // Ele ocupa a faixa (2,42 m em x -1,0 contra a caçamba de -0,7 a 1,5) e
+    // não há volante para desviar: a única saída é esperar. Antes disso ele
+    // era cenário e dava para atravessá-lo, o que ensina o contrário do que
+    // a fase avalia.
+    //
+    // Reduzir e esperar libera: as crianças terminam de entrar e ele arranca.
+    // Mesma regra do pedestre e da garagem — quem fez o certo não fica preso.
+    const evOnibus = evento('onibus')
+    if (evOnibus && !onibusLiberado.current) {
+      const falta = evOnibus.metro - d
+      if (falta < 55 && kmh <= CONDUTA.onibusKmh) {
+        esperouOnibus.current += dt
+        if (esperouOnibus.current > 4.5) onibusLiberado.current = true
+      }
+      // COLISÃO. O teto é aplicado lá embaixo, junto com a escrita da
+      // distância: clampar aqui não adianta porque a linha
+      // `distancia.current = d + v * dt` roda DEPOIS e sobrescreve com o `d`
+      // antigo. Custou uma rodada de medição descobrir isso.
+      teto = evOnibus.metro - PARAR_ATRAS_DO_ONIBUS
+    }
+
     // parada obrigatória na faixa
     const evFaixa = EVENTOS.find((e) => e.tipo === 'faixa')
     let ateParada: number | null = null
@@ -512,6 +557,10 @@ function Motor({
       contar(faltas, 'lento', dt)
     }
 
+    if (teto != null && d >= teto) {
+      // encostou na traseira do ônibus: para e fica parado
+      v = 0
+    }
     velocidade.current = v
     som.motor(v)
     // Pátio de escola: entra e sai junto com o muro, e sobe conforme chega.
@@ -524,7 +573,9 @@ function Motor({
         ? Math.max(0.15, 1 - Math.abs(d - centro) / meia)
         : 0)
     }
-    distancia.current = Math.min(DISTANCIA_TOTAL, d + v * dt)
+    distancia.current = Math.min(
+      DISTANCIA_TOTAL, teto ?? DISTANCIA_TOTAL, d + v * dt,
+    )
 
     if (import.meta.env.DEV) {
       ;(window as unknown as Record<string, unknown>).__trajeto = {

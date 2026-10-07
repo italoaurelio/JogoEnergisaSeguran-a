@@ -265,6 +265,86 @@ function Pedestre({
   return <group ref={grupo}><primitive object={obj} /></group>
 }
 
+/**
+ * Ônibus escolar em embarque, com as crianças entrando.
+ *
+ * Ele é OBSTÁCULO, não enfeite: ocupa a faixa do jogador (2,42 m de largura
+ * em x -1,0, contra a caçamba do caminhão que vai de -0,7 a 1,5) e, sem
+ * poder desviar, só resta esperar. A trava de distância mora em `Trajeto`,
+ * porque é lá que a distância é escrita; aqui é só o que se vê.
+ *
+ * As crianças entram UMA A UMA enquanto o jogador espera, e só depois da
+ * última o ônibus arranca. É a mesma regra do pedestre e da garagem: quem
+ * fez o certo não fica preso, mas também não passa antes da hora.
+ */
+function OnibusEscolar({
+  molde, moldeCrianca, distancia, metro, liberado,
+}: {
+  molde: THREE.Object3D | null
+  moldeCrianca: THREE.Object3D | null
+  distancia: React.RefObject<number>
+  metro: number | null
+  liberado: React.RefObject<boolean>
+}) {
+  const grupo = useRef<THREE.Group>(null)
+  const criancas = useRef<THREE.Group>(null)
+  const bus = useMemo(() => {
+    if (!molde) return null
+    const c = molde.clone(true)
+    c.visible = true
+    return c
+  }, [molde])
+  const filhos = useMemo(() => {
+    if (!moldeCrianca) return []
+    return [0, 1, 2].map((i) => {
+      const c = moldeCrianca.clone(true)
+      c.visible = true
+      // enfileiradas atrás da porta, que fica na frente do ônibus
+      c.position.set(-2.5 - i * 0.55, 0, -2.4 + i * 0.75)
+      c.rotation.y = Math.PI
+      return c
+    })
+  }, [moldeCrianca])
+  /** Quantas já entraram, em fração: 0 nenhuma, 1 todas. */
+  const embarcou = useRef(0)
+  /** Quanto o ônibus já andou depois de arrancar, em metros. */
+  const saiu = useRef(0)
+
+  useFrame((_, bruto) => {
+    const g = grupo.current
+    if (!g || metro == null) return
+    const dt = Math.min(bruto, 0.05)
+    const d = distancia.current ?? 0
+    const z = metro - d
+
+    // embarque começa quando o jogador está perto o bastante para ver
+    if (!liberado.current && z < 60) {
+      embarcou.current = Math.min(1, embarcou.current + dt / 4.5)
+    }
+    if (liberado.current) {
+      // arranca devagar e vai embora: 2 m/s² até 9 m/s
+      saiu.current += Math.min(9, 2 + saiu.current * 0.6) * dt
+    }
+    for (let i = 0; i < filhos.length; i++) {
+      const minha = (i + 1) / filhos.length
+      filhos[i].visible = embarcou.current < minha
+    }
+    g.position.set(-1.0, 0, z + saiu.current)
+    g.visible = z + saiu.current > -30 && z < ALCANCE
+    if (criancas.current) criancas.current.visible = saiu.current < 1
+  })
+
+  if (!bus) return null
+  return (
+    <group ref={grupo}>
+      <primitive object={bus} />
+      <group ref={criancas}>
+        {filhos.map((c, i) => <primitive key={i} object={c} />)}
+      </group>
+    </group>
+  )
+}
+
 /** Meio-fio de onde ele sai e meio-fio onde ele chega. */
 const DE_PE_X = BORDA_DIR - 0.85
 const ATE_PE_X = BORDA_ESQ + 0.85
@@ -325,6 +405,7 @@ function Garagem({
 
 export function Mundo({
   distancia, marcos, carro, tracado, sinal, garagem, faixa, pedestreLiberado,
+  onibus, onibusLiberado,
 }: {
   distancia: React.RefObject<number>
   marcos: Marco[]
@@ -334,6 +415,9 @@ export function Mundo({
   tracado: NoTracado[]
   /** Lâmpada acesa do semáforo: 0 verde, 1 amarelo, 2 vermelho. */
   sinal?: React.RefObject<number>
+  /** Metro do ônibus escolar, e se ele já arrancou. */
+  onibus: number | null
+  onibusLiberado: React.RefObject<boolean>
   /** Metro da faixa de pedestre, e se o pedestre já atravessou. */
   faixa: number | null
   pedestreLiberado: React.RefObject<boolean>
@@ -516,6 +600,13 @@ export function Mundo({
         distancia={distancia}
         metro={faixa}
         liberado={pedestreLiberado}
+      />
+      <OnibusEscolar
+        molde={moldes.onibus}
+        moldeCrianca={moldes.crianca}
+        distancia={distancia}
+        metro={onibus}
+        liberado={onibusLiberado}
       />
       <Contrafluxo molde={moldes.carro} distancia={distancia} />
       {/*
