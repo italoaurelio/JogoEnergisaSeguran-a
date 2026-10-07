@@ -19,7 +19,7 @@ import {
 } from '../cena/Ocorrencia3D'
 import {
   CHEGADA, FERRAMENTAL, MAXIMO_CHEGADA, MAXIMO_FERRAMENTAL, MAXIMO_REPARO,
-  OCORRENCIA, PASSOS, type DecisaoChegada,
+  OCORRENCIA, PASSOS, opcoesNaTela, passosNaTela, type DecisaoChegada,
 } from '../conteudo/ocorrencia'
 import type { Registro } from '../conteudo/pontuacao'
 
@@ -293,7 +293,7 @@ function Chegada({
       {!op ? (
         <section className="grupo cresce">
           <div className="opcoes coluna">
-            {decisao.opcoes.map((o) => (
+            {opcoesNaTela(decisao).map((o) => (
               <button
                 key={o.id}
                 className={`opcao alta ${escolhida === o.id ? 'ativa' : ''}`}
@@ -370,7 +370,8 @@ function Reparo({
   escolher: (id: string) => void
   concluir: () => void
 }) {
-  const restantes = PASSOS.filter((p) => !ordem.includes(p.id))
+  // ordem de TELA, nunca a da norma: a da norma é o gabarito
+  const restantes = passosNaTela().filter((p) => !ordem.includes(p.id))
   const acabou = restantes.length === 0
 
   return (

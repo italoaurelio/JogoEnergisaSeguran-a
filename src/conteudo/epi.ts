@@ -58,6 +58,21 @@ export const VAGAS: Record<Vaga, { nome: string; obrigatoria: boolean }> = {
   adorno: { nome: 'Objetos pessoais', obrigatoria: true },
 }
 
+import { embaralhar } from './ordem.ts'
+
+/**
+ * As peças de uma vaga, NA ORDEM EM QUE A TELA MOSTRA.
+ *
+ * O catálogo abaixo é escrito com a peça certa em primeiro, que é como se lê
+ * um catálogo — e era exatamente isso que deixava o vestiário se ganhar
+ * clicando sempre o primeiro botão. Quem desenha a tela usa esta função;
+ * quem corrige continua usando `PECAS`, porque pontuação não depende de
+ * ordem de exibição.
+ */
+export function pecasDaVaga(vaga: Vaga): Peca[] {
+  return embaralhar(PECAS.filter((p) => p.vaga === vaga), (p) => p.id, 'epi')
+}
+
 export const PECAS: Peca[] = [
   // ---------------------------------------------------------------- cabeça
   {

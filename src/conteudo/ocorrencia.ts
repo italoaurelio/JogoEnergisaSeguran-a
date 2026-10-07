@@ -303,6 +303,23 @@ export type Passo = {
  * Aterrar antes de constatar a ausência de tensão, por exemplo, é encostar um
  * cabo de cobre numa rede que pode estar viva.
  */
+import { embaralhar } from './ordem.ts'
+
+/**
+ * Os passos NA ORDEM EM QUE A TELA MOSTRA — que não pode ser a ordem certa.
+ *
+ * `PASSOS` está na sequência da NR-10, que é o gabarito; mostrar nessa ordem
+ * entregava a resposta da parte que mais vale ponto da fase.
+ */
+export function passosNaTela(): Passo[] {
+  return embaralhar(PASSOS, (p) => p.id, 'passo')
+}
+
+/** As alternativas de uma decisão de chegada, na ordem em que a tela mostra. */
+export function opcoesNaTela(d: DecisaoChegada) {
+  return embaralhar(d.opcoes, (o) => o.id, d.id)
+}
+
 export const PASSOS: Passo[] = [
   {
     id: 'desligamento',

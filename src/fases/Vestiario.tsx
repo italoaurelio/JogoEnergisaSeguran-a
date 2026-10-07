@@ -12,7 +12,7 @@ import { Acabamento } from '../cena/Acabamento'
 import { Environment } from '@react-three/drei'
 import Personagem, { type Fisico } from '../cena/Personagem'
 import { ALTURAS, TONS, FISICO_INICIAL } from '../conteudo/fisico'
-import { PECAS, VAGAS, type Peca, type Vaga } from '../conteudo/epi'
+import { PECAS, VAGAS, pecasDaVaga, type Peca, type Vaga } from '../conteudo/epi'
 import { IconePeca } from '../icones'
 import { som } from '../som'
 import type { Registro } from '../conteudo/pontuacao'
@@ -244,7 +244,7 @@ function EtapaEpi({
   avancar: () => void
   concluir: () => void
 }) {
-  const opcoes = PECAS.filter((p) => p.vaga === vaga)
+  const opcoes = pecasDaVaga(vaga)
   const escolhida = opcoes.find((p) => p.id === escolhas[vaga])
   const ultimo = passo === ORDEM_VAGAS.length - 1
 

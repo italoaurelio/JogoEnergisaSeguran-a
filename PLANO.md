@@ -1306,3 +1306,48 @@ o jogo usa (girar em torno do pino, transladar o cesto pelo mesmo giro).
 E o cesto aéreo reabre a pergunta de conteúdo já anotada — com ele, a escada
 deixa de ser obviamente a ferramenta certa no item do ferramental da fase 3.
 As duas coisas são decisão de conteúdo, não de arte.
+
+
+## Partida completa (06/10) — o defeito que só aparece jogando
+
+Pedido: jogar de ponta a ponta e consertar o que aparecesse. **A partida achou
+um defeito que nenhuma das sete rodadas anteriores tinha visto, e ele é o
+maior da lista.**
+
+### A tela entregava o gabarito
+
+Os catálogos são escritos com a resposta certa em PRIMEIRO lugar — é assim que
+se lê um catálogo, o item correto encabeça e os distratores vêm depois. E a
+tela listava na ordem do arquivo.
+
+Medido na partida: certo em primeiro em **6 das 7 etapas do vestiário**, nas
+**3 decisões de chegada** e nos **9 passos do reparo**. A fase 3 inteira saiu
+**164 de 164, 100%, aprovado**, clicando o primeiro botão nove vezes seguidas
+sem ler nada.
+
+É o pior tipo de defeito deste projeto: a fase do reparo é a que mais vale
+ponto justamente porque a ordem do procedimento é o que mata quando
+invertida — e era a mais fácil de passar.
+
+**Correção:** `src/conteudo/ordem.ts`, embaralhamento determinístico por hash
+do `id`. Determinístico porque dois colaboradores têm de fazer a mesma prova,
+senão a nota não é comparável — a mesma regra do cenário do trajeto. Quem
+desenha a tela usa `pecasDaVaga` / `opcoesNaTela` / `passosNaTela`; quem
+corrige continua usando os catálogos, porque pontuação não depende de ordem
+de exibição.
+
+**`npm run gabarito`** simula o jogador que sempre clica o primeiro botão e
+exige que ele REPROVE. De 100% para **26%**. Se um dia alguém voltar a listar
+direto do catálogo, o teste falha.
+
+### O que a partida confirmou que está bom
+
+Vestiário (7 etapas, veredito e norma a cada uma), cabine (6 itens com
+correção visível), chegada, ferramental (13 itens, seleção múltipla), reparo
+(9 passos) e relatório com placar por fase — a cadeia fecha e pontua.
+
+### O que não deu para jogar
+
+**O trajeto.** Com o painel do navegador oculto o rAF é estrangulado e a fase
+anda **1 metro a cada 22 segundos** — 1.340 m levariam horas. A fase monta e
+o piloto responde, mas dirigir ponta a ponta exige o painel visível.
