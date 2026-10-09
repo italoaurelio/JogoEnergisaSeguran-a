@@ -99,6 +99,13 @@ export function energizado(e: Estado) {
 export type Acao = {
   /** Passo da NR-10 que esta ação cumpre. Casa com `PASSOS` em ocorrencia.ts. */
   passo: string
+  /**
+   * O gesto que o eletricista faz. Sem isto, chamar o Centro de Operação e
+   * trocar o elo fusível davam a MESMA pose — e a cena deixava de contar o
+   * que estava acontecendo. `trabalhando` é o padrão; só o que é visivelmente
+   * outro gesto a 120 px de altura ganha pose própria.
+   */
+  gesto?: 'trabalhando' | 'radio'
   ferramenta: string
   alvo: Alvo
   /** O que o jogador manda fazer, escrito como ordem. */
@@ -124,6 +131,7 @@ export const ACOES: Acao[] = [
     passo: 'desligamento',
     ferramenta: 'radio',
     alvo: 'radio',
+    gesto: 'radio',
     rotulo: 'Pedir desligamento do trecho',
     feito: 'Centro de Operação autorizou o desligamento do ramal.',
     quando: (e) => !e.desligamentoPedido,
@@ -216,6 +224,7 @@ export const ACOES: Acao[] = [
     passo: 'desbloquear',
     ferramenta: 'bloqueio',
     alvo: 'chave',
+    gesto: 'radio',
     rotulo: 'Retirar bloqueio e comunicar o Centro',
     feito: 'Bloqueio retirado e Centro avisado. Serviço encerrado.',
     // NÃO exige `bloqueada`. Quem nunca bloqueou também precisa poder

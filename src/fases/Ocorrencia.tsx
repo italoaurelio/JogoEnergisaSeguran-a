@@ -217,7 +217,10 @@ export default function Fase3Ocorrencia({
     // 1,7 s sobravam 200 ms para ver o eletricista jogado para trás — que é
     // justamente o que a cena existe para mostrar. Com 2,8 s ele fica mais
     // de um segundo em quadro depois que o branco sai.
-    const quanto = pose === 'choque' ? 2800 : pose === 'subindo' ? 2200 : 1300
+    const quanto = pose === 'choque' ? 2800
+      : pose === 'subindo' ? 2200
+      : pose === 'radio' ? 1900
+      : 1300
     const t = window.setTimeout(() => setPose('parado'), quanto)
     return () => window.clearTimeout(t)
   }, [pose])
@@ -297,7 +300,7 @@ export default function Fase3Ocorrencia({
     }
 
     setEstadoPoste((e) => ({ ...e, ...acao.aplicar(e) }))
-    setPose('trabalhando')
+    setPose(acao.gesto ?? 'trabalhando')
     setOrdem((a) => [...a, acao.passo])
     som.chave()
     setRecado({ tom: 'ok', texto: acao.feito })

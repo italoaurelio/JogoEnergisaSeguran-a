@@ -219,22 +219,35 @@ async function ocorrencia(page) {
   await espera(900)
   await clicar(page, 'Subir para o serviço', { pausa: 2600 })
 
-  const passos = [
-    'Solicitar o desligamento',
-    'Abrir a chave e seccionar',
-    'Impedir a reenergização',
-    'Constatar a ausência de tensão',
-    'Instalar o aterramento temporário',
-    'Proteger o que ficou energizado',
-    'Substituir o elo fusível',
-    'Retirar o aterramento temporário',
-    'Retirar o bloqueio e a etiqueta',
+  /*
+    O REPARO não é mais uma lista de frases para ordenar: o jogador pega uma
+    ferramenta do cesto e encosta num ponto do poste. O roteiro anterior
+    clicava as nove frases e, como sempre, não daria erro — ficaria 15 s
+    esperando um botão que não existe mais.
+
+    A sequência abaixo é a CERTA, e de propósito: o vídeo é demonstração, não
+    prova. O acidente tem a sua própria gravação, se um dia alguém quiser.
+  */
+  const servico = [
+    ['Rádio', 'Rádio'],
+    ['Vara de manobra', 'Chave fusível'],
+    ['Cadeado', 'Chave fusível'],
+    ['Detector', 'Ramal'],
+    ['Aterramento', 'Ramal'],
+    ['Cobertura', 'Rede vizinha'],
+    ['Elo fusível', 'Porta-fusível'],
+    ['Aterramento', 'Ramal'],
+    ['Cadeado', 'Chave fusível'],
   ]
-  for (const p of passos) {
-    await page.locator('button', { hasText: p }).first().click()
+  for (const [ferramenta, alvo] of servico) {
+    await page.locator('.ferramenta', { hasText: ferramenta }).first().click()
     await espera(700)
+    await page.locator('.opcoes.coluna .opcao', { hasText: alvo }).first().click()
+    // 1,9 s: a pose do eletricista dura de 1,3 a 2,8 s, e cortar antes dela
+    // terminar tira do vídeo justamente o que a cena ganhou
+    await espera(1900)
   }
-  await espera(1400)
+  await espera(1200)
   await clicar(page, 'Encerrar o serviço', { pausa: 3000 })
 }
 

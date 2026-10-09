@@ -50,6 +50,7 @@ POSES = {
     "trabalhando": H.pose_trabalhando,
     "choque": H.pose_choque,
     "subindo": H.pose_subindo,
+    "radio": H.pose_radio,
 }
 
 

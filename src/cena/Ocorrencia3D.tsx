@@ -681,7 +681,8 @@ export function CidadeAoRedor() {
  * esticar e girar (ver `miraDoCesto`), que é o que equipamento de verdade
  * faz.
  */
-export type PoseEletricista = 'parado' | 'trabalhando' | 'choque' | 'subindo'
+export type PoseEletricista =
+  | 'parado' | 'trabalhando' | 'choque' | 'subindo' | 'radio'
 
 export function Eletricista({
   pose, onde, giro = 0,

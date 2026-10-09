@@ -978,6 +978,29 @@ def pose_trabalhando(arm):
     return arm
 
 
+def pose_radio(arm):
+    """Falando no radio: uma mao no ombro, a outra caida.
+
+    Precisa ser distinguivel de `pose_trabalhando` A 120 px DE ALTURA, que e
+    o tamanho dele na tela. Duas maos no alto contra UMA mao no ombro e a
+    outra caida le na silhueta; diferenca de dedo ou de inclinacao de cabeca
+    nao le. Por isso a assimetria e grosseira de proposito.
+    """
+    _girar(arm, "pelvis", (2, (0, 1, 0)))
+    _girar(arm, "spine_01", (-3, (1, 0, 0)))
+    # cabeca virada para o lado do radio, como quem escuta
+    _girar(arm, "neck_01", (-6, (1, 0, 0)), (-13, (0, 0, 1)))
+    # direito sobe ate o ombro
+    _girar(arm, "upperarm_r", (-28, (0, 1, 0)), (-46, (1, 0, 0)))
+    _girar(arm, "lowerarm_r", (-104, (1, 0, 0)))
+    fechar_mao(arm, "r", forca=0.85)
+    # esquerdo fica caido, como na pose de descanso
+    _girar(arm, "upperarm_l", (30, (0, 1, 0)), (10, (1, 0, 0)))
+    _girar(arm, "lowerarm_l", (7, (1, 0, 0)))
+    bpy.context.view_layer.update()
+    return arm
+
+
 def pose_choque(arm):
     """O tranco do arco eletrico. CARICATO de proposito.
 
