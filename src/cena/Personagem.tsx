@@ -15,8 +15,19 @@ const MODELO = './modelos/personagem.glb'
 // jogo empacotado no Electron e em máquina sem internet
 const DRACO = './draco/gltf/'
 
-/** Altura do personagem como ele saiu do Blender, em metros. */
-export const ALTURA_BASE = 1.7996
+/** Curva de aceleração e freada, para o ar entrar e sair como ar. */
+function suavizar(x: number) {
+  const c = Math.min(1, Math.max(0, x))
+  return c * c * (3 - 2 * c)
+}
+
+/** Altura do personagem como ele saiu do Blender, em metros.
+ *
+ * Sai de `arte/export/personagem.json` (campo `altura`) e muda quando a POSE
+ * muda: com os braços descidos e as coxas fechadas o personagem perdeu 4 mm.
+ * Quem reexportar com pose nova tem de reler este número daqui, senão a
+ * escolha de altura do jogador passa a errar por essa diferença. */
+export const ALTURA_BASE = 1.7953
 
 useGLTF.preload(MODELO, DRACO)
 
@@ -144,28 +155,46 @@ export default function Personagem({ fisico, vestindo, giro }: Props) {
     })
   }, [scene, fisico.tom, fisico.cabelo])
 
-  // o giro é interpolado para o personagem não pular quando o jogador arrasta
+  /** O giro já interpolado, sem a oscilação de ocioso somada por cima. */
+  const giroBase = useRef(0)
+
   useFrame((estado, dt) => {
     const g = grupo.current
     if (!g) return
-    const atual = g.rotation.y
-    g.rotation.y = atual + (giro - atual) * Math.min(1, dt * 9)
+    giroBase.current += (giro - giroBase.current) * Math.min(1, dt * 9)
 
-    // RESPIRAÇÃO. O corpo não tem animação de esqueleto, então ela é feita no
-    // grupo inteiro: 6 mm de sobe-e-desce e 0,35% de escala, a 14 ciclos por
-    // minuto, que é respiração de pessoa parada. É pouco de propósito — a
-    // 1 cm já lê como pulo, e o personagem está de pé numa arara, não
-    // correndo.
-    //
-    // Dois períodos incomensuráveis (13 s e 7 s) somam um balanço lento de
-    // peso nas pernas. Sem ele a respiração vira metrônomo: o olho acha o
-    // compasso em dois ciclos e o boneco volta a parecer um objeto.
     const t = estado.clock.elapsedTime
-    const ar = Math.sin(t * 1.466)
-    g.position.y = ar * 0.006
-    const e = 1 + ar * 0.0035
+
+    // RESPIRAÇÃO, e não uma senoide.
+    //
+    // Pessoa parada inspira em ~1,5 s, solta em ~2,5 s e fica meio segundo
+    // sem fazer nada antes da próxima. A senoide gasta o mesmo tempo nas
+    // duas metades, e é isso que faz o boneco pulsar como um balão em vez de
+    // respirar. Aqui o ciclo é dividido em três trechos de duração diferente.
+    const CICLO = 4.6
+    const f = (t % CICLO) / CICLO
+    let ar: number
+    if (f < 0.33) ar = suavizar(f / 0.33)              // inspira, rápido
+    else if (f < 0.87) ar = 1 - suavizar((f - 0.33) / 0.54)  // solta, devagar
+    else ar = 0                                         // pausa
+    g.position.y = ar * 0.007
+    const e = 1 + ar * 0.004
     g.scale.set(e, e, e)
-    g.rotation.z = Math.sin(t / 13) * 0.004 + Math.sin(t / 7) * 0.0022
+
+    // PESO DE UM PÉ PARA O OUTRO.
+    //
+    // Ninguém fica parado em pé com o peso dividido: o corpo troca de apoio
+    // a cada dez ou quinze segundos. São 9 mm de lado e 0,5° de inclinação —
+    // de propósito pouco, porque a 2 m de distância 1 cm já lê como passo.
+    // Dois períodos incomensuráveis (11 s e 6,5 s) evitam que o olho ache o
+    // compasso, que é o que denuncia a animação.
+    const peso = Math.sin(t / 11) * 0.7 + Math.sin(t / 6.5) * 0.3
+    g.position.x = peso * 0.009
+    g.rotation.z = peso * 0.009
+
+    // e um giro de tronco lento por cima do giro que o jogador escolheu
+    g.rotation.y = giroBase.current + Math.sin(t / 17) * 0.022
+    g.rotation.x = Math.sin(t / 13) * 0.006
   })
 
   const escala = fisico.altura / ALTURA_BASE

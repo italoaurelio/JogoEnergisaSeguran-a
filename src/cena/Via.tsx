@@ -138,9 +138,14 @@ function Pista({
 function Contrafluxo({
   molde, distancia, quantos = 11, vao = VAO_CONTRA, deslocamento = 0,
   velocidade = VELOCIDADE_CONTRA, x = CONTRA_X, forcaSom = 1,
+  faixa = null, pedestreLiberado,
 }: {
   molde: THREE.Object3D | null
   distancia: React.RefObject<number>
+  /** Metro da faixa de pedestre. Null quando este trajeto não tem uma. */
+  faixa?: number | null
+  /** Enquanto for falso, esta fila PARA antes da faixa. */
+  pedestreLiberado?: React.RefObject<boolean>
   quantos?: number
   /** Metros entre um veículo e o seguinte desta fila. */
   vao?: number
@@ -189,8 +194,27 @@ function Contrafluxo({
       antes.current = posicoes.current.map((v) => v - d)
     }
     const p = posicoes.current
+
+    /*
+      ELES PARAM NA FAIXA TAMBÉM.
+      -----------------------------------------------------------------
+      O retorno do cliente foi "só a gente para, os outros veículos não
+      param, eles deveriam". Ele tem razão, e o defeito era pior do que
+      parecer feio: o jogador freia, o pedestre começa a atravessar e um
+      carro do contrafluxo passa voando POR CIMA da faixa a três metros
+      dele. A cena desmente a regra que a fase está cobrando.
+
+      O contrafluxo vem de frente, do metro alto para o baixo, então a
+      linha de parada DELE fica depois da faixa — em `faixa + 4`. Quem já
+      passou da faixa segue embora; quem ainda não chegou encosta e espera.
+    */
+    const parando = faixa != null && pedestreLiberado
+      && !pedestreLiberado.current
+    const linha = (faixa ?? 0) + 4
+
     for (let i = 0; i < copias.length; i++) {
       p[i] -= velocidade * dt
+      if (parando && p[i] < linha && p[i] > linha - 120) p[i] = linha
       // passou do jogador: volta para o fim da fila, lá na frente. O resto da
       // divisão por 5 (e não por 3) evita que os reciclados voltem sempre nas
       // mesmas três distâncias e formem comboio visível.
@@ -219,6 +243,21 @@ function Contrafluxo({
       antes.current[i] = z
       copias[i].position.z = z
       copias[i].visible = z > -25 && z < ALCANCE
+    }
+
+    // Enfileira quem parou. Sem este passe os onze veículos encostavam
+    // TODOS na mesma linha e viravam um bloco de carros sobrepostos —
+    // pior que não parar. Com 7,5 m de vão mínimo eles formam a fila que
+    // qualquer um já viu numa faixa de pedestre.
+    if (parando) {
+      const ordem = p.map((_, i) => i).sort((a, b) => p[a] - p[b])
+      for (let k = 1; k < ordem.length; k++) {
+        const atras = ordem[k], frente = ordem[k - 1]
+        if (p[atras] < p[frente] + 7.5) p[atras] = p[frente] + 7.5
+        const z = p[atras] - d
+        copias[atras].position.z = z
+        copias[atras].visible = z > -25 && z < ALCANCE
+      }
     }
   })
 
@@ -850,7 +889,10 @@ export function Mundo({
         onde={onibusOnde}
       />
       <PessoasDoPatio molde={moldes.pedestre} distancia={distancia} />
-      <Contrafluxo molde={moldes.carro} distancia={distancia} />
+      <Contrafluxo
+        molde={moldes.carro} distancia={distancia}
+        faixa={faixa} pedestreLiberado={pedestreLiberado}
+      />
       {/*
         Moto em fila PRÓPRIA, e não misturada na dos carros.
         Duas correções, e a segunda é a que resolve:
@@ -871,6 +913,7 @@ export function Mundo({
         molde={moldes.moto} distancia={distancia} quantos={5}
         vao={118} deslocamento={37} velocidade={VELOCIDADE_CONTRA * 1.18}
         x={CONTRA_X - 1.05} forcaSom={1.45}
+        faixa={faixa} pedestreLiberado={pedestreLiberado}
       />
       {garagem && (
         <Garagem

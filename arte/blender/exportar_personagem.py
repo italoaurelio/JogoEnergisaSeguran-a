@@ -60,6 +60,21 @@ def montar():
 
     corpo = H.criar_corpo(H.macro(**FISICO_PADRAO), tom=TOM_NEUTRO)
     corpo.name = "corpo"
+
+    # RIG E POSE, nesta ordem e antes de tudo.
+    #
+    # Este exportador nunca pos rig nenhum: o personagem do vestiario saia na
+    # pose de descanso do MPFB, com os bracos abertos a quase 45 graus. Aquilo
+    # e pose de MODELAGEM, feita para a malha deformar bem — nao para alguem
+    # olhar. Era de onde vinha o "duraco, reto" do retorno do cliente, e
+    # nenhuma animacao de respiracao no jogo conserta um manequim.
+    #
+    # Olhos, cabelo e sobrancelha vem DEPOIS da pose, como no motorista: eles
+    # sao objetos filhos por transformacao, nao por armadura, entao criados
+    # antes ficariam parados enquanto a cabeca se mexe.
+    arm = H.adicionar_rig(corpo)
+    H.pose_descanso(arm)
+
     olhos = H.criar_olhos(corpo)
     cabelo = H.cabelo(corpo)
     H.sobrancelhas(corpo, olhos)
@@ -67,7 +82,7 @@ def montar():
     ref = H.referencias(corpo)
     pecas = E.vestir(corpo, ref, list(E.MONTAGEM))
     pecas["base_roupa"] = E.roupa_base(corpo, ref)
-    return corpo, olhos, cabelo, ref, pecas
+    return corpo, arm, olhos, cabelo, ref, pecas
 
 
 def so_no_bake(alvo):
@@ -192,7 +207,7 @@ def ajustar_visor(obj):
 
 def processar():
     os.makedirs(TEX_SAIDA, exist_ok=True)
-    corpo, olhos, cabelo, ref, pecas = montar()
+    corpo, arm, olhos, cabelo, ref, pecas = montar()
 
     cena = bpy.context.scene
     cena.render.engine = "CYCLES"
@@ -226,7 +241,16 @@ def processar():
     if ol:
         exportaveis.append(ol)
 
-    exportaveis.append(assar_pele(corpo))
+    pele = assar_pele(corpo)
+    # MESMA ARMADILHA DO MOTORISTA: o corpo e FILHO do rig, e `convert` nao
+    # traz a matriz do pai para a malha. Aqui o rig esta na origem, entao
+    # apagar nao desloca nada hoje — mas basta alguem mexer o rig um dia para
+    # o corpo sair do lugar sem aviso, que foi exatamente o que aconteceu na
+    # cabine. Soltar mantendo a matriz custa uma linha.
+    limpar_pais([pele])
+    exportaveis.append(pele)
+    if arm and arm.name in bpy.data.objects:
+        bpy.data.objects.remove(arm, do_unlink=True)
 
     # face unica em tudo que nao e transparente. Com face dupla, a casca
     # engrossada da roupa deixa ver as faces de dentro onde ela se cruza, e

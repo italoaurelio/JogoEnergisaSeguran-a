@@ -759,6 +759,80 @@ def _flexionar(arm, osso, graus, eixo=(1, 0, 0)):
     b.rotation_quaternion = Quaternion(eixo_local, math.radians(graus))
 
 
+def _girar(arm, osso, *passos):
+    """Compoe VARIAS rotacoes no mesmo osso, cada uma com seu eixo de mundo.
+
+    `_flexionar` ESCREVE `rotation_quaternion`, entao duas chamadas seguidas
+    no mesmo osso nao somam: a segunda apaga a primeira. Para o braco em
+    descanso isso nao serve — ele precisa descer (eixo da frente) E girar um
+    pouco para dentro (eixo de cima) ao mesmo tempo.
+
+    `passos` sao pares (graus, eixo), aplicados na ordem dada.
+    """
+    from mathutils import Quaternion
+    b = arm.pose.bones.get(osso)
+    if not b:
+        return
+    base = b.bone.matrix_local.to_3x3()
+    total = Quaternion()
+    for graus, eixo in passos:
+        eixo_local = (base.inverted() @ Vector(eixo)).normalized()
+        total = total @ Quaternion(eixo_local, math.radians(graus))
+    b.rotation_mode = "QUATERNION"
+    b.rotation_quaternion = total
+
+
+def pose_descanso(arm):
+    """Pessoa EM PE E PARADA, que e coisa diferente de pose de repouso.
+
+    O personagem do vestiario nao tinha rig nenhum: saia na pose de descanso
+    do MPFB, com os bracos abertos a quase 45 graus. Aquilo e pose de
+    MODELAGEM — existe para a malha deformar bem, nao para alguem olhar. Era
+    disso que vinha o "duraco, reto" do retorno do cliente, e nenhuma
+    animacao de respiracao no jogo conserta um boneco de manequim.
+
+    O que faz ler como gente parada, em ordem de importancia:
+
+    1. BRACOS PARA BAIXO. 42 graus de aducao deixam o braco caindo rente ao
+       tronco, com o cotovelo a 9 graus — braco humano parado nunca esta
+       reto, e braco totalmente colado le como soldado em forma.
+    2. ASSIMETRIA. Os dois lados NAO recebem o mesmo angulo. Corpo simetrico
+       e a marca registrada de boneco; 3 ou 4 graus de diferenca entre um
+       braco e o outro ja desfazem isso sem ninguem notar o porque.
+    3. PESO NUMA PERNA SO. A bacia inclina 3 graus e o ombro compensa do
+       outro lado — e o contraposto que todo mundo faz em pe sem perceber.
+
+    Posar ANTES de recortar a roupa faz a roupa nascer na pose, como no
+    motorista sentado: as pecas saem da superficie do corpo ja deformada.
+    """
+    # contraposto: peso na perna esquerda, bacia e ombros em sentidos opostos
+    _girar(arm, "pelvis", (3, (0, 1, 0)))
+    _girar(arm, "spine_01", (-2, (0, 1, 0)), (2, (1, 0, 0)))
+    _girar(arm, "spine_02", (-1.5, (0, 1, 0)))
+    _girar(arm, "neck_01", (2, (1, 0, 0)), (-2, (0, 0, 1)))
+
+    for lado, sinal, extra in (("l", 1, 0.0), ("r", -1, 3.5)):
+        # o braco desce em torno do eixo da FRENTE (Y da armadura); o sinal
+        # inverte por lado, senao um desce e o outro sobe
+        # 43 e nao 46: com 46 as maos vinham parar NA FRENTE da virilha, que
+        # e postura de quem esta sendo fotografado, nao de quem esta parado.
+        # Os -5 no eixo X jogam o braco um pouco para tras, e a mao cai ao
+        # lado da coxa, que e onde mao relaxada fica.
+        _girar(arm, f"upperarm_{lado}",
+               (sinal * (43 + extra), (0, 1, 0)),
+               (-5 + extra * 0.4, (1, 0, 0)))
+        _girar(arm, f"lowerarm_{lado}", (7 + extra * 0.6, (1, 0, 0)))
+        # maos levemente viradas para o corpo, como mao relaxada cai
+        _girar(arm, f"hand_{lado}", (sinal * 8, (0, 1, 0)))
+        # SEM ADUCAO DE COXA. Ja foi tentado, com 3,5 graus de cada lado: o
+        # vao entre as pernas fechava a ponto de a oclusao ambiente do jogo
+        # preencher a fresta de preto, e de frente aquilo lia como um rasgo
+        # na bermuda. No Blender nao aparecia — a oclusao do jogo e que e
+        # agressiva em vao estreito. O afastamento da base fica.
+    bpy.context.view_layer.update()
+    return arm
+
+
 def pose_sentado(arm):
     """Poe o personagem sentado ao volante.
 
