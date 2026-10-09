@@ -57,7 +57,18 @@ async function tocar(page, seletor, { pausa = 700 } = {}) {
  * uma gravação que pula a bancada não mostra o que a fase virou.
  */
 async function vestiario(page) {
-  await clicar(page, 'Começar', { pausa: 2600 })
+  // O ONBOARDING ENTRA NA GRAVAÇÃO, e não é enfeite: ele é a parte mais
+  // nova do jogo e a primeira que o cliente vê. As esperas são medidas
+  // pelas animações — as demonstrações do passo 3 fecham o ciclo em 4,0 s
+  // e 4,4 s, então 7 s mostram cada uma dando mais de uma volta.
+  //
+  // O roteiro anterior clicava 'Começar', que deixou de existir quando a
+  // abertura virou quatro passos. É o mesmo jeito de quebrar de sempre:
+  // clicar por texto não dá erro, trava esperando um botão que não há.
+  await clicar(page, 'Como funciona', { pausa: 3400 })
+  await clicar(page, 'Como se joga', { pausa: 7000 })
+  await clicar(page, 'Como é a nota', { pausa: 3600 })
+  await clicar(page, 'Começar o dia', { pausa: 2600 })
 
   // deixa o físico à vista por um instante antes de mexer
   await clicar(page, '1,82 m', { pausa: 1100 })
