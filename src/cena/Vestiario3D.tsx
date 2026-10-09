@@ -17,6 +17,7 @@
  * A câmera também está em +Z. Os armários ficam ATRÁS dele, em −Z.
  */
 import { useMemo } from 'react'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
 const VERDE_ARMARIO = '#226148'
@@ -184,4 +185,17 @@ export function LuzVestiario() {
       <directionalLight position={[0.4, 1.9, -2.6]} intensity={1.15} color="#7fd6a6" />
     </>
   )
+}
+
+/**
+ * Mira fixa: aponta a câmera para um ponto e fica lá.
+ *
+ * A câmera padrão do Canvas olha para a origem, que no vestiário é o CHÃO
+ * entre os pés do personagem. Quem usa o cenário precisa de uma linha para
+ * subir o olhar até o peito, e não de um controlador inteiro.
+ */
+export function MiraFixa({ para }: { para: [number, number, number] }) {
+  const alvo = useMemo(() => new THREE.Vector3(...para), [para])
+  useFrame(({ camera }) => { camera.lookAt(alvo) })
+  return null
 }

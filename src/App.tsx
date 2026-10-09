@@ -6,9 +6,9 @@
  */
 import { Suspense, useCallback, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { Environment } from '@react-three/drei'
 import Personagem from './cena/Personagem'
 import { Acabamento } from './cena/Acabamento'
+import Vestiario3D, { LuzVestiario, MiraFixa } from './cena/Vestiario3D'
 import { FISICO_INICIAL } from './conteudo/fisico'
 import { som } from './som'
 import Vestiario from './fases/Vestiario'
@@ -188,31 +188,22 @@ function Abertura({
         <Canvas
           dpr={[1, 1.5]}
           shadows
-          camera={{ position: [0.12, 1.08, 3.0], fov: 32 }}
+          camera={{ position: [0.46, 1.46, 4.35], fov: 32 }}
           gl={{ antialias: true }}
         >
           <Suspense fallback={null}>
-            <Environment files="./hdri/ceu.hdr" environmentIntensity={0.10} />
-            <directionalLight
-              position={[-1.6, 3.0, 2.6]}
-              intensity={3.4}
-              castShadow
-              shadow-mapSize={[2048, 2048]}
-              shadow-camera-left={-1.4}
-              shadow-camera-right={1.4}
-              shadow-camera-top={2.4}
-              shadow-camera-bottom={-0.2}
+            {/* o mesmo vestiário da fase 1: a abertura era o personagem
+                flutuando no preto, e a primeira tela do jogo passava a
+                impressão que o resto do jogo leva uma hora para desfazer */}
+            <LuzVestiario />
+            <Vestiario3D />
+            <Personagem
+              fisico={FISICO_INICIAL}
+              vestindo={EPI_VITRINE}
+              giro={-0.42}
             />
-            <directionalLight position={[2.4, 1.4, 1.2]} intensity={1.0} color="#cfe0ff" />
-            <directionalLight position={[0.8, 2.2, -2.4]} intensity={1.8} color="#ffeccd" />
-            <group position={[0, -0.95, 0]}>
-              <Personagem
-                fisico={FISICO_INICIAL}
-                vestindo={EPI_VITRINE}
-                giro={-0.42}
-              />
-            </group>
-            <Acabamento raio={0.35} />
+            <MiraFixa para={[0, 0.98, 0]} />
+            <Acabamento raio={0.9} />
           </Suspense>
         </Canvas>
       </div>
