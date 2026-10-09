@@ -1,0 +1,16 @@
+{
+  "poses": [
+    "parado",
+    "trabalhando",
+    "choque",
+    "subindo"
+  ],
+  "veste": [
+    "vestimenta_fr",
+    "capacete_b",
+    "luva_isolante_cobertura",
+    "botina_isolante",
+    "paraquedista_talabarte"
+  ],
+  "fatia": 0.07
+}

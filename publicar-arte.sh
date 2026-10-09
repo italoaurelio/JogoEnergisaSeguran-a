@@ -53,5 +53,10 @@ if [ "$alvo" = "ocorrencia" ] || [ "$alvo" = "tudo" ]; then
   [ -f arte/export/ocorrencia.json ] && cp arte/export/ocorrencia.json public/modelos/
 fi
 
+if [ "$alvo" = "eletricista" ] || [ "$alvo" = "tudo" ]; then
+  comprimir arte/export/eletricista.glb public/modelos/eletricista.glb 512
+  [ -f arte/export/eletricista.json ] && cp arte/export/eletricista.json public/modelos/
+fi
+
 echo "publicado:"
 ls -lh public/modelos/

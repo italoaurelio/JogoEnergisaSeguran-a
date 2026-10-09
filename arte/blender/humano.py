@@ -947,6 +947,94 @@ def maos_no_alvo(arm, alvo_l, alvo_r, puxar=1.0):
     return arm
 
 
+def pose_trabalhando(arm):
+    """De pe no cesto, as duas maos a frente e acima, mexendo na chave.
+
+    Nao e pose de alcance (isso e `maos_no_alvo`): e a leitura de alguem
+    OPERANDO. Os dois bracos a frente, cotovelos bem dobrados, tronco
+    levemente inclinado e cabeca erguida — quem trabalha em altura olha para
+    o que a mao esta fazendo, e e o olhar erguido que diz "esta mexendo ali
+    em cima" numa silhueta de 120 px.
+    """
+    _girar(arm, "pelvis", (2, (0, 1, 0)))
+    _girar(arm, "spine_01", (-5, (1, 0, 0)))
+    _girar(arm, "spine_02", (-4, (1, 0, 0)))
+    _girar(arm, "neck_01", (-14, (1, 0, 0)))
+    for lado, sinal, extra in (("l", 1, 0.0), ("r", -1, 5.0)):
+        # Os tres numeros saem de busca, nao de gosto: varrendo aducao,
+        # balanco e cotovelo contra o alvo "mao 30 cm a frente da bacia e
+        # 52 cm acima" (altura do queixo), 23/-82/-18 acerta com 1 mm de
+        # erro. O COTOVELO E NEGATIVO, e isso e contra a intuicao — com
+        # valor positivo o antebraco DESCE, e quanto mais eu dobrava mais
+        # baixa a mao ficava.
+        _girar(arm, f"upperarm_{lado}",
+               (sinal * 23, (0, 1, 0)),
+               (-82 - extra, (1, 0, 0)))
+        _girar(arm, f"lowerarm_{lado}", (-18 - extra * 0.6, (1, 0, 0)))
+        _girar(arm, f"hand_{lado}", (sinal * 10, (0, 1, 0)))
+        fechar_mao(arm, lado, forca=0.75)
+        _girar(arm, f"thigh_{lado}", (sinal * 2, (0, 1, 0)))
+    bpy.context.view_layer.update()
+    return arm
+
+
+def pose_choque(arm):
+    """O tranco do arco eletrico. CARICATO de proposito.
+
+    Isto e treinamento, nao reconstituicao de acidente: o que ensina e o
+    jogador entender na hora que encostou onde nao devia, nao o realismo do
+    espasmo. Entao a pose e de desenho — bracos jogados para fora e para
+    cima, cabeca para tras, costas arqueadas, pernas rijas e abertas. Le a
+    1 cm de altura na tela, que e o tamanho que ela vai ter.
+    """
+    _girar(arm, "pelvis", (-9, (1, 0, 0)))
+    _girar(arm, "spine_01", (-13, (1, 0, 0)))
+    _girar(arm, "spine_02", (-11, (1, 0, 0)))
+    _girar(arm, "neck_01", (-34, (1, 0, 0)))
+    for lado, sinal in (("l", 1), ("r", -1)):
+        # bracos abertos e para CIMA: aducao negativa abre, e o -40 no eixo
+        # da frente levanta
+        _girar(arm, f"upperarm_{lado}",
+               (sinal * -22, (0, 1, 0)),
+               (-40, (1, 0, 0)))
+        _girar(arm, f"lowerarm_{lado}", (26, (1, 0, 0)))
+        # maos ABERTAS, dedos esticados: mao fechada le como soco
+        _girar(arm, f"hand_{lado}", (sinal * -16, (0, 1, 0)))
+        _girar(arm, f"thigh_{lado}", (sinal * -7, (0, 1, 0)), (9, (1, 0, 0)))
+        _girar(arm, f"calf_{lado}", (-6, (1, 0, 0)))
+    bpy.context.view_layer.update()
+    return arm
+
+
+def pose_subindo(arm):
+    """Subindo pelos degraus do poste: braco e perna cruzados.
+
+    Escalada e movimento CRUZADO — braco esquerdo em cima com perna direita
+    em cima le como boneco de corda. Aqui o braco esquerdo sobe junto com a
+    perna direita, que e como gente sobe escada.
+    """
+    _girar(arm, "pelvis", (4, (0, 0, 1)))
+    _girar(arm, "spine_01", (-8, (1, 0, 0)))
+    _girar(arm, "neck_01", (-18, (1, 0, 0)))
+    # braco esquerdo em cima, agarrado
+    _girar(arm, "upperarm_l", (18, (0, 1, 0)), (-118, (1, 0, 0)))
+    _girar(arm, "lowerarm_l", (34, (1, 0, 0)))
+    fechar_mao(arm, "l", forca=1.0)
+    # braco direito na altura do peito, tambem agarrado
+    _girar(arm, "upperarm_r", (-24, (0, 1, 0)), (-54, (1, 0, 0)))
+    _girar(arm, "lowerarm_r", (86, (1, 0, 0)))
+    fechar_mao(arm, "r", forca=1.0)
+    # perna direita em cima (cruzada com o braco esquerdo), esquerda esticada
+    _girar(arm, "thigh_r", (-72, (1, 0, 0)), (-5, (0, 1, 0)))
+    _girar(arm, "calf_r", (62, (1, 0, 0)))
+    _girar(arm, "foot_r", (10, (1, 0, 0)))
+    _girar(arm, "thigh_l", (-8, (1, 0, 0)), (4, (0, 1, 0)))
+    _girar(arm, "calf_l", (10, (1, 0, 0)))
+    _girar(arm, "foot_l", (22, (1, 0, 0)))
+    bpy.context.view_layer.update()
+    return arm
+
+
 def assentar(corpo, arm, destino):
     """Move o personagem para que a BACIA fique em `destino`.
 

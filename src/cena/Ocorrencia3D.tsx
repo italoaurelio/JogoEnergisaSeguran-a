@@ -13,9 +13,11 @@ import { som } from '../som'
 import * as THREE from 'three'
 
 const MODELO = './modelos/ocorrencia.glb'
+const ELETRICISTA = './modelos/eletricista.glb'
 const DRACO = './draco/gltf/'
 
 useGLTF.preload(MODELO, DRACO)
+useGLTF.preload(ELETRICISTA, DRACO)
 
 /** Uma peça posicionada pelo jogador. */
 export type Colocada = {
@@ -436,6 +438,81 @@ export function Cobertura({ posta }: { posta: boolean }) {
       <cylinderGeometry args={[0.055, 0.055, 1.5, 10]} />
       <meshStandardMaterial color="#d2641c" roughness={0.65} />
     </mesh>
+  )
+}
+
+/**
+ * O ELETRICISTA, com uma pose por nó.
+ *
+ * O `.glb` traz quatro corpos inteiros — `el_parado`, `el_trabalhando`,
+ * `el_choque`, `el_subindo` — e aqui liga-se um de cada vez. É o mesmo padrão
+ * do EPI no vestiário, e pelo mesmo motivo: o pipeline assa a pose na malha,
+ * não há esqueleto, e rigar as peças de roupa (que são recortadas da pele)
+ * seria meio dia com risco de quebrar o EPI inteiro. A 7 m da câmera, com
+ * 120 px de altura, trocar entre poses assadas lê como animação.
+ *
+ * ONDE ELE FICA: no poste, nos degraus de escalada, e não no cesto. O cesto
+ * está onde o jogador estacionou o caminhão — a 8,5 m do poste, se ele
+ * protegeu a área direito — e a lança tem 3,76 m. Pôr o eletricista no cesto
+ * exigiria mover o caminhão, ou seja, desfazer a decisão dele. Subir pelos
+ * degraus é o que o poste tem, e o cinturão paraquedista que ele veste na
+ * fase 1 existe exatamente para isso.
+ */
+export type PoseEletricista = 'parado' | 'trabalhando' | 'choque' | 'subindo'
+
+/** Pés dele na altura em que a mão alcança a chave fusível (7,73 m). */
+const ONDE_ELE_FICA: [number, number, number] = [0.62, 6.30, 0]
+
+export function Eletricista({ pose }: { pose: PoseEletricista }) {
+  const { scene } = useGLTF(ELETRICISTA, DRACO)
+  const grupo = useRef<THREE.Group>(null)
+  const tremor = useRef(0)
+
+  useEffect(() => {
+    scene.traverse((o) => {
+      const m = o as THREE.Mesh
+      if (m.isMesh) { m.castShadow = true; m.receiveShadow = true }
+    })
+  }, [scene])
+
+  useEffect(() => {
+    for (const no of scene.children) {
+      if (no.name.startsWith('el_')) no.visible = no.name === `el_${pose}`
+    }
+    if (pose === 'choque') tremor.current = 1
+  }, [scene, pose])
+
+  useFrame((estado, dt) => {
+    const g = grupo.current
+    if (!g) return
+    const t = estado.clock.elapsedTime
+
+    // O TRANCO. A pose sozinha é uma estátua de braços abertos; o que faz
+    // ler como choque é a figura TREMENDO por um segundo. Frequência alta
+    // (28 Hz) e amplitude que decai — qualquer coisa mais lenta vira dança.
+    if (tremor.current > 0) {
+      tremor.current = Math.max(0, tremor.current - dt / 1.1)
+      const a = tremor.current * tremor.current
+      g.position.set(
+        ONDE_ELE_FICA[0] + Math.sin(t * 28) * 0.035 * a,
+        ONDE_ELE_FICA[1] + Math.sin(t * 33) * 0.022 * a,
+        ONDE_ELE_FICA[2] + Math.cos(t * 25) * 0.030 * a,
+      )
+      g.rotation.z = Math.sin(t * 30) * 0.10 * a
+      return
+    }
+
+    // parado no poste: respira e se ajeita, como no vestiário
+    g.rotation.z = 0
+    const ar = Math.sin(t * 1.3)
+    g.position.set(
+      ONDE_ELE_FICA[0], ONDE_ELE_FICA[1] + ar * 0.006, ONDE_ELE_FICA[2])
+  })
+
+  return (
+    <group ref={grupo} position={ONDE_ELE_FICA} rotation={[0, -Math.PI / 2, 0]}>
+      <primitive object={scene} />
+    </group>
   )
 }
 

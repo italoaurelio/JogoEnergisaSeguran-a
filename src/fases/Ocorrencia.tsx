@@ -16,7 +16,8 @@ import { Acabamento } from '../cena/Acabamento'
 import { Environment } from '@react-three/drei'
 import {
   AlvosDoPoste, Aterramento, Bloqueio, CameraDaCena, CenaOcorrencia, Cobertura,
-  LuzOcorrencia, PortaFusivel, type Colocada, type Vista,
+  Eletricista, LuzOcorrencia, PortaFusivel,
+  type Colocada, type PoseEletricista, type Vista,
 } from '../cena/Ocorrencia3D'
 import {
   ACOES, ALVOS, ESTADO_INICIAL, NOME_FERRAMENTA, RECUSAS, SEMPRE_NO_CESTO,
@@ -197,6 +198,27 @@ export default function Fase3Ocorrencia({
     painel, o 3D precisaria de uma ponte por ref para alcançá-lo, e ponte por
     ref entre irmãos é o tipo de coisa que funciona até alguém mexer.
   */
+  /**
+   * A pose do eletricista. Ela VOLTA SOZINHA para `parado`.
+   *
+   * Sem o retorno automático ele congelava na última coisa que fez — de
+   * braços abertos pelo resto da fase depois de um choque, ou com as mãos
+   * na cara até o fim depois de trocar o elo. O que lê como ação é o
+   * movimento de ida E VOLTA.
+   */
+  const [pose, setPose] = useState<PoseEletricista>('subindo')
+  useEffect(() => {
+    if (pose === 'parado') return
+    // O CHOQUE DURA MAIS QUE O CLARÃO, e isso é a diferença entre mostrar
+    // o acidente e só piscar a tela. O clarão come 1,5 s; com a pose em
+    // 1,7 s sobravam 200 ms para ver o eletricista jogado para trás — que é
+    // justamente o que a cena existe para mostrar. Com 2,8 s ele fica mais
+    // de um segundo em quadro depois que o branco sai.
+    const quanto = pose === 'choque' ? 2800 : pose === 'subindo' ? 2200 : 1300
+    const t = window.setTimeout(() => setPose('parado'), quanto)
+    return () => window.clearTimeout(t)
+  }, [pose])
+
   const [ferramenta, setFerramenta] = useState<string | null>(null)
   const [recado, setRecado] = useState<
     { tom: 'ok' | 'nao' | 'morte'; texto: string } | null>(null)
@@ -261,6 +283,7 @@ export default function Fase3Ocorrencia({
         recomeça.
       */
       setEstadoPoste((e) => ({ ...e, religado: false, chaveAberta: true }))
+      setPose('choque')
       setAcidentes((a) => [...a, { porque: morte }])
       setClarao(true)
       window.setTimeout(() => setClarao(false), 1500)
@@ -271,6 +294,7 @@ export default function Fase3Ocorrencia({
     }
 
     setEstadoPoste((e) => ({ ...e, ...acao.aplicar(e) }))
+    setPose('trabalhando')
     setOrdem((a) => [...a, acao.passo])
     som.chave()
     setRecado({ tom: 'ok', texto: acao.feito })
@@ -409,6 +433,7 @@ export default function Fase3Ocorrencia({
                 escolher={usar}
               />
               <PortaFusivel aberta={estadoPoste.chaveAberta} pino={CHAVE_PINO} />
+              <Eletricista pose={pose} />
               <Aterramento posto={estadoPoste.aterrado} />
               <Bloqueio posto={estadoPoste.bloqueada} />
               <Cobertura posta={estadoPoste.vizinhosProtegidos} />
