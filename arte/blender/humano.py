@@ -809,7 +809,7 @@ def pose_descanso(arm):
     _girar(arm, "pelvis", (3, (0, 1, 0)))
     _girar(arm, "spine_01", (-2, (0, 1, 0)), (2, (1, 0, 0)))
     _girar(arm, "spine_02", (-1.5, (0, 1, 0)))
-    _girar(arm, "neck_01", (2, (1, 0, 0)), (-2, (0, 0, 1)))
+    _girar(arm, "neck_01", (-3, (1, 0, 0)), (-2, (0, 0, 1)))
 
     for lado, sinal, extra in (("l", 1, 0.0), ("r", -1, 3.5)):
         # o braco desce em torno do eixo da FRENTE (Y da armadura); o sinal
@@ -819,8 +819,8 @@ def pose_descanso(arm):
         # Os -5 no eixo X jogam o braco um pouco para tras, e a mao cai ao
         # lado da coxa, que e onde mao relaxada fica.
         _girar(arm, f"upperarm_{lado}",
-               (sinal * (43 + extra), (0, 1, 0)),
-               (-5 + extra * 0.4, (1, 0, 0)))
+               (sinal * (41 + extra), (0, 1, 0)),
+               (10 + extra * 0.4, (1, 0, 0)))
         _girar(arm, f"lowerarm_{lado}", (7 + extra * 0.6, (1, 0, 0)))
         # maos levemente viradas para o corpo, como mao relaxada cai
         _girar(arm, f"hand_{lado}", (sinal * 8, (0, 1, 0)))
@@ -857,6 +857,74 @@ def pose_sentado(arm):
         _flexionar(arm, f"foot_{lado}", 8)
         _flexionar(arm, f"upperarm_{lado}", -38)  # braco para a frente
         _flexionar(arm, f"lowerarm_{lado}", 64)   # cotovelo dobrado
+    bpy.context.view_layer.update()
+    return arm
+
+
+DEDOS = ("index", "middle", "ring", "pinky")
+
+
+def fechar_mao(arm, lado, forca=1.0, polegar=True):
+    """Curva os dedos, para a mao PEGAR em vez de pairar.
+
+    O rig do MPFB entrega a mao aberta, com os dedos abertos em leque. Numa
+    mao caida ao lado do corpo isso passa; apoiada num volante, nao — fica
+    um par de maos espalmadas no ar na frente do aro, que le pior do que o
+    braco caido que estava ali antes.
+
+    Cada dedo dobra MAIS na falange do meio do que na de baixo, que e como
+    dedo dobra. A soma nas tres falanges da ~115 graus com `forca` 1, que e
+    mao em volta de um aro de 34 mm, nao punho fechado.
+
+    O eixo e +X, e isso foi MEDIDO, nao suposto: girando a falange em cada um
+    dos seis eixos e medindo a distancia da ponta do indicador ate a palma
+    (0,195 m com a mao aberta), +X leva a 0,123 e nenhum outro passa de 0,164.
+    Vale para as duas maos — X e o eixo esquerda-direita, e dedo dobra em
+    torno dele dos dois lados. O palpite inicial era Z, e com Z os dedos
+    abriam em leque em vez de fechar.
+    """
+    graus = (30, 55, 35)
+    for dedo in DEDOS:
+        for i, g in enumerate(graus, start=1):
+            _girar(arm, f"{dedo}_0{i}_{lado}", (g * forca, (1, 0, 0)))
+    if polegar:
+        # o polegar fecha menos e por cima do aro, nao em volta dele
+        for i, g in enumerate((24, 34, 26), start=1):
+            _girar(arm, f"thumb_0{i}_{lado}", (g * forca, (1, 0, 0)))
+
+
+def maos_no_alvo(arm, alvo_l, alvo_r, puxar=1.0):
+    """Leva cada mao ate um ponto do MUNDO, com IK de duas pecas.
+
+    Por que IK e nao angulo escrito a mao: a mao no volante e um problema de
+    ALCANCE, nao de orientacao. Tentando por angulo, ombro, cotovelo e torcao
+    interagem — mexer na aducao muda onde o cotovelo fica, que muda onde a mao
+    chega, e a busca nao converge. Foi medido: varrendo aducao de 18 a 44,
+    flexao de -70 a -24 e cotovelo de 40 a 100 graus, a mao mais proxima
+    ainda parou a 52 cm do aro.
+
+    Com IK o alvo E a resposta: o braco acha sozinho a combinacao que chega la,
+    ou estica no limite se nao chegar.
+
+    As restricoes FICAM no rig de proposito. O exportador le a malha avaliada
+    (`recortar`) e depois converte (`assar_pele`), e as duas passam pelo
+    depsgraph — que ja aplica IK. Assar a pose antes seria um passo a mais
+    para chegar no mesmo lugar.
+
+    Chamar DEPOIS de `assentar`: o alvo esta em coordenada de mundo, e mover a
+    armadura depois deslocaria o braco em relacao a ele.
+    """
+    for lado, alvo in (("l", alvo_l), ("r", alvo_r)):
+        ante = arm.pose.bones.get(f"lowerarm_{lado}")
+        if not ante:
+            continue
+        vazio = bpy.data.objects.new(f"alvo_mao_{lado}", None)
+        bpy.context.collection.objects.link(vazio)
+        vazio.location = Vector(alvo)
+        con = ante.constraints.new("IK")
+        con.target = vazio
+        con.chain_count = 2
+        con.influence = puxar
     bpy.context.view_layer.update()
     return arm
 

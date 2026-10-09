@@ -28,8 +28,18 @@ import exportar_personagem as XP
 SAIDA = os.path.join(C.RAIZ, "export")
 TEX_SAIDA = os.path.join(SAIDA, "tex")
 
-# altura da bacia acima do piso da cabine, e recuo no banco
-BACIA = (0.0, 0.34, V.ALTURA_ASSENTO + 0.055)
+# Onde a BACIA do motorista fica, em coordenada da cabine.
+#
+# Era y 0,34 e acompanhava o banco antigo. Com o banco trazido para a frente
+# (`V.Y_BANCO`), o quadril vem junto: 0,16 deixa o motorista sentado no meio
+# do assento, encostado no encosto, e com o aro a 0,46 m — distancia de
+# caminhao de verdade. Com o valor antigo ele nao alcancava o volante.
+BACIA = (0.0, 0.16, V.ALTURA_ASSENTO + 0.055)
+
+#: pegada "9 e 3" no aro, onde as duas maos vao parar
+def _pegada(sinal):
+    from mathutils import Vector as _V
+    return _V((sinal * V.RAIO_VOLANTE, V.VOLANTE.y, V.VOLANTE.z))
 
 # as duas vagas que se veem de dentro da cabine
 VARIANTES_CORPO = ["vestimenta_fr", "camisa_algodao", "colete_refletivo"]
@@ -46,6 +56,10 @@ def montar():
     arm = H.adicionar_rig(corpo)
     H.pose_sentado(arm)
     H.assentar(corpo, arm, BACIA)
+    # AS MAOS VAO AO VOLANTE, e so aqui — depois de `assentar`, porque o alvo
+    # esta em coordenada de mundo. O corpo e montado centrado em x=0 e so vai
+    # para o lugar do motorista no fim, entao o aro tambem entra em x=0.
+    H.maos_no_alvo(arm, _pegada(1), _pegada(-1))
 
     olhos = H.criar_olhos(corpo)
     cabelo = H.cabelo(corpo)

@@ -109,7 +109,7 @@ export const ITENS_CABINE: ItemCabine[] = [
     // apoio fica na frente do encosto e o vão some, e de dentro da cabine o
     // apoio do PASSAGEIRO entra na frente. Pela janela é a única linha livre
     // (o pilar B está em y 0,43-0,51 e esta vista passa em y 0,57).
-    camera: { de: [0.90, 1.16, 0.06], para: [0.40, 1.03, -0.52], lente: 30 },
+    camera: { de: [0.92, 1.18, 0.20], para: [0.42, 1.06, -0.32], lente: 30 },
     no: { errado: 'apoio_baixo', certo: 'apoio_alto' },
   },
   {
@@ -140,7 +140,7 @@ export const ITENS_CABINE: ItemCabine[] = [
     // alavanca, porque ela fica entre os dois; e de longe ela some no
     // assoalho preto. A alavanca também clareou (albedo 0,024 → 0,105): com
     // preto sobre preto, a pergunta não tem resposta na imagem.
-    camera: { de: [-0.34, 1.02, 0.62], para: [-0.08, 0.43, 0.02], lente: 28 },
+    camera: { de: [-0.52, 1.12, 0.36], para: [-0.09, 0.44, -0.10], lente: 30 },
   },
   {
     id: 'celular',

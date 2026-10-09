@@ -77,14 +77,45 @@ export function Cabine({ ligados }: { ligados: string[] }) {
     if (orfaos.length) console.warn('[cabine] estado sem nó:', orfaos.join(', '))
   }, [scene, ligados])
 
+  /** Y de repouso de cada estado, lido uma vez: nem todo nó nasce em zero. */
+  const repouso = useRef(new Map<THREE.Object3D, number>())
+  /** Estados assentando: nó -> quanto falta (1 a 0). */
+  const entrando = useRef(new Map<THREE.Object3D, number>())
+
   useEffect(() => {
     // só o primeiro nível, pelo mesmo motivo do personagem: as malhas filhas
     // herdam o nome do nó e se esconderiam por dentro do grupo
     for (const no of scene.children) {
       if (!no.name.startsWith('est_')) continue
-      no.visible = ativos.has(no.name.slice(4))
+      if (!repouso.current.has(no)) repouso.current.set(no, no.position.y)
+      const mostrar = ativos.has(no.name.slice(4))
+      // A CORREÇÃO TEM DE SER VISTA ACONTECENDO.
+      //
+      // Antes era uma troca de `visible` entre dois quadros: o cinto solto
+      // sumia e o afivelado aparecia no mesmo instante, sem transição. O
+      // comentário no topo deste arquivo já prometia que "o jogador vê a
+      // correção acontecer" — e o que ele via era um pulo. Com 3 cm de queda
+      // em 0,3 s o apoio de cabeça SOBE, o cinto DESCE para a fivela e a
+      // prancheta POUSA no banco.
+      if (mostrar && !no.visible) entrando.current.set(no, 1)
+      no.visible = mostrar
     }
   }, [scene, ativos])
+
+  useFrame((_, dt) => {
+    if (!entrando.current.size) return
+    for (const [no, t] of entrando.current) {
+      const base = repouso.current.get(no) ?? 0
+      const novo = t - dt / 0.30
+      if (novo <= 0) {
+        no.position.y = base
+        entrando.current.delete(no)
+      } else {
+        entrando.current.set(no, novo)
+        no.position.y = base - 0.03 * novo * novo
+      }
+    }
+  })
 
   return <primitive object={scene} />
 }

@@ -51,7 +51,9 @@ def main():
     C.aplicar(chao, C.mat_simples("chao", (0.17, 0.17, 0.165), rugosidade=0.9))
     os.makedirs(SAIDA, exist_ok=True)
     render("frente", (0.0, -4.2, 1.05), (0, 0, 0.95))
-    render("coxa", (0.0, -1.5, 0.95), (0, 0, 0.82), lente=65, larg=560, alt=560)
+    render("tresquartos", (2.4, -3.5, 1.20), (0, 0, 0.95))
+    render("perfil", (4.0, -0.6, 1.10), (0, 0, 0.95))
+    render("tronco", (0.9, -2.0, 1.45), (0, 0, 1.30), lente=70, larg=560, alt=560)
 
 
 main()

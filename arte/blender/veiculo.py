@@ -383,12 +383,30 @@ def volante():
 # alcanca o pedal e o corpo sentado fica com os pes abaixo do piso.
 ALTURA_ASSENTO = 0.40
 
+# Y DO BANCO. Era 0,26, e com ele o motorista NAO ALCANCAVA O VOLANTE.
+#
+# Medido no rig, com o corpo sentado: ombro em y 0,31, aro em y -0,37, e
+# alcance de braco (ombro ao punho) de 0,530 m. A distancia do ombro ate o
+# ponto de pegada era 0,73 m. Nem com o braco reto a mao chegava — e nem o
+# ponto mais proximo do aro, o de baixo, estava a menos de 0,64 m.
+#
+# Era por isso que o motorista aparecia com os bracos caidos ao lado do corpo
+# numa cabine, e o cliente escreveu "o personagem ta duraco". Nao era pose:
+# era a cabine impedindo a pose.
+#
+# Com 0,08 o quadril fica a 0,46 m do aro, que e a faixa de caminhao de
+# verdade (0,40 a 0,50), e o braco pega o aro a 0,49 m — cotovelo levemente
+# dobrado, que e como se dirige.
+Y_BANCO = 0.08
+#: quanto tudo que acompanha o ocupante andou junto com o banco
+DESLOC_BANCO = Y_BANCO - 0.26
+
 
 def banco(nome, x, encosto=1.02, recuo=0.0):
     """Assento, encosto e apoio de cabeca. O apoio e peca separada porque a
     altura dele e um dos itens conferidos na fase 2."""
     tecido = mat_tecido_banco()
-    y = 0.26 + recuo
+    y = Y_BANCO + recuo
     pecas = []
 
     assento = C.caixa(f"{nome}_assento", (0.50, 0.50, 0.14),
@@ -416,7 +434,7 @@ def banco(nome, x, encosto=1.02, recuo=0.0):
 def apoio_cabeca(nome, x, altura=1.22, encosto=0.98):
     """Apoio de cabeca. `altura` e o topo dele - baixo demais, em vez de
     proteger, vira alavanca no pescoco numa colisao traseira."""
-    y = 0.26 + 0.30
+    y = Y_BANCO + 0.30
     pecas = []
     bloco = C.caixa(f"{nome}_apoio", (0.26, 0.13, 0.15), (x, y + 0.02, altura - 0.075),
                     rot=(math.radians(-9), 0, 0))
@@ -481,16 +499,18 @@ def cinto(afivelado=True, lado=1):
     x = -X_MOTORISTA if lado < 0 else X_MOTORISTA
     meia = LARGURA / 2
     ancora_alta = Vector((lado * (meia - 0.04), 0.42, 1.18))
-    fivela = Vector((x - 0.22, 0.30, ALTURA_ASSENTO + 0.04))
+    # a fivela mora no banco, entao anda com ele; as duas ancoras ficam no
+    # pilar, que nao se mexe — e e essa diferenca que da o desenho do cinto
+    fivela = Vector((x - 0.22, 0.30 + DESLOC_BANCO, ALTURA_ASSENTO + 0.04))
     ancora_baixa = Vector((lado * (meia - 0.06), 0.30, ALTURA_ASSENTO - 0.08))
 
     if afivelado:
         caminho = [
             tuple(ancora_alta),
-            tuple(Vector((x + 0.02, 0.18, 0.92))),
-            tuple(Vector((x - 0.10, 0.20, ALTURA_ASSENTO + 0.20))),
+            tuple(Vector((x + 0.02, 0.18 + DESLOC_BANCO, 0.92))),
+            tuple(Vector((x - 0.10, 0.20 + DESLOC_BANCO, ALTURA_ASSENTO + 0.20))),
             tuple(fivela),
-            tuple(Vector((x + 0.05, 0.26, ALTURA_ASSENTO - 0.02))),
+            tuple(Vector((x + 0.05, 0.26 + DESLOC_BANCO, ALTURA_ASSENTO - 0.02))),
             tuple(ancora_baixa),
         ]
     else:
