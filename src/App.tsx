@@ -4,13 +4,9 @@
  * As fases 2 e 3 ainda não estão montadas; o fluxo já prevê o lugar delas para
  * a pontuação ser somada de uma vez só no fim, que é como o cliente pediu.
  */
-import { Suspense, useCallback, useState } from 'react'
-import { Canvas } from '@react-three/fiber'
-import Personagem from './cena/Personagem'
-import { Acabamento } from './cena/Acabamento'
-import Vestiario3D, { LuzVestiario, MiraFixa } from './cena/Vestiario3D'
-import { FISICO_INICIAL } from './conteudo/fisico'
+import { useCallback, useState } from 'react'
 import { som } from './som'
+import Abertura from './fases/Abertura'
 import Vestiario from './fases/Vestiario'
 import Fase2Cabine from './fases/Cabine'
 import Fase2Trajeto from './fases/Trajeto'
@@ -159,91 +155,5 @@ function BotaoMudo() {
     >
       {mudo ? '🔇' : '🔊'}
     </button>
-  )
-}
-
-/** O conjunto certo de EPI. A abertura mostra o resultado, não o problema. */
-const EPI_VITRINE = [
-  'vestimenta_fr', 'capacete_b', 'protetor_facial_arco',
-  'luva_isolante_cobertura', 'botina_isolante', 'paraquedista_talabarte',
-]
-
-function Abertura({
-  nome, setNome, avancar,
-}: {
-  nome: string
-  setNome: (v: string) => void
-  avancar: () => void
-}) {
-  return (
-    <div className="abertura">
-      {/*
-        O personagem em 3D, equipado e respirando, no lugar do cartão escuro
-        que a abertura era antes. A tela anterior era um formulário com um
-        campo de nome: não dizia que aquilo é um jogo, nem do que trata.
-        Aqui a primeira coisa que se vê é um eletricista de EPI completo —
-        que é o assunto inteiro da fase 1.
-      */}
-      <div className="abertura-palco" aria-hidden>
-        <Canvas
-          dpr={[1, 1.5]}
-          shadows
-          camera={{ position: [0.46, 1.46, 4.35], fov: 32 }}
-          gl={{ antialias: true }}
-        >
-          <Suspense fallback={null}>
-            {/* o mesmo vestiário da fase 1: a abertura era o personagem
-                flutuando no preto, e a primeira tela do jogo passava a
-                impressão que o resto do jogo leva uma hora para desfazer */}
-            <LuzVestiario />
-            <Vestiario3D />
-            <Personagem
-              fisico={FISICO_INICIAL}
-              vestindo={EPI_VITRINE}
-              giro={-0.42}
-            />
-            <MiraFixa para={[0, 0.98, 0]} />
-            <Acabamento raio={0.9} />
-          </Suspense>
-        </Canvas>
-      </div>
-
-      <div className="abertura-conteudo">
-        <p className="sobretitulo">Treinamento de segurança do trabalho</p>
-        <h1>Um dia de serviço</h1>
-        <p className="chamada">
-          Do vestiário até o reparo na rede. Cada decisão que você tomar no
-          caminho vale ponto — e a conta só aparece no fim.
-        </p>
-
-        <ol className="etapas-cartao">
-          <li>
-            <b>Vestiário</b>
-            <span>Monte o seu personagem e escolha o EPI, peça por peça.</span>
-          </li>
-          <li>
-            <b>Em trânsito</b>
-            <span>Confira a cabine com o veículo desligado e dirija até a ocorrência.</span>
-          </li>
-          <li>
-            <b>Ocorrência</b>
-            <span>Isole a área, separe o equipamento e faça o reparo na ordem certa.</span>
-          </li>
-        </ol>
-
-        <label className="campo">
-          <span>Seu nome (opcional)</span>
-          <input
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            placeholder="Para constar no relatório"
-            maxLength={40}
-          />
-        </label>
-        <button className="btn btn-grande" onClick={avancar}>
-          Começar
-        </button>
-      </div>
-    </div>
   )
 }

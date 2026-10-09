@@ -106,17 +106,38 @@ def assar_pele(corpo):
 
 
 def assar_olhos(olhos):
+    """UM OLHO DE CADA VEZ, e depois junta. A ordem inversa apaga a iris.
+
+    `mat_olho` desenha pupila, iris, limbo e esclera pela DISTANCIA AO CENTRO
+    em coordenada `Generated` — que o Blender normaliza pela caixa do OBJETO.
+    Numa esfera sozinha isso da exatamente o que se quer: o centro da caixa e
+    o centro do olho, e os aneis caem no lugar.
+
+    Assando os dois JA JUNTOS, a caixa passa a ser a dos dois olhos: 9 cm em X
+    contra 1,5 cm em Z. O eixo X e esticado quase sete vezes, cada esfera fica
+    inteira na faixa |x-0,5| ~ 0,4, e 0,4 e muito maior que o raio da esclera
+    (0,155). Resultado: as duas esferas saem com a cor da esclera por inteiro.
+
+    Era por isso que o personagem tinha dois ovos brancos no rosto — e nao
+    dava erro nenhum, nem no bake nem no export. O retorno do cliente foi
+    "parece que nao tem olho".
+    """
     if not olhos:
         return None
     limpar_pais(olhos)
-    membros = [X.preparar(o) for o in olhos]
+    membros = []
+    for i, o in enumerate(olhos):
+        m = X.preparar(o)
+        antes = so_no_bake(m)
+        try:
+            # 256 e nao 512: o olho tem 7 mm de raio e aparece de perto so na
+            # tela de tom de pele. Dois mapas de 256 custam menos que um de 512.
+            X.assar_grupo(m, f"olho_{i}", 256, piso_ao=0.85)
+        finally:
+            restaurar(antes)
+        membros.append(m)
     alvo = C.juntar(membros, "olhos") if len(membros) > 1 else membros[0]
     alvo.name = "olhos"
-    antes = so_no_bake(alvo)
-    try:
-        X.assar_grupo(alvo, "olhos", 512, piso_ao=0.85)
-    finally:
-        restaurar(antes)
     return alvo
 
 

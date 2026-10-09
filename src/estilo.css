@@ -272,8 +272,13 @@ body {
 .opcao:hover { border-color: #3d4d5f; }
 .opcao.ativa { border-color: var(--verde); background: #14302a; color: var(--verde-claro); }
 
-.tons { display: flex; gap: 12px; }
+/* Oito tons de 52 px com 12 px de intervalo pedem 500 px de linha, e o
+   painel tem 330. Sem `wrap` o flex não quebra a linha: ele ESPREME cada
+   botão, e o que era círculo chega na tela como ovo. `flex: 0 0 auto` é o
+   que proíbe o encolhimento; o `wrap` é o que dá para onde descer. */
+.tons { display: flex; gap: 12px; flex-wrap: wrap; }
 .tom {
+  flex: 0 0 auto;
   width: 52px; height: 52px; border-radius: 50%; cursor: pointer;
   border: 3px solid transparent; outline: 1px solid var(--borda);
 }
@@ -939,4 +944,194 @@ body {
 .aviso-previa {
   font-size: 14px; color: var(--verde-claro); margin-bottom: 12px;
   line-height: 1.45;
+}
+
+/* ===================================================================
+   ONBOARDING
+   -------------------------------------------------------------------
+   Quatro passos antes da partida. O painel da direita rola; o 3D da
+   esquerda não muda, para o jogador não perder o lugar entre um passo
+   e outro.
+   =================================================================== */
+.abertura-conteudo { position: relative; }
+.onb-titulo { font-size: 27px; line-height: 1.2; margin-bottom: 18px; }
+
+.onb-trilha {
+  list-style: none; display: flex; gap: 8px; margin-top: 22px;
+}
+.onb-trilha li {
+  width: 34px; height: 4px; border-radius: 2px; background: var(--borda);
+}
+.onb-trilha li.feita { background: var(--verde); }
+.onb-trilha li.atual { background: var(--verde-claro); }
+
+/* ---------------------------------------------------------- 1. história */
+.onb-relato {
+  display: grid; gap: 14px; margin-bottom: 26px;
+  border-left: 3px solid var(--verde); padding-left: 18px;
+}
+.onb-relato p { color: var(--texto-fraco); font-size: 16px; line-height: 1.6; }
+.onb-relato b { color: var(--texto); }
+.onb-hora {
+  text-transform: uppercase; letter-spacing: 0.12em; font-size: 12px;
+  font-weight: 700; color: var(--ambar) !important;
+}
+.onb-missao { color: var(--texto) !important; font-style: italic; }
+
+/* ------------------------------------------------- 2. as três fases */
+.onb-fases { list-style: none; display: grid; gap: 14px; margin-bottom: 24px; }
+.onb-fases li {
+  display: grid; grid-template-columns: 148px 1fr; gap: 14px;
+  align-items: start; background: var(--painel-claro);
+  border: 1px solid var(--borda); border-radius: 12px; padding: 12px;
+}
+.onb-fases img {
+  width: 100%; aspect-ratio: 16 / 9; object-fit: cover;
+  border-radius: 7px; display: block; background: #0b0f14;
+}
+.onb-fase-num {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--verde-claro); font-weight: 700;
+}
+.onb-fases h3 { font-size: 17px; margin: 3px 0 5px; }
+.onb-fases p { font-size: 13.5px; line-height: 1.5; color: var(--texto-fraco); }
+
+/* --------------------------------------------- 3. as três demonstrações */
+.onb-demos { list-style: none; display: grid; gap: 16px; margin-bottom: 24px; }
+.onb-demos li {
+  display: grid; grid-template-columns: 150px 1fr; gap: 16px;
+  align-items: center; background: var(--painel-claro);
+  border: 1px solid var(--borda); border-radius: 12px; padding: 12px 14px;
+}
+.onb-demos h3 { font-size: 16px; margin-bottom: 5px; }
+.onb-demos p { font-size: 13.5px; line-height: 1.55; color: var(--texto-fraco); }
+.onb-demos b { color: var(--texto); font-weight: 600; }
+
+.demo {
+  width: 150px; height: 90px; display: block;
+  background: #0d1218; border-radius: 8px;
+}
+
+/* -- demo 1: clicar numa parte do corpo e ler a etiqueta ------------- */
+.demo-corpo { fill: none; stroke: #46586a; stroke-width: 2.4; stroke-linecap: round; }
+.demo-corpo circle { fill: #46586a; }
+.demo-marca {
+  fill: rgba(8, 16, 11, 0.6); stroke: var(--ambar); stroke-width: 2;
+}
+.demo-marca-alvo { animation: demo-acende 4s linear infinite; }
+@keyframes demo-acende {
+  0%, 32% { stroke: var(--ambar); fill: rgba(8, 16, 11, 0.6); }
+  38%, 100% { stroke: var(--verde-claro); fill: var(--verde); }
+}
+.demo-cartao { animation: demo-entra-cartao 4s linear infinite; }
+.demo-cartao rect:first-child { fill: #1b2733; stroke: #35455a; stroke-width: 1.4; }
+.demo-linha { fill: #c6d4e2; }
+.demo-fraca { fill: #5c6f83; }
+.demo-etiqueta { fill: #e9e5d8; animation: demo-etiqueta 4s linear infinite; }
+@keyframes demo-entra-cartao {
+  0%, 36% { opacity: 0; transform: translateX(14px); }
+  46%, 100% { opacity: 1; transform: none; }
+}
+@keyframes demo-etiqueta {
+  0%, 56% { opacity: 0; }
+  66%, 100% { opacity: 1; }
+}
+.demo-cursor {
+  fill: #eef3f8; stroke: #0d1218; stroke-width: 1;
+  animation: demo-cursor 4s linear infinite;
+}
+@keyframes demo-cursor {
+  0% { transform: translate(96px, 74px); }
+  26% { transform: translate(36px, 40px); }
+  32% { transform: translate(36px, 40px) scale(0.82); }
+  40%, 100% { transform: translate(36px, 40px); }
+}
+
+/* -- demo 2: segurar o pedal e aliviar na placa ---------------------- */
+.demo-arco { fill: none; stroke: #2b3947; stroke-width: 6; stroke-linecap: round; }
+.demo-arco-cheio {
+  stroke: var(--verde-claro); stroke-dasharray: 101;
+  animation: demo-arco 4s ease-in-out infinite;
+}
+@keyframes demo-arco {
+  0% { stroke-dashoffset: 101; }
+  45% { stroke-dashoffset: 26; }
+  70% { stroke-dashoffset: 72; }
+  100% { stroke-dashoffset: 101; }
+}
+.demo-ponteiro {
+  stroke: #eef3f8; stroke-width: 2.4; stroke-linecap: round;
+  transform-origin: 46px 64px; animation: demo-ponteiro 4s ease-in-out infinite;
+}
+@keyframes demo-ponteiro {
+  0% { transform: rotate(-82deg); }
+  45% { transform: rotate(52deg); }
+  70% { transform: rotate(-18deg); }
+  100% { transform: rotate(-82deg); }
+}
+.demo-pino { fill: #eef3f8; }
+.demo-placa { animation: demo-placa 4s ease-in-out infinite; }
+.demo-placa circle { fill: #f4f6f8; stroke: #cf3b2c; stroke-width: 4; }
+.demo-placa text { fill: #1b2129; font: 700 14px system-ui, sans-serif; }
+@keyframes demo-placa {
+  0%, 30% { opacity: 0; transform: scale(0.6); }
+  48%, 100% { opacity: 1; transform: none; }
+}
+.demo-pedais rect { stroke-width: 1.4; }
+.demo-frear { fill: #2a1b18; stroke: #5a362e; }
+.demo-acelerar {
+  fill: var(--verde); stroke: var(--verde-claro);
+  animation: demo-pedal 4s ease-in-out infinite;
+}
+@keyframes demo-pedal {
+  0%, 44% { opacity: 1; }
+  52%, 70% { opacity: 0.35; }
+  80%, 100% { opacity: 1; }
+}
+
+/* -- demo 3: a prévia transparente virando manobra -------------------- */
+.demo-pista { fill: #39404a; }
+.demo-eixo {
+  stroke: #d8c65a; stroke-width: 1.6; stroke-dasharray: 8 7;
+}
+.demo-poste { stroke: #8d8b86; stroke-width: 3; stroke-linecap: round; fill: none; }
+.demo-caminhao { animation: demo-manobra 4.4s ease-in-out infinite; }
+.demo-caminhao rect, .demo-caminhao circle {
+  fill: var(--verde-claro); stroke: var(--verde-claro); stroke-width: 1;
+  animation: demo-solidifica 4.4s ease-in-out infinite;
+}
+@keyframes demo-manobra {
+  0%, 52% { transform: translateX(0); }
+  74%, 100% { transform: translateX(46px); }
+}
+@keyframes demo-solidifica {
+  /* fantasma: translúcido e esverdeado, igual ao da cena */
+  0%, 52% { fill-opacity: 0.3; stroke-opacity: 0.9; fill: var(--verde-claro); }
+  /* executado: peça de verdade */
+  62%, 100% { fill-opacity: 1; stroke-opacity: 1; fill: #e8ecef; stroke: #aab4bd; }
+}
+.demo-botao rect {
+  fill: var(--verde); animation: demo-botao 4.4s ease-in-out infinite;
+}
+@keyframes demo-botao {
+  0%, 40% { opacity: 0.45; }
+  50% { opacity: 1; transform: scale(1.06); transform-origin: 117px 79px; }
+  58%, 100% { opacity: 0.45; }
+}
+
+/* ----------------------------------------------------- 4. como é a nota */
+.onb-regras { list-style: none; display: grid; gap: 14px; margin-bottom: 24px; }
+.onb-regras li { display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: start; }
+.onb-regras p { font-size: 15px; line-height: 1.55; color: var(--texto-fraco); }
+.onb-regras b { color: var(--texto); }
+.onb-bola {
+  width: 30px; height: 30px; border-radius: 50%; display: grid;
+  place-items: center; background: var(--painel-claro);
+  border: 1px solid var(--borda); color: var(--verde-claro);
+  font-size: 14px; font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .onb-fases li, .onb-demos li { grid-template-columns: 1fr; }
+  .demo { width: 100%; height: 110px; }
 }
