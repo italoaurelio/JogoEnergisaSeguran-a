@@ -60,7 +60,7 @@ export const ITENS_CABINE: ItemCabine[] = [
     // tem de passar por cima do volante (z até 1,00), por cima do encosto
     // (z até 1,02), e ficar INBOARD — a fita olha para dentro da cabine, e
     // de perto do pilar ela é vista de fio e vira um risco.
-    camera: { de: [-0.05, 1.32, 0.30], para: [0.74, 0.80, -0.33], lente: 30 },
+    camera: { de: [-0.12, 1.22, 0.84], para: [0.48, 0.72, -0.22], lente: 32 },
     no: { errado: 'cinto_solto', certo: 'cinto_afivelado' },
   },
   {
@@ -84,7 +84,7 @@ export const ITENS_CABINE: ItemCabine[] = [
     // (A nota antiga sobre o antebraço nu do motorista saiu: aquele defeito
     // era o recorte da manga seguir a pose do corpo, e foi corrigido em
     // 06/10 — ver "Item 2" no PLANO.md.)
-    camera: { de: [0.38, 1.17, -0.10], para: [0.90, 1.02, 0.56], lente: 50 },
+    camera: { de: [0.30, 1.20, -0.18], para: [0.95, 1.02, 0.56], lente: 32 },
     no: { errado: 'retro_desregulado', certo: 'retro_ok' },
   },
   {
@@ -109,7 +109,7 @@ export const ITENS_CABINE: ItemCabine[] = [
     // apoio fica na frente do encosto e o vão some, e de dentro da cabine o
     // apoio do PASSAGEIRO entra na frente. Pela janela é a única linha livre
     // (o pilar B está em y 0,43-0,51 e esta vista passa em y 0,57).
-    camera: { de: [0.95, 1.12, -0.56], para: [0.38, 1.05, -0.58], lente: 36 },
+    camera: { de: [0.90, 1.16, 0.06], para: [0.40, 1.03, -0.52], lente: 30 },
     no: { errado: 'apoio_baixo', certo: 'apoio_alto' },
   },
   {
