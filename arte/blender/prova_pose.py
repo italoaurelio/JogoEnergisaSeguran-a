@@ -53,6 +53,7 @@ def main():
     render("frente", (0.0, -4.2, 1.05), (0, 0, 0.95))
     render("tresquartos", (2.4, -3.5, 1.20), (0, 0, 0.95))
     render("perfil", (4.0, -0.6, 1.10), (0, 0, 0.95))
+    render("mao", (1.25, -1.35, 1.05), (0.22, -0.02, 0.88), lente=85, larg=560, alt=560)
     render("tronco", (0.9, -2.0, 1.45), (0, 0, 1.30), lente=70, larg=560, alt=560)
 
 

@@ -27,7 +27,7 @@ function suavizar(x: number) {
  * muda: com os braços descidos e as coxas fechadas o personagem perdeu 4 mm.
  * Quem reexportar com pose nova tem de reler este número daqui, senão a
  * escolha de altura do jogador passa a errar por essa diferença. */
-export const ALTURA_BASE = 1.7953
+export const ALTURA_BASE = 1.7982
 
 useGLTF.preload(MODELO, DRACO)
 

@@ -814,13 +814,31 @@ def pose_descanso(arm):
     for lado, sinal, extra in (("l", 1, 0.0), ("r", -1, 3.5)):
         # o braco desce em torno do eixo da FRENTE (Y da armadura); o sinal
         # inverte por lado, senao um desce e o outro sobe
-        # 43 e nao 46: com 46 as maos vinham parar NA FRENTE da virilha, que
-        # e postura de quem esta sendo fotografado, nao de quem esta parado.
-        # Os -5 no eixo X jogam o braco um pouco para tras, e a mao cai ao
-        # lado da coxa, que e onde mao relaxada fica.
+        # ADUCAO 30, e o numero sai de medicao, nao de gosto.
+        #
+        # Varrendo aducao x giro de pulso e medindo a folga da PONTA DO DEDO
+        # ate a superficie da coxa:
+        #
+        #     aducao 38 / pulso +8  ->  -37 mm   (mao dentro da perna)
+        #     aducao 34 / pulso +8  ->   +7 mm
+        #     aducao 30 / pulso +8  ->  +50 mm
+        #
+        # Sete milimetros nao bastam: a bermuda de `roupa_base` nasce
+        # DESLOCADA 11 mm da pele, entao com folga de 7 mm a mao fica por
+        # dentro do tecido. Era o "braco muito pra dentro do corpo" do
+        # retorno — e medindo so o PUNHO o defeito nao aparece, porque o
+        # punho tinha 80 mm de folga. Quem entra na perna e a ponta do dedo.
+        #
+        # Os 10 no eixo X jogam o braco um pouco para tras: sem eles ele fica
+        # pendurado 25 graus a frente do corpo, que de perfil le como
+        # manequim.
         _girar(arm, f"upperarm_{lado}",
-               (sinal * (41 + extra), (0, 1, 0)),
+               (sinal * 30, (0, 1, 0)),
                (10 + extra * 0.4, (1, 0, 0)))
+        # A ASSIMETRIA MUDOU DE LUGAR: ela estava na aducao, e isso punha o
+        # braco direito em 33,5 graus — de volta para os 7 mm de folga. Agora
+        # os dois lados aduzem igual e a diferenca entre eles mora no balanco
+        # para a frente e no cotovelo, que nao encostam em nada.
         _girar(arm, f"lowerarm_{lado}", (7 + extra * 0.6, (1, 0, 0)))
         # maos levemente viradas para o corpo, como mao relaxada cai
         _girar(arm, f"hand_{lado}", (sinal * 8, (0, 1, 0)))
