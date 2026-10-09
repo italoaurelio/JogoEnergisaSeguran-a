@@ -1476,3 +1476,172 @@ triângulos de sobra.
 reto de 36 cm de largura, e o teto do ônibus é totalmente plano. As duas
 peças passam a 30 km/h na beira da pista, então a silhueta importa mais que a
 superfície — mas se o cliente reclamar de alguma, é dessas duas.
+
+---
+
+# Rodada de 09/10/2026 — vestiário, prévia e o corpo fora do lugar
+
+Origem: o usuário pediu três coisas, nesta ordem de irritação — a escada que
+não encosta no poste, o vestiário ("tá uma merda, troca essa cor, faz uma do
+zero melhor, com as informações, uma coisa que ensina de verdade") e a
+ocorrência ("na hora que eu selecionar uma coisa ele coloca na tela meio
+transparente; se eu clicar em concluir ele faz mesmo todas as ações").
+Apresentação no mesmo dia.
+
+## Item 1 — a escada (feito)
+
+A escada ficava **equilibrada no vazio** ao lado do poste. Já tinha sido
+"corrigida" uma vez, com um tombo e um giro escolhidos a olho, e continuava
+a 11 cm da peça.
+
+Encostar é conta. Medido com o jogo rodando, varrendo o `matrixWorld` das
+malhas:
+
+| peça | medida |
+|---|---|
+| poste, seção duplo T | x ±0,055 (constante), z ±0,139 na altura do topo da escada |
+| escada | eixo longo em Y, 4,63 m de sapata a topo, ±0,040 em X, ±0,267 em Z |
+
+A face de X estava descartada e isso **não se via sem medir**: os degraus de
+escalada do poste saem justamente em ±X, até 0,311, e um deles está a 4,36 m
+— a escada passaria por dentro. Sobra a face de Z, que é lisa.
+
+A ordem de Euler do three.js é XYZ, então `tombo` em Z vale ANTES de `giro`
+em Y: a escada tomba no próprio plano (como escada tomba) e o giro aponta o
+tombo. Com giro −90° o topo vai para +Z.
+
+Resultado: pé em (0, 0, −1,10), topo em (0, 4,47, +0,137) — 15° fora da
+vertical, que é o encosto de ~75° da NR-18.
+
+**E a escada só existe se o jogador a tiver separado.** Ela estava em `APOIO`,
+fixa: quem não levava escada nenhuma via uma encostada no poste assim mesmo,
+o que desmente a própria pergunta do ferramental. Agora aparece em prévia
+enquanto ele separa o material e vira peça quando sobe para o serviço — e
+quem leva a de alumínio vê uma de alumínio (mesma malha, material trocado;
+modelar uma segunda escada só para a resposta errada não se paga).
+
+## Item 2 — o vestiário refeito (feito)
+
+O que estava lá era um **questionário de sete telas com um boneco ao lado**.
+Três defeitos, e só um era de cor:
+
+1. **Cobrava memória, não leitura.** Os botões diziam "Capacete classe A" e
+   "Capacete classe B". Quem não sabe de cor qual é a classe elétrica chuta
+   entre dois nomes — e sair chutando não ensina nada.
+2. **Não tinha escolha espacial.** Sete telas em fila, sem poder voltar.
+3. **Entregava o veredito peça por peça**, o que faz da fase um gabarito
+   interativo.
+
+O que entrou:
+
+- **Tela única.** As sete vagas são MARCAS CLICÁVEIS NO CORPO (`Html` do drei
+  projetado pelo three, não sprite: o alvo tem de ter tamanho de dedo num
+  totem, e sprite encolhe quando a câmera recua). Posições medidas no modelo:
+  capacete 1,65 · visor 1,59 · peito 1,25 · cintura 0,88 · punhos 0,85 a
+  ±0,57 · botina 0,11. A mão esquerda é a vaga das luvas e a direita a dos
+  adornos — separar as duas faz "tirar o relógio" virar decisão com lugar no
+  corpo.
+- **A bancada de inspeção**, que é o miolo novo. Clicar numa peça não veste:
+  abre a ETIQUETA — número de CA, classe de ensaio, data do ensaio elétrico e
+  estado visual — e o cabeçalho diz que dia é hoje. A luva vencida agora é
+  achável LENDO. `ensaioMeses` é relativo a hoje, não data fixa: um gabarito
+  com "11/2025" escrito à mão vira mentira sozinho em alguns meses.
+- **Nenhuma cor de julgamento na etiqueta.** Pintar de vermelho a linha do
+  ensaio vencido devolveria a fase ao gabarito de onde ela saiu.
+- **A conferência de EPI no fim**: o conjunto fecha, o encarregado desce o
+  corpo item a item a 650 ms por parte. É avaliação, não gabarito — e é a
+  conferência que se faz de verdade antes de sair para a rua.
+- **O vestiário virou um lugar** (`src/cena/Vestiario3D.tsx`): piso de cimento,
+  fila de armários de metal verde, banco de ripa, parede de bloco, luminária
+  acesa. ~90 caixas e cilindros, nenhum arquivo novo. A luz passou a ter três
+  TEMPERATURAS (chave quente, preenchimento frio, rebatimento verde dos
+  armários) — era por isso que tudo caía no mesmo cinza, não por causa do
+  valor das variáveis de CSS.
+- A paleta da interface é redefinida em `.vest`, não duplicada: tudo que já
+  usava `var(--painel)` seguiu junto.
+
+**Defeito antigo que apareceu no caminho:** a animação de assentar peça zerava
+`position.y` ao terminar. Isso só está certo para peça com origem em zero — e
+`epi_capacete_b` tem origem na cabeça. **O capacete certo, o único item de
+ponto cheio da vaga, caía no chão entre os pés no instante em que era
+vestido, e ficava lá.** Toda peça com origem própria tinha o mesmo destino.
+
+## Item 3 — a prévia na ocorrência (feito)
+
+Escolher agora **desenha a consequência em transparente** antes de valer: o
+caminhão onde pararia, os cones onde cairiam, a fita onde cercaria. Só
+"Executar a manobra" torna aquilo real, e aí a peça anda até o lugar com o
+som do motor, como antes.
+
+Detalhe que não é opcional: os materiais TÊM de ser clonados. `clone(true)`
+copia a árvore mas compartilha o material, então baixar a opacidade apagaria
+metade do caminhão de verdade junto. Os clones são descartados quando a
+prévia sai de cena, senão ficam na GPU.
+
+**A câmera da pergunta de distância estava mentindo.** Ela já tinha sido
+corrigida uma vez, de teleobjetiva para grande angular alta, e continuava
+errada pelo mesmo motivo de fundo: a resposta certa espalha cavalete e cones
+de x=−27 a x=−14, e tudo isso ficava ATRÁS do ponto de vista. Quem escolhia
+"recuado" via dois cones no canto e nenhum cavalete — **o acerto dava a mesma
+imagem que o erro**, que é o pior que pode acontecer com uma pergunta sobre
+distância. Agora o olho está na pista, a 2,6 m do chão e 35 m antes do poste,
+no sentido do trânsito: é a vista de quem dirige e vai encontrar a equipe.
+Com "colado", esse mesmo olho não vê nada até estar em cima do serviço.
+
+## Item 4 — o corpo do motorista estava fora do lugar (feito)
+
+Achado ao conferir a fase 2 de ponta a ponta: **a primeira pergunta da
+conferência do veículo abria com a tela cheia de pele.**
+
+Diagnóstico, medindo os nós no jogo:
+
+```
+mot_cabelo        position (0.38, −0.51, −0.35)
+mot_vestimenta_fr position (0.38, −0.51, −0.35)
+mot_corpo         position (0.38,  0,     0   )   ← sem o recuo do banco
+```
+
+O corpo nu estava **51 cm acima e 35 cm à frente da própria roupa**: de pé
+dentro da cabine, atravessando painel e volante, com as câmeras da
+conferência abrindo por dentro dele.
+
+Causa raiz, uma linha em `exportar_motorista.py`: `assentar` senta o
+motorista movendo a ARMADURA, não o corpo (mover os dois aplicaria o
+deslocamento duas vezes). O corpo é FILHO do rig, então a posição no banco
+mora na matriz do pai, e `convert` não a traz para a malha. Três linhas
+abaixo, `remove(arm)` apagava a armadura — e o filho voltava para a origem.
+As peças de roupa nunca tiveram o problema porque passam por `limpar_pais`,
+que solta mantendo a matriz de mundo; o corpo era o único que ia direto para
+o `preparar`. Corrigido com `XP.limpar_pais([pele])` antes do `remove`.
+
+**Isto reclassifica dois itens antigos do plano.** O "braço do motorista está
+nu" e as "partes voando" da rodada 12 não eram recorte de roupa: eram o corpo
+fora do lugar, saindo por dentro da roupa que estava no lugar certo. A
+armadilha aqui é de método — os dois foram diagnosticados OLHANDO a tela, e
+olhando os dois parecem defeito de roupa. Só medir a posição dos nós separou
+uma coisa da outra.
+
+## Limpeza
+
+`src/Cena.tsx`, `src/dados.ts` e `cenario.glb` saíram: eram a fase de "achar
+o risco na foto" que o cliente descartou, e nada os importava. 459 linhas e
+1,5 MB a menos no pacote do totem, que foi de ~12 MB para 10 MB. Estava
+marcado como adiado por falta de git — o git chegou.
+
+A abertura também passou a acontecer no vestiário: era a única tela que ainda
+dizia "boneco em estúdio", e é a que abre a apresentação.
+
+## O que esta rodada NÃO fez
+
+1. **Prévia no ferramental.** As ferramentas do kit (vara de manobra,
+   detector, aterramento, elo) não têm malha; a escada é a única peça do
+   ferramental que existe em 3D e essa já ganhou prévia. Pôr um desenho
+   genérico no lugar das outras seria pior que não ter.
+2. **Reexportar a cabine com o motorista no lugar certo.** As seis vistas da
+   conferência foram compostas com o banco vazio e depois ajustadas contra um
+   motorista que estava deslocado. Com o corpo no lugar, as seis precisam de
+   uma varredura nova.
+3. **Revisão do Cristiano**, que segue pendente desde o começo: a lista de EPI
+   que a Energisa distribui de fato, o kit por atividade e os números de CA
+   das etiquetas — que escrevi plausíveis, não reais.
+4. **Medir no mini-PC do totem.** Continua sem hardware.

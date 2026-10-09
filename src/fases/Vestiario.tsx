@@ -56,8 +56,10 @@ const MARCAS: Record<Vaga, [number, number, number]> = {
   face: [0.27, 1.58, 0.16],
   corpo: [0, 1.26, 0.24],
   maos: [-0.62, 0.86, 0.12],
-  cintura: [0, 0.90, 0.27],
-  adorno: [0.62, 0.86, 0.12],
+  // cintura e adorno ficavam os dois na altura do punho e os rótulos se
+  // atropelavam em tela estreita; 18 cm de diferença separa as duas linhas
+  cintura: [0, 1.00, 0.27],
+  adorno: [0.62, 0.80, 0.12],
   pes: [0.20, 0.12, 0.22],
 }
 

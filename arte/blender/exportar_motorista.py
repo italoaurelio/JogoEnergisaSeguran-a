@@ -99,6 +99,25 @@ def processar():
     # esqueleto que o jogo nao usa.
     pele = XP.assar_pele(corpo)
     pele.name = "mot_corpo"
+    # SOLTAR DO RIG ANTES DE APAGAR O RIG.
+    #
+    # `assentar` senta o motorista movendo a ARMADURA, nao o corpo (mover os
+    # dois aplicaria o deslocamento duas vezes). O corpo e FILHO do rig, entao
+    # a posicao no banco mora na matriz do pai, e `convert` nao a traz para a
+    # malha. Quando o `remove(arm)` tres linhas abaixo apagava a armadura, o
+    # corpo perdia o pai e voltava para a origem: 51 cm acima e 35 cm a frente
+    # da propria roupa.
+    #
+    # O sintoma no jogo nao parecia um erro de exportacao. O corpo nu ficava
+    # de PE dentro da cabine, atravessando painel e volante, e as cameras da
+    # conferencia abriam dentro dele — tela de pele na primeira pergunta da
+    # fase 2. Tambem era disto que vinham o "braco nu" e as "partes voando"
+    # anotadas no plano: nao eram recorte de roupa, era o corpo fora do lugar.
+    #
+    # As pecas de roupa nunca tiveram o problema porque passam por
+    # `limpar_pais`, que solta mantendo a matriz de mundo. O corpo era o unico
+    # que ia direto para o `preparar`.
+    XP.limpar_pais([pele])
     exportaveis.append(pele)
     if arm and arm.name in bpy.data.objects:
         bpy.data.objects.remove(arm, do_unlink=True)
