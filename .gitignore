@@ -5,14 +5,18 @@ empacotado/
 # `Blender -b -P arte/blender/exportar.py`. O que o jogo usa é public/modelos.
 arte/export/
 
-# gravacao de gameplay: o .webm bruto tem dezenas de MB
+# gravacao de gameplay: fica de fora a SAIDA pesada, nao o roteiro.
+# `gravacao/` inteira estava ignorada, e com ela `gravar.mjs` — que e fonte,
+# nao saida. Foi assim que o roteiro ficou clicando "Ir para a arara de EPI"
+# por semanas depois de a tela mudar, sem nada apontar.
 gravacao/bruto/
 gravacao/log.txt
+gravacao/*.mp4
+gravacao/*.webm
+gravacao/*.png
 
 # renders de conferencia: 64 MB de PNG, reproduzivel por `Blender -b -P arte/blender/prova_*.py`
 arte/render/
-# gravacao de gameplay inteira
-gravacao/
 __pycache__/
 # quadros soltos do ciclo de caminhada: o que vale e o .gif montado
 arte/render/caminhada/q*.png
