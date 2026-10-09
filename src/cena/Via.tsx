@@ -19,7 +19,7 @@ import {
 } from './curva'
 import { uvPorPosicao, vestir } from './texturas'
 import { som } from '../som'
-import { VEICULO } from '../conteudo/trajeto'
+import { TETO_DT, VEICULO } from '../conteudo/trajeto'
 import {
   ALCANCE, BORDA_DIR, BORDA_ESQ, FILEIRAS, POOL, TRECHO, paisagem, type Marco,
 } from './paisagem'
@@ -187,7 +187,7 @@ function Contrafluxo({
   const antes = useRef<number[]>([])
 
   useFrame((_, bruto) => {
-    const dt = Math.min(bruto, 0.05)
+    const dt = Math.min(bruto, TETO_DT)
     const d = distancia.current ?? 0
     if (!posicoes.current) {
       posicoes.current = copias.map((_, i) => d + 60 + deslocamento + i * vao)
@@ -347,7 +347,7 @@ function Pedestre({
   useFrame((_, bruto) => {
     const g = grupo.current
     if (!g || metro == null) return
-    const dt = Math.min(bruto, 0.05)
+    const dt = Math.min(bruto, TETO_DT)
     const z = metro - (distancia.current ?? 0)
     // 7 s para atravessar os 8,7 m: ~1,2 m/s, que é passo de gente comum
     if (liberado.current) avanco.current = Math.min(1, avanco.current + dt / 7)
@@ -438,7 +438,7 @@ function OnibusEscolar({
   useFrame((_, bruto) => {
     const g = grupo.current
     if (!g || metro == null) return
-    const dt = Math.min(bruto, 0.05)
+    const dt = Math.min(bruto, TETO_DT)
     const d = distancia.current ?? 0
     const z = metro - d
 

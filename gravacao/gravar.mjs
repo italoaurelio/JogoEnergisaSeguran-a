@@ -31,11 +31,24 @@ const ALTURA = 720
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms))
 
+/** Relógio da gravação, para saber ONDE o tempo foi. */
+const T0 = Date.now()
+const agora = () => {
+  const s = Math.round((Date.now() - T0) / 1000)
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+}
+const marcar = (o) => console.log(`   [${agora()}] ${o}`)
+
 /** Clica pelo texto visível, como um jogador clicaria. */
 async function clicar(page, texto, { pausa = 700 } = {}) {
+  const t = Date.now()
   const alvo = page.locator('button', { hasText: texto }).first()
   await alvo.waitFor({ state: 'visible', timeout: 15000 })
   await alvo.click()
+  const gasto = Date.now() - t
+  // só reporta o que demorou mais do que a pausa pedida: é aí que mora
+  // qualquer espera que eu não escrevi
+  if (gasto > 1200) marcar(`clique "${texto}" levou ${(gasto / 1000).toFixed(1)}s`)
   await espera(pausa)
 }
 
@@ -131,7 +144,16 @@ async function cabine(page) {
  * tecla de verdade, para o vídeo mostrar o jogo reagindo a entrada real.
  */
 async function trajeto(page, { aoVivo = () => {} } = {}) {
-  const LOMBADA = 1130          // metro da lombada no trajeto
+  // O METRO DA LOMBADA SAI DO CONTEÚDO, não escrito à mão.
+  //
+  // Estava fixo em 1130, do trajeto antigo de 1.340 m. Com o trajeto cortado
+  // para 640 a lombada foi para o metro 370, e a condição `|d − 1130| < 55`
+  // deixou de ser verdadeira em qualquer ponto da rota: o piloto parou de
+  // reduzir na lombada e passou a tomar a falta toda vez, em silêncio.
+  const LOMBADA = await page.evaluate(() => {
+    const t = window.__trajeto
+    return t && t.lombada != null ? t.lombada : 370
+  })
   let pedal = null
 
   const segurar = async (novo) => {
@@ -159,6 +181,10 @@ async function trajeto(page, { aoVivo = () => {} } = {}) {
     // exagero e deixa o vídeo parado olhando para o nada
     if (s.parando) alvo = s.ateParada != null && s.ateParada > 16 ? 14 : 0
     if (Math.abs(s.d - LOMBADA) < 55) alvo = Math.min(alvo, 17)
+    // ônibus escolar em embarque e ciclista: o jogo cobra ≤20 e ≤30 km/h, e
+    // o piloto passava a 27 e 57 — tomava as duas faltas sem nunca saber
+    if (s.onibus != null && Math.abs(s.d - s.onibus) < 45) alvo = Math.min(alvo, 16)
+    if (s.ciclista != null && Math.abs(s.d - s.ciclista) < 40) alvo = Math.min(alvo, 24)
     if (s.vao != null && s.vao < Math.max(10, (s.kmh / 3.6) * 2.4)) {
       alvo = Math.min(alvo, Math.max(0, s.kmh - 12))
     }
@@ -273,22 +299,22 @@ async function principal() {
   await page.goto(URL_JOGO, { waitUntil: 'networkidle' })
   await espera(1500)
 
-  console.log('-> vestiario')
+  console.log(`-> vestiario [${agora()}]`)
   await vestiario(page)
-  console.log('-> cabine')
+  console.log(`-> cabine [${agora()}]`)
   await cabine(page)
-  console.log('-> trajeto')
+  console.log(`-> trajeto [${agora()}]`)
   let ultimo = 0
   await trajeto(page, {
     aoVivo: (s) => {
       if (s.d - ultimo >= 250) { ultimo = s.d; console.log(`   ${Math.round(s.d)} m · ${s.kmh} km/h · ${s.trecho}`) }
     },
   })
-  console.log('-> ocorrencia')
+  console.log(`-> ocorrencia [${agora()}]`)
   await ocorrencia(page)
 
   const nota = await page.locator('h2').first().innerText().catch(() => '(sem relatorio)')
-  console.log('-> relatorio:', nota.replace(/\n/g, ' '))
+  console.log(`-> relatorio [${agora()}]:`, nota.replace(/\n/g, ' '))
 
   // O RELATÓRIO É O FIM DA PARTIDA E PRECISA APARECER INTEIRO.
   //

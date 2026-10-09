@@ -155,6 +155,25 @@ export const TRAJETO: Trecho[] = [
 
 export const DISTANCIA_TOTAL = TRAJETO.reduce((t, s) => t + s.metros, 0)
 
+/**
+ * Teto do passo de simulação, em segundos.
+ *
+ * O teto existe para a aba em segundo plano: lá o `dt` chega em SEGUNDOS, e
+ * sem limite o caminhão atravessaria o trajeto inteiro num quadro.
+ *
+ * Mas o limite tem um preço que ninguém tinha medido: abaixo de 1/TETO
+ * quadros por segundo o jogo passa a rodar em CÂMERA LENTA, porque avança
+ * menos tempo simulado do que tempo real. Com 0,05 o piso era 20 fps — e a
+ * gravação de vídeo, com janela visível e cena 3D, fica em 8 a 10 fps. O
+ * trajeto de 87 segundos aparecia no vídeo com 4 minutos e 22, e foi dessa
+ * medida inflada que saiu o "a parte do carro está longa demais".
+ *
+ * Com 0,10 o piso cai para 10 fps. A proteção continua de pé (a 60 km/h o
+ * caminhão anda 1,67 m por quadro), e o mini-PC do totem, que também não é
+ * rápido, ganha a mesma folga.
+ */
+export const TETO_DT = 0.10
+
 /** Física do veículo. Valores de caminhão carregado, arredondados. */
 export const VEICULO = {
   aceleracao: 2.0,        // m/s²

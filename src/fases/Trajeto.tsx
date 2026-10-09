@@ -24,7 +24,7 @@ import { perfilEm, type NoTracado } from '../cena/curva'
 import { Cabine, LuzCabine } from '../cena/Cabine3D'
 import {
   CONDUTA, DISTANCIA_TOTAL, FALTAS, MAXIMO_TRAJETO, TRAJETO, VEICULO,
-  type Evento, type Trecho,
+  type Evento, type Trecho, TETO_DT,
 } from '../conteudo/trajeto'
 import type { Registro } from '../conteudo/pontuacao'
 
@@ -462,7 +462,7 @@ function Motor({
   useFrame((_, bruto) => {
     // o dt é limitado: numa aba em segundo plano ele chega em segundos e o
     // veículo atravessaria o trajeto inteiro num quadro
-    const dt = Math.min(bruto, 0.05)
+    const dt = Math.min(bruto, TETO_DT)
     if (distancia.current >= DISTANCIA_TOTAL) return
 
     let v = velocidade.current
@@ -732,6 +732,11 @@ function Motor({
 
     if (import.meta.env.DEV) {
       ;(window as unknown as Record<string, unknown>).__trajeto = {
+        // os metros dos eventos entram no gancho para quem dirige por script
+        // não precisar repetir aqui números que já moram no conteúdo
+        lombada: EVENTOS.find((e) => e.tipo === 'lombada')?.metro ?? null,
+        onibus: evento('onibus')?.metro ?? null,
+        ciclista: evento('ciclista')?.metro ?? null,
         d: +d.toFixed(1), kmh: +(v * 3.6).toFixed(1), pedal: pedal.current,
         ateParada: ateParada == null ? null : +ateParada.toFixed(1),
         ateGaragem: ateGaragem == null ? null : +ateGaragem.toFixed(1),
