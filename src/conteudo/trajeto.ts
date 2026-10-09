@@ -44,11 +44,28 @@ export type Trecho = {
   colina?: number
 }
 
+/**
+ * O trajeto tem 640 m, e já teve 1.340.
+ *
+ * O cliente viu a partida gravada e disse que a parte do carro estava longa
+ * demais — "encurtar pelo menos pela metade". Ele está certo: dos sete
+ * minutos da partida, três e meio eram dirigir, e a fase não ensina nada de
+ * novo depois que o jogador entendeu cada evento. Trecho longo não aprofunda
+ * conduta, só repete.
+ *
+ * O que NÃO mudou foi a lista de condutas: as dez continuam lá, uma por
+ * evento, com os mesmos pesos. Encurtar aqui é encurtar o espaço ENTRE as
+ * decisões, não o número delas — o que sai é asfalto vazio.
+ *
+ * O piso do encurtamento é a folga entre eventos: empilhados, o jogador reage
+ * ao mais próximo e descobre o resto no relatório. Por isso `residencial`,
+ * que tem três, continua sendo o trecho mais longo.
+ */
 export const TRAJETO: Trecho[] = [
   {
     id: 'patio',
     nome: 'Saída do pátio',
-    metros: 100,
+    metros: 40,
     limite: 20,
     aviso: 'colegas a pé entre os veículos — alguém pode sair de trás de uma caçamba',
     curva: 0,
@@ -57,50 +74,50 @@ export const TRAJETO: Trecho[] = [
   {
     id: 'avenida',
     nome: 'Avenida',
-    metros: 200,
+    metros: 75,
     limite: 60,
     aviso: 'Avenida · 60 km/h',
     curva: 0.55,
     colina: 0.35,
-    eventos: [{ em: 70, tipo: 'placa', limite: 60 }],
+    eventos: [{ em: 32, tipo: 'placa', limite: 60 }],
   },
   {
     id: 'semaforo',
     nome: 'Cruzamento com semáforo',
-    metros: 170,
+    metros: 78,
     limite: 60,
     aviso: 'Cruzamento à frente · semáforo',
     curva: -0.2,
     colina: -0.45,
-    eventos: [{ em: 115, tipo: 'semaforo' }],
+    eventos: [{ em: 50, tipo: 'semaforo' }],
   },
   {
     id: 'escola',
     nome: 'Trecho escolar',
-    metros: 170,
+    metros: 85,
     limite: 30,
     aviso: 'Escola à frente · 30 km/h · ônibus em embarque',
     curva: -0.75,
     colina: 0,
     eventos: [
-      { em: 25, tipo: 'placa', limite: 30 },
-      { em: 110, tipo: 'onibus' },
+      { em: 12, tipo: 'placa', limite: 30 },
+      { em: 58, tipo: 'onibus' },
     ],
   },
   {
     id: 'faixa',
     nome: 'Faixa de pedestre',
-    metros: 130,
+    metros: 62,
     limite: 30,
     aviso: 'Faixa de pedestre · pare e deixe atravessar',
     curva: 0,
     colina: 0.3,
-    eventos: [{ em: 70, tipo: 'faixa', comPedestre: true }],
+    eventos: [{ em: 36, tipo: 'faixa', comPedestre: true }],
   },
   {
     id: 'residencial',
     nome: 'Rua residencial',
-    metros: 220,
+    metros: 140,
     limite: 40,
     aviso: 'Rua residencial · 40 km/h · lombada e saída de garagem',
     curva: 0.8,
@@ -109,30 +126,30 @@ export const TRAJETO: Trecho[] = [
     // não chega a decidir nada — reage ao que estiver mais perto e descobre
     // o resto no relatório.
     eventos: [
-      { em: 50, tipo: 'lombada' },
-      { em: 120, tipo: 'garagem' },
-      { em: 185, tipo: 'celular' },
+      { em: 30, tipo: 'lombada' },
+      { em: 95, tipo: 'garagem' },
+      { em: 128, tipo: 'celular' },
     ],
   },
   {
     id: 'fluxo',
     nome: 'Veículo à frente',
-    metros: 190,
+    metros: 76,
     limite: 60,
     aviso: 'Veículo à frente · mantenha distância de seguimento',
     curva: 0.15,
     colina: 0.4,
-    eventos: [{ em: 60, tipo: 'carro', velocidade: 38 }],
+    eventos: [{ em: 38, tipo: 'carro', velocidade: 38 }],
   },
   {
     id: 'vicinal',
     nome: 'Estrada vicinal',
-    metros: 160,
+    metros: 84,
     limite: 60,
     aviso: 'Estrada vicinal · ciclista na pista · ultrapasse com 1,5 m',
     curva: -0.6,
     colina: -0.25,
-    eventos: [{ em: 70, tipo: 'ciclista' }],
+    eventos: [{ em: 24, tipo: 'ciclista' }],
   },
 ]
 

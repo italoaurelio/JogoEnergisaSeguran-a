@@ -46,6 +46,10 @@ FURO_N = 42
 
 Z_CHAVES = 7.70              # cruzeta das chaves fusivel, acima do trafo
 
+#: Articulacao do porta-fusivel que o jogo abre, em coordenada de MUNDO do
+#: Blender. Preenchido por `montar()`; o exportador le daqui e grava no json.
+PINO_TUBO = None
+
 # As tres fases: (x, y, z do fio). As laterais nos isoladores da cruzeta, a
 # central no pino de topo — ver a nota em `montar()`.
 Z_FIO_TOPO = ALTURA_LIVRE + 0.035 + 0.115 + 0.112
@@ -177,7 +181,7 @@ def _curva_em_malha(obj):
     return obj
 
 
-def chave_fusivel(nome, pos, mats, inclinacao=20.0):
+def chave_fusivel(nome, pos, mats, inclinacao=20.0, separar_tubo=False):
     """Chave fusivel 15 kV / 100 A — a peca que FALTAVA na cena.
 
     E a chave que o eletricista abre para desenergizar o trecho: o jogador
@@ -189,6 +193,15 @@ def chave_fusivel(nome, pos, mats, inclinacao=20.0):
     O conjunto e construido com o eixo em Z e so DEPOIS a malha e girada em
     torno de Y — girar `obj.rotation_euler` deixaria a rotacao pendente e
     `juntar` a descartaria junto com os modificadores.
+
+    `separar_tubo` devolve o porta-fusivel como OBJETO PROPRIO em vez de
+    junta-lo na porcelana. Serve para uma chave so: a do meio, que e a do
+    ramal com defeito. No jogo o eletricista abre essa chave com a vara, e
+    abrir e o porta-fusivel BASCULAR para baixo — sem no proprio nao ha o que
+    girar, e a acao central da fase 3 vira um texto na lateral da tela.
+    Devolve tambem o ponto de articulacao (o contato inferior) em coordenada
+    de mundo, porque calcular essa trigonometria de novo no jogo e repetir
+    uma conta que ja foi feita aqui.
     """
     pecas = []
     X_TUBO = 0.150          # avanco dos contatos: onde o porta-fusivel mora
@@ -243,18 +256,24 @@ def chave_fusivel(nome, pos, mats, inclinacao=20.0):
     # diferentes. Juntar aqui pintaria os contatos de marrom de porcelana.
     # separar ANTES de juntar: `join` apaga os objetos absorvidos e uma
     # segunda leitura de `pecas` cai em "StructRNA has been removed"
-    lista_porc = [o for o in pecas if "_porc_" in o.name or "_tubo_" in o.name]
+    lista_tubo = [o for o in pecas if "_tubo_" in o.name] if separar_tubo else []
+    lista_porc = [o for o in pecas
+                  if (("_porc_" in o.name or "_tubo_" in o.name)
+                      and o not in lista_tubo)]
     lista_aco = [o for o in pecas if "_aco_" in o.name]
     # O porta-fusivel e FENOLICO, quase preto — nao porcelana marrom. Sem isto
     # o tubo some dentro do corpo e a chave perde a leitura de "tem uma peca
     # que bascula". O material vai no slot ANTES do join: `join` preserva os
     # slots, e o forno junta tudo numa textura so depois.
-    for o in lista_porc:
+    for o in lista_porc + lista_tubo:
         C.aplicar(o, mats["fenolico"] if "_tubo_" in o.name else mats["porcelana"])
     porc = C.juntar(lista_porc, f"chave_porc_{nome}")
     aco = C.juntar(lista_aco, f"chave_aco_{nome}")
+    tubo_obj = C.juntar(lista_tubo, f"chave_tubo_{nome}") if lista_tubo else None
     giro = Euler((0, R(inclinacao), 0))
-    for obj in (porc, aco):
+    for obj in (porc, aco, tubo_obj):
+        if obj is None:
+            continue
         for v in obj.data.vertices:
             v.co.rotate(giro)
             v.co += Vector(pos)
@@ -267,7 +286,10 @@ def chave_fusivel(nome, pos, mats, inclinacao=20.0):
         p.rotate(giro)
         return tuple(p + Vector(pos))
 
-    return porc, aco, terminal(Z_SUP + 0.030), terminal(Z_INF - 0.010)
+    # articulacao do porta-fusivel: o contato INFERIOR. Chave fusivel abre
+    # basculando para baixo, presa embaixo — nao caindo inteira.
+    return (porc, aco, terminal(Z_SUP + 0.030), terminal(Z_INF - 0.010),
+            tubo_obj, terminal(Z_INF))
 
 
 def suporte_chaves():
@@ -545,11 +567,17 @@ def montar():
     C.aplicar(suporte_chaves(), m_galva)
     terminais = []
     mats_chave = {"porcelana": m_porcelana, "fenolico": m_fenolico}
+    tubo_movel, pino_tubo = None, None
     for i, dy in enumerate((-0.40, 0.0, 0.40)):
-        porc, aco, t_sup, t_inf = chave_fusivel(
-            f"c{i}", (0.30, dy, Z_CHAVES + 0.042), mats_chave)
+        porc, aco, t_sup, t_inf, tubo, pino = chave_fusivel(
+            f"c{i}", (0.30, dy, Z_CHAVES + 0.042), mats_chave,
+            separar_tubo=(i == 1))
         C.aplicar(aco, m_aco)
         terminais.append((t_sup, t_inf))
+        if tubo is not None:
+            tubo_movel, pino_tubo = tubo, pino
+            global PINO_TUBO
+            PINO_TUBO = pino
 
     # ---- cruzeta principal, isoladores e ferragem
     cz = C.caixa("cruzeta", CRUZETA, (0, Y_CRUZETA, Z_CRUZETA))

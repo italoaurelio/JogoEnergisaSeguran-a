@@ -15,8 +15,13 @@ import { Canvas } from '@react-three/fiber'
 import { Acabamento } from '../cena/Acabamento'
 import { Environment } from '@react-three/drei'
 import {
-  CameraDaCena, CenaOcorrencia, LuzOcorrencia, type Colocada, type Vista,
+  AlvosDoPoste, Aterramento, Bloqueio, CameraDaCena, CenaOcorrencia, Cobertura,
+  LuzOcorrencia, PortaFusivel, type Colocada, type Vista,
 } from '../cena/Ocorrencia3D'
+import {
+  ACOES, ALVOS, ESTADO_INICIAL, NOME_FERRAMENTA, RECUSAS, SEMPRE_NO_CESTO,
+  energizado, type Alvo, type Estado,
+} from '../conteudo/reparo'
 import {
   CHEGADA, FERRAMENTAL, MAXIMO_CHEGADA, MAXIMO_FERRAMENTAL, MAXIMO_REPARO,
   OCORRENCIA, PASSOS, opcoesNaTela, passosNaTela, type DecisaoChegada,
@@ -124,7 +129,46 @@ const PECAS_DA_OPCAO: Record<string, Record<string, Colocada[]>> = {
 // enquadramento anterior (alvo a 0,5 m de altura) a escada saía cortada pelo
 // topo da tela justo na etapa em que o jogador decide se leva escada.
 const VISTA_FERRAMENTAL: Vista = { de: [-5.0, 3.2, 5.4], para: [-0.7, 2.2, -0.5], lente: 32 }
-const VISTA_REPARO: Vista = { de: [5.0, 4.6, 7.2], para: [0.3, 6.4, 0.1], lente: 40 }
+// Enquadramento do reparo: tem de caber do rádio no peito (y 5,75) ao
+// condutor (y 9,22), que são 3,5 m de poste. O alvo antigo mirava y 6,4 e
+// deixava a chave fusível e o ramal fora de quadro — eram justamente os dois
+// pontos em que o jogador precisa clicar.
+// De PERTO. A 7 m a chave fusível tem 40 px na tela e o porta-fusível
+// basculando — que é a ação central da fase — não lê. A 4,7 m ela ocupa um
+// quinto da altura e o condutor ainda cabe em quadro.
+const VISTA_REPARO: Vista = { de: [3.4, 7.6, 3.7], para: [0.4, 7.62, 0.02], lente: 42 }
+
+/**
+ * Os pontos marcados NO POSTE. O rádio fica de fora de propósito.
+ *
+ * Ele está no seu peito, não no poste: como marca no mundo ele aparecia
+ * boiando no meio da rua, a 5,75 m de altura e sem nada embaixo. Quem lê a
+ * cena vê um ponto no ar. O rádio continua na lista do painel, que é onde
+ * uma coisa que está com você pertence.
+ */
+const ALVOS_NA_CENA = (Object.keys(ALVOS) as Alvo[])
+  .filter((id) => id !== 'radio')
+  .map((id) => ({ id, nome: ALVOS[id].nome, onde: ALVOS[id].onde }))
+
+/**
+ * Articulação do porta-fusível, de `public/modelos/ocorrencia.json`.
+ *
+ * Escrito pelo exportador a partir do contato inferior da chave do meio —
+ * a mesma trigonometria que posiciona a peça, em vez de um número repetido
+ * à mão aqui e lá.
+ */
+const CHAVE_PINO: [number, number, number] = [0.4563, 7.733, 0]
+
+/** Quais alvos já receberam o que precisavam, para a marca virar visto. */
+function feitosNoPoste(e: Estado) {
+  const feitos = new Set<string>()
+  if (e.desligamentoPedido) feitos.add('radio')
+  if (e.chaveAberta && e.bloqueada) feitos.add('chave')
+  if (e.ausenciaConstatada && e.aterrado) feitos.add('condutor')
+  if (e.vizinhosProtegidos) feitos.add('vizinhos')
+  if (e.eloTrocado) feitos.add('porta_fusivel')
+  return feitos
+}
 
 type Etapa = 'briefing' | 'chegada' | 'ferramental' | 'reparo'
 
@@ -142,7 +186,96 @@ export default function Fase3Ocorrencia({
   const [previa, setPrevia] = useState<string | null>(null)
   const [kit, setKit] = useState<string[]>([])
   const [ordem, setOrdem] = useState<string[]>([])
-  const [erradosNaOrdem, setErrados] = useState<string[]>([])
+  /** O que já aconteceu no poste. É o estado que decide o que cada ação faz. */
+  const [estadoPoste, setEstadoPoste] = useState<Estado>(ESTADO_INICIAL)
+  const [acidentes, setAcidentes] = useState<{ porque: string }[]>([])
+  /*
+    A FERRAMENTA NA MÃO mora aqui, e não dentro do `Reparo`.
+
+    Os dois caminhos de clique — a marca sobre o poste em 3D e a lista no
+    painel — têm de chamar exatamente a mesma função. Com o estado dentro do
+    painel, o 3D precisaria de uma ponte por ref para alcançá-lo, e ponte por
+    ref entre irmãos é o tipo de coisa que funciona até alguém mexer.
+  */
+  const [ferramenta, setFerramenta] = useState<string | null>(null)
+  const [recado, setRecado] = useState<
+    { tom: 'ok' | 'nao' | 'morte'; texto: string } | null>(null)
+  const [clarao, setClarao] = useState(false)
+
+  const usar = useCallback((alvo: string) => {
+    if (!ferramenta) return
+    const acao = ACOES.find(
+      (a) => a.ferramenta === ferramenta && a.alvo === alvo && a.quando(estadoPoste),
+    )
+
+    if (!acao) {
+      const recusa = RECUSAS.find((r) => r.ferramenta === ferramenta && r.alvo === alvo)
+      setRecado({
+        tom: 'nao',
+        texto: recusa?.porque
+          ?? `${NOME_FERRAMENTA[ferramenta]} não tem o que fazer em `
+             + `${ALVOS[alvo as Alvo].nome.toLowerCase()} agora.`,
+      })
+      setFerramenta(null)
+      return
+    }
+
+    /*
+      A RELIGAÇÃO. É o acidente que a NR-10 inteira existe para evitar, e o
+      único do jogo que não vem de um gesto — vem de uma OMISSÃO.
+
+      Quem abre a chave e não bloqueia deixa o Centro de Operação sem saber
+      que tem gente na linha. O Centro vê um ramal aberto e religa. Aqui isso
+      acontece no instante em que o jogador põe a mão no porta-fusível: o
+      trecho volta a ficar vivo um quadro antes de a ação ser avaliada.
+    */
+    let agora = estadoPoste
+    let porReligacao = false
+    if (acao.passo === 'executar' && estadoPoste.chaveAberta && !estadoPoste.bloqueada) {
+      agora = { ...estadoPoste, religado: true }
+      porReligacao = true
+      setEstadoPoste(agora)
+    }
+
+    // O texto do acidente tem de dizer o que ACONTECEU. Reaproveitar o
+    // genérico aqui ("trocar elo com a chave fechada") mente para quem abriu
+    // a chave direitinho e só esqueceu o cadeado — e é justamente essa
+    // pessoa que precisa entender por que o cadeado existe.
+    const morte = porReligacao
+      ? 'Você abriu a chave, mas não bloqueou. O Centro de Operação viu um '
+        + 'ramal aberto, não sabia que tinha gente na linha, e religou o '
+        + 'trecho — com a sua mão no porta-fusível.'
+      : acao.mata?.(agora)
+    if (morte) {
+      /*
+        DEPOIS DO ACIDENTE, O SERVIÇO CONTINUA.
+
+        Sem isto a fase travava: `religado` ficava ligado para sempre, todo
+        aterrar e todo trocar-elo seguintes matavam de novo, e `eloTrocado`
+        nunca chegava a virar verdadeiro — laço infinito de arco elétrico,
+        sem saída e sem botão de encerrar.
+
+        O arco abre a proteção a montante, então o trecho fica morto de novo.
+        O jogador se recompõe e segue; o acidente fica registrado e desconta
+        no relatório. É o que o cliente pediu: o cara toma o choque e
+        recomeça.
+      */
+      setEstadoPoste((e) => ({ ...e, religado: false, chaveAberta: true }))
+      setAcidentes((a) => [...a, { porque: morte }])
+      setClarao(true)
+      window.setTimeout(() => setClarao(false), 1500)
+      som.veredito(false)
+      setRecado({ tom: 'morte', texto: morte })
+      setFerramenta(null)
+      return
+    }
+
+    setEstadoPoste((e) => ({ ...e, ...acao.aplicar(e) }))
+    setOrdem((a) => [...a, acao.passo])
+    som.chave()
+    setRecado({ tom: 'ok', texto: acao.feito })
+    setFerramenta(null)
+  }, [ferramenta, estadoPoste])
 
   const colocadas = useMemo<Colocada[]>(() => {
     const saida: Colocada[] = []
@@ -240,16 +373,47 @@ export default function Fase3Ocorrencia({
       })
     }
 
+    // ACIDENTE NÃO É UM PASSO FORA DE ORDEM: é um evento, e desconta.
+    // Sem isto, quem leva um arco elétrico e depois executa tudo na ordem
+    // sai com a mesma nota de quem não levou — e a fase ensinaria que
+    // encostar em linha viva é um detalhe de percurso.
+    acidentes.forEach((a, i) => {
+      registros.push({
+        fase: 'ocorrencia', id: `acidente_${i}`,
+        titulo: 'Acidente: contato com parte energizada',
+        veredito: 'incorreta', pontos: -18, porque: a.porque,
+        norma: 'NR-10 — desenergização antes de qualquer intervenção',
+      })
+    })
+
     aoConcluir(registros, MAXIMO_CHEGADA + MAXIMO_FERRAMENTAL + MAXIMO_REPARO)
-  }, [escolhas, kit, ordem, aoConcluir])
+  }, [escolhas, kit, ordem, acidentes, aoConcluir])
 
   return (
     <div className="vestiario">
+      {/* O CLARÃO cobre a tela inteira, e por isso mora aqui e não dentro do
+          painel: `.vestiario-painel` tem `overflow: hidden` e recortava o
+          arco elétrico numa tira na lateral direita. */}
+      {clarao && <div className="clarao" aria-hidden />}
       <div className="vestiario-palco">
         <Canvas dpr={[1, 1.5]} shadows camera={{ position: [-16, 8, 18], fov: 40 }}>
           <Environment files="./hdri/ceu.hdr" environmentIntensity={0.22} />
           <LuzOcorrencia />
           <CenaOcorrencia colocadas={colocadas} />
+          {etapa === 'reparo' && (
+            <>
+              <AlvosDoPoste
+                alvos={ALVOS_NA_CENA}
+                ativo={null}
+                feitos={feitosNoPoste(estadoPoste)}
+                escolher={usar}
+              />
+              <PortaFusivel aberta={estadoPoste.chaveAberta} pino={CHAVE_PINO} />
+              <Aterramento posto={estadoPoste.aterrado} />
+              <Bloqueio posto={estadoPoste.bloqueada} />
+              <Cobertura posta={estadoPoste.vizinhosProtegidos} />
+            </>
+          )}
           <CameraDaCena vista={vista} />
           <Acabamento raio={2.2} />
         </Canvas>
@@ -295,17 +459,17 @@ export default function Fase3Ocorrencia({
 
         {etapa === 'reparo' && (
           <Reparo
+            kit={kit}
+            estado={estadoPoste}
             ordem={ordem}
-            errados={erradosNaOrdem}
-            escolher={(id) => {
-              const esperado = PASSOS[ordem.length]
-              if (id !== esperado.id) setErrados((a) => [...a, id])
-              setOrdem((a) => [...a, id])
-              // o estalo da chave marca que a manobra foi feita; não diz se
-              // foi na ordem certa, que é o que esta fase está avaliando
-              som.chave()
-            }}
+            acidentes={acidentes}
             concluir={concluir}
+            ferramenta={ferramenta}
+            setFerramenta={(f) => { setFerramenta(f); setRecado(null) }}
+            recado={recado}
+            setRecado={setRecado}
+            clarao={clarao}
+            usar={usar}
           />
         )}
       </aside>
@@ -445,72 +609,129 @@ function Ferramental({
   )
 }
 
+/**
+ * O REPARO. Ferramenta no alvo, não frase numa lista.
+ *
+ * O jogador pega uma ferramenta do cesto e encosta num ponto do poste. Cada
+ * par (ferramenta, alvo) é uma ação da NR-10, e a ordem em que elas saem é a
+ * ordem que a fase avalia — a mesma nota de antes, obtida jogando em vez de
+ * ordenando frases.
+ *
+ * Três coisas fazem isto ser jogo e não formulário:
+ *
+ *  1. O jogador NÃO VÊ se a linha está energizada. O detector é o único jeito
+ *     de saber, e quem pula o detector descobre encostando.
+ *  2. Ferramenta errada no alvo certo é RECUSADA COM MOTIVO. A recusa é
+ *     conteúdo: é onde se diz por que o multímetro de bancada não mede 13,8 kV.
+ *  3. Erro grave tem consequência na hora, não no relatório. Aterrar com a
+ *     chave fechada dá arco elétrico, na tela, com o eletricista levando o
+ *     tranco. Caricato de propósito: isto é treinamento, não simulação de
+ *     acidente.
+ */
 function Reparo({
-  ordem, errados, escolher, concluir,
+  kit, estado, ordem, acidentes, concluir,
+  ferramenta, setFerramenta, recado, setRecado, clarao, usar,
 }: {
+  kit: string[]
+  estado: Estado
   ordem: string[]
-  errados: string[]
-  escolher: (id: string) => void
+  acidentes: { porque: string }[]
   concluir: () => void
+  ferramenta: string | null
+  setFerramenta: (f: string | null) => void
+  recado: { tom: 'ok' | 'nao' | 'morte'; texto: string } | null
+  setRecado: (r: null) => void
+  clarao: boolean
+  usar: (alvo: string) => void
 }) {
-  // ordem de TELA, nunca a da norma: a da norma é o gabarito
-  const restantes = passosNaTela().filter((p) => !ordem.includes(p.id))
-  const acabou = restantes.length === 0
+  /** O que o cesto tem: o que sempre sobe mais o que o jogador separou. */
+  const cesto = useMemo(
+    () => [...SEMPRE_NO_CESTO, ...kit].filter((f) => NOME_FERRAMENTA[f]),
+    [kit],
+  )
+
+  const alvos = useMemo(
+    () => (Object.keys(ALVOS) as Alvo[]).map((id) => ({
+      id, nome: ALVOS[id].nome, onde: ALVOS[id].onde,
+    })),
+    [],
+  )
+
+  const acabou = estado.eloTrocado && !estado.aterrado && estado.comunicado
 
   return (
     <>
       <header className="painel-topo">
         <p className="sobretitulo">Fase 3 · O reparo</p>
-        <h2>Passo {Math.min(ordem.length + 1, PASSOS.length)} de {PASSOS.length}</h2>
+        <h2>{ferramenta ? 'Onde você vai usar?' : 'O que você vai fazer?'}</h2>
         <p className="painel-texto">
-          Qual é o próximo passo? A ordem é o que se está avaliando aqui.
+          {ferramenta
+            ? `${NOME_FERRAMENTA[ferramenta]} na mão. Clique no ponto do poste.`
+            : 'Pegue uma coisa do cesto e encoste onde ela serve. A ordem é o que está sendo avaliado.'}
         </p>
       </header>
 
-      {!acabou ? (
-        <ul className="arara">
-          {restantes.map((p) => (
-            <li key={p.id}>
+      <section className="grupo cresce">
+        <h3>No cesto</h3>
+        <ul className="cesto">
+          {cesto.map((f) => (
+            <li key={f}>
               <button
-                className="item"
-                onClick={() => escolher(p.id)}
-                aria-label={p.texto}
+                className={`ferramenta ${ferramenta === f ? 'na-mao' : ''}`}
+                onClick={() => { setFerramenta(ferramenta === f ? null : f); setRecado(null) }}
               >
-                <span className="item-nome">{p.texto}</span>
+                {NOME_FERRAMENTA[f]}
               </button>
             </li>
           ))}
         </ul>
-      ) : (
-        <section className="grupo cresce">
-          <h3>Sequência executada</h3>
-          <ol className="passos">
+
+        {/*
+          Os mesmos alvos que estão no poste, repetidos aqui em texto.
+          Não é redundância: num totem de 1366 px a marca sobre o condutor
+          fica a 14 px da marca sobre a rede vizinha, e dedo não acerta isso.
+        */}
+        {ferramenta && (
+          <>
+            <h3 style={{ marginTop: 18 }}>Em quê</h3>
+            <div className="opcoes coluna">
+              {alvos.map((a) => (
+                <button key={a.id} className="opcao alta" onClick={() => usar(a.id)}>
+                  {a.nome} <span className="alvo-dica">{ALVOS[a.id as Alvo].dica}</span>
+                </button>
+              ))}
+              <button className="btn btn-fraco" onClick={() => setFerramenta(null)}>
+                Guardar de volta
+              </button>
+            </div>
+          </>
+        )}
+
+        {recado && !ferramenta && (
+          <p className={`recado recado-${recado.tom}`}>{recado.texto}</p>
+        )}
+
+        {!ferramenta && (
+          <ol className="feito-ate-agora">
             {ordem.map((id, i) => {
-              const p = PASSOS.find((x) => x.id === id)!
-              const certo = PASSOS[i].id === id
-              return (
-                <li key={id} className={certo ? '' : 'perdido'}>
-                  {p.texto}
-                  {!certo && <em className="selo-veredito">fora de ordem</em>}
-                </li>
-              )
+              const p = PASSOS.find((x) => x.id === id)
+              return <li key={`${id}_${i}`}>{p?.texto ?? id}</li>
             })}
           </ol>
-        </section>
-      )}
+        )}
+      </section>
 
       <div className="painel-rodape">
-        {errados.length > 0 && (
+        {acidentes.length > 0 && (
           <p className="painel-aviso">
-            {errados.length} passo(s) fora de ordem — aparecem no relatório.
+            {acidentes.length} acidente(s) — aparecem no relatório.
           </p>
         )}
-        {acabou && (
-          <button className="btn btn-grande" onClick={concluir}>
-            Encerrar o serviço
-          </button>
-        )}
+        <button className="btn btn-grande" onClick={concluir} disabled={!acabou}>
+          {acabou ? 'Encerrar o serviço' : 'O serviço ainda não terminou'}
+        </button>
       </div>
     </>
   )
 }
+

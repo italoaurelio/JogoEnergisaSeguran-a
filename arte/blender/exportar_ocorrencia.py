@@ -16,6 +16,7 @@ import cenario as CEN
 import caminhao as CAM
 import ocorrencia as OC
 import exportar as X
+import poste as P
 
 SAIDA = os.path.join(C.RAIZ, "export")
 TEX_SAIDA = os.path.join(SAIDA, "tex")
@@ -25,6 +26,13 @@ GRUPOS = [
     ("oc_poste",         2048, ("poste",)),
     ("oc_madeira",       1024, ("cruzeta", "suporte")),
     ("oc_porcelana",     1024, ("isolador", "bucha", "chave_porc")),
+    # O PORTA-FUSIVEL DA CHAVE DO MEIO, em no proprio.
+    #
+    # Sem isto ele fica dentro de `oc_porcelana` e nao ha o que girar: abrir
+    # a chave — que e a acao central da fase 3 — viraria texto na lateral da
+    # tela. Com no proprio, o jogo bascula o tubo em torno do contato
+    # inferior e o jogador VE o trecho ser seccionado.
+    ("oc_chave_tubo",     256, ("chave_tubo",)),
     ("oc_metal",          512, ("pino", "pf", "amarra", "terra_", "mao",
                                 "degrau", "placa_id", "chave_aco", "trafo_")),
     ("oc_transformador", 2048, ("transformador",)),
@@ -158,6 +166,10 @@ def processar():
             "soltas": catalogo,
             # Blender (x, y, z) -> glTF com Y para cima: (x, z, -y). O jogo
             # gira a lanca em torno do PINO e leva o cesto pelo mesmo giro.
+            # articulacao do porta-fusivel, ja em coordenada do jogo
+            "chavePino": ([round(P.PINO_TUBO[0], 4), round(P.PINO_TUBO[2], 4),
+                           round(-P.PINO_TUBO[1], 4)]
+                          if P.PINO_TUBO else None),
             "pino": [round(CAM.PINO[0], 4), round(CAM.PINO[2], 4),
                      round(-CAM.PINO[1], 4)],
             "cestoBase": [round(CAM.CESTO_BASE[0], 4), round(CAM.CESTO_BASE[2], 4),

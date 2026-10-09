@@ -8,7 +8,7 @@
  */
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useGLTF } from '@react-three/drei'
+import { Html, useGLTF } from '@react-three/drei'
 import { som } from '../som'
 import * as THREE from 'three'
 
@@ -276,6 +276,168 @@ function CestoAereo({
 }
 
 const EIXO_Z = new THREE.Vector3(0, 0, 1)
+
+/* ====================================================================
+   O REPARO COMO CENA, não como lista
+   ====================================================================
+   Tudo daqui para baixo existe porque a fase 3c era um formulário: nove
+   frases numa lista, clicadas na ordem. O que o eletricista escolhe no
+   serviço não é uma frase — é uma FERRAMENTA, e um LUGAR para encostar
+   ela. Estas peças são esses lugares.
+   ==================================================================== */
+
+/**
+ * As marcas em que se pode encostar uma ferramenta.
+ *
+ * Mesmo `Html` do vestiário, e pelo mesmo motivo: o alvo tem de ter tamanho
+ * de dedo num totem, e sprite encolhe quando a câmera recua. Aqui a câmera
+ * fica a 7 m do poste, então sprite seria um ponto.
+ */
+export function AlvosDoPoste({
+  alvos, ativo, feitos, escolher,
+}: {
+  alvos: { id: string; nome: string; onde: [number, number, number] }[]
+  /** Alvo sob o cursor da ferramenta escolhida, ou null. */
+  ativo: string | null
+  /** Alvos que já receberam o que precisavam. */
+  feitos: Set<string>
+  escolher: (id: string) => void
+}) {
+  return (
+    <>
+      {alvos.map((a) => (
+        <Html key={a.id} position={a.onde} center zIndexRange={[14, 2]}>
+          <button
+            className={`alvo ${feitos.has(a.id) ? 'alvo-feito' : ''} ${
+              ativo === a.id ? 'alvo-mirado' : ''}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); escolher(a.id) }}
+            title={a.nome}
+          >
+            <span className="alvo-ponto" />
+            <span className="alvo-nome">{a.nome}</span>
+          </button>
+        </Html>
+      ))}
+    </>
+  )
+}
+
+/**
+ * O porta-fusível basculando.
+ *
+ * O nó `oc_chave_tubo` sai do Blender JÁ nas coordenadas de mundo dele, com
+ * transformação identidade. Para girar em torno de um pino qualquer sem
+ * reparentar nada — e reparentar não dá, porque a cena inteira entra como um
+ * `primitive` só — a conta é: posição = pino − R·pino. É a mesma rotação em
+ * torno de ponto arbitrário de sempre, escrita no próprio nó.
+ */
+export function PortaFusivel({
+  aberta, pino,
+}: {
+  aberta: boolean
+  pino: [number, number, number] | null
+}) {
+  const { scene } = useGLTF(MODELO, DRACO)
+  const atual = useRef(0)
+  const eixo = useMemo(() => new THREE.Vector3(0, 0, 1), [])
+
+  useFrame((_, dt) => {
+    const no = scene.getObjectByName('oc_chave_tubo')
+    if (!no || !pino) return
+    const alvo = aberta ? ABERTURA_CHAVE : 0
+    // devagar: a vara empurra o tubo e ele cai pelo próprio peso, não salta
+    atual.current += (alvo - atual.current) * Math.min(1, dt * 3.4)
+    const q = new THREE.Quaternion().setFromAxisAngle(eixo, atual.current)
+    const p = new THREE.Vector3(...pino)
+    no.quaternion.copy(q)
+    no.position.copy(p).sub(p.clone().applyQuaternion(q))
+  })
+  return null
+}
+
+/** Quanto o porta-fusível bascula ao abrir. Chave aberta fica pendurada. */
+const ABERTURA_CHAVE = -2.0
+
+/**
+ * O aterramento temporário, desenhado — não modelado.
+ *
+ * São três cabos de cobre nu do condutor até a haste de terra. Desenhar aqui
+ * em vez de modelar no Blender não é atalho: o aterramento só existe depois
+ * que o jogador o instala, e ele precisa APARECER no instante do clique.
+ * Peça do .glb seria mais um nó para ligar e desligar, com um ciclo de export
+ * por ajuste de traçado.
+ */
+export function Aterramento({ posto }: { posto: boolean }) {
+  const grupo = useRef<THREE.Group>(null)
+  const curva = useMemo(() => new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.95, 9.20, 0.10),
+    new THREE.Vector3(0.75, 8.10, 0.16),
+    new THREE.Vector3(0.52, 6.20, 0.12),
+    new THREE.Vector3(0.38, 3.40, 0.08),
+    new THREE.Vector3(0.46, 0.60, 0.26),
+    new THREE.Vector3(0.52, 0.04, 0.34),
+  ]), [])
+
+  useFrame((_, dt) => {
+    const g = grupo.current
+    if (!g) return
+    const alvo = posto ? 1 : 0
+    const e = g.scale.y + (alvo - g.scale.y) * Math.min(1, dt * 6)
+    g.scale.setScalar(Math.max(0.0001, e))
+    g.visible = e > 0.02
+  })
+
+  return (
+    <group ref={grupo} scale={0.0001}>
+      <mesh>
+        <tubeGeometry args={[curva, 40, 0.012, 6, false]} />
+        <meshStandardMaterial color="#b87333" roughness={0.42} metalness={0.85} />
+      </mesh>
+      {/* haste de terra cravada no chão: sem ela o cabo morre no nada */}
+      <mesh position={[0.52, 0.22, 0.34]}>
+        <cylinderGeometry args={[0.016, 0.016, 0.44, 8]} />
+        <meshStandardMaterial color="#9a6b3f" roughness={0.5} metalness={0.8} />
+      </mesh>
+      {/* grampo no condutor */}
+      <mesh position={[0.95, 9.20, 0.10]}>
+        <boxGeometry args={[0.07, 0.09, 0.07]} />
+        <meshStandardMaterial color="#d8dde2" roughness={0.35} metalness={0.9} />
+      </mesh>
+    </group>
+  )
+}
+
+/** Cadeado e etiqueta na chave. Vermelho porque etiqueta de bloqueio é. */
+export function Bloqueio({ posto }: { posto: boolean }) {
+  if (!posto) return null
+  return (
+    <group position={[0.46, 7.52, 0.0]}>
+      <mesh>
+        <boxGeometry args={[0.02, 0.16, 0.11]} />
+        <meshStandardMaterial
+          color="#d3302a" roughness={0.6}
+          emissive="#5a0f0c" emissiveIntensity={0.5}
+        />
+      </mesh>
+      <mesh position={[0, 0.11, 0]}>
+        <torusGeometry args={[0.035, 0.008, 6, 14, Math.PI]} />
+        <meshStandardMaterial color="#cfd4d9" roughness={0.3} metalness={0.9} />
+      </mesh>
+    </group>
+  )
+}
+
+/** Cobertura isolante na rede vizinha: mangote laranja por cima do cabo. */
+export function Cobertura({ posta }: { posta: boolean }) {
+  if (!posta) return null
+  return (
+    <mesh position={[-0.95, 9.22, 0.10]} rotation={[0, 0, Math.PI / 2]}>
+      <cylinderGeometry args={[0.055, 0.055, 1.5, 10]} />
+      <meshStandardMaterial color="#d2641c" roughness={0.65} />
+    </mesh>
+  )
+}
 
 const MOVEIS = new Set([
   'oc_veiculo', 'oc_veiculo_lanca', 'oc_veiculo_cesto',

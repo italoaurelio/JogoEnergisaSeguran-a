@@ -46,8 +46,13 @@ const PARAR_ATRAS_DO_ONIBUS = 9
  * `restante / 4`, o que faz o caminhão desacelerar sozinho e parar no ponto,
  * ao lado do poste. Acelerar no fim não muda nada, que é o que acontece
  * quando se chega mesmo.
+ *
+ * 42 e não 70: com o trajeto cortado para 640 m, o ciclista ficou no metro
+ * 580 e a rampa de 70 m começaria em 570 — o caminhão já estaria encostando
+ * sozinho ANTES de passar pelo ciclista, e a última conduta da fase seria
+ * julgada numa velocidade que o jogador não escolheu.
  */
-const CHEGADA_M = 70
+const CHEGADA_M = 42
 
 /** Fim de escala do velocímetro. O trecho mais rápido é 60 km/h. */
 const ESCALA_VELOCIMETRO = 80
