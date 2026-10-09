@@ -29,6 +29,49 @@ export type Colocada = {
   tombo?: [number, number]
   /** Só o caminhão: 0 lança de transporte, 1 cesto no alto. */
   elevacao?: number
+  /**
+   * PRÉVIA: a peça aparece translúcida, já no lugar, sem andar, sem cair e
+   * sem som. É o que o jogador vê enquanto ainda está decidindo — e vira
+   * peça de verdade quando ele confirma.
+   */
+  fantasma?: boolean
+  /** Escada de alumínio: mesma malha da de fibra, acabamento de metal nu. */
+  metal?: boolean
+}
+
+/**
+ * Deixa uma cópia translúcida.
+ *
+ * Os materiais TÊM de ser clonados: `Object3D.clone(true)` copia a árvore mas
+ * compartilha o material com o original, então baixar a opacidade aqui
+ * apagaria metade do caminhão de verdade junto. Os clones são devolvidos para
+ * quem chamou poder descartá-los quando a prévia sai de cena.
+ */
+function fantasmar(raiz: THREE.Object3D): THREE.Material[] {
+  const criados: THREE.Material[] = []
+  raiz.traverse((n) => {
+    const m = n as THREE.Mesh
+    if (!m.isMesh) return
+    const lista = Array.isArray(m.material) ? m.material : [m.material]
+    const novos = lista.map((x) => {
+      const c = (x as THREE.MeshStandardMaterial).clone()
+      c.transparent = true
+      c.opacity = 0.36
+      // sem isto as faces de trás da própria peça furam a de frente e a
+      // prévia vira um emaranhado em vez de um volume
+      c.depthWrite = false
+      c.emissive = new THREE.Color('#4fe39b')
+      c.emissiveIntensity = 0.55
+      c.metalness = 0
+      c.roughness = 1
+      criados.push(c)
+      return c
+    })
+    m.material = novos.length === 1 ? novos[0] : novos
+    m.castShadow = false
+    m.receiveShadow = false
+  })
+  return criados
 }
 
 /**
@@ -93,13 +136,22 @@ export function CenaOcorrencia({ colocadas }: { colocadas: Colocada[] }) {
  * aparece pronto no chão não parece colocado por ninguém.
  */
 function Peca({ molde, c }: { molde: THREE.Object3D; c: Colocada }) {
+  const descartar = useRef<THREE.Material[]>([])
   const obj = useMemo(() => {
     const base = molde.getObjectByName(c.peca)
     if (!base) return null
     const clone = base.clone(true)
     clone.visible = true
+    if (c.metal) descartar.current.push(...metalizar(clone))
+    if (c.fantasma) descartar.current.push(...fantasmar(clone))
     return clone
-  }, [molde, c.peca])
+  }, [molde, c.peca, c.fantasma, c.metal])
+
+  // material clonado não é recolhido pelo coletor do navegador: fica na GPU
+  useEffect(() => () => {
+    for (const m of descartar.current) m.dispose()
+    descartar.current = []
+  }, [obj])
 
   const grupo = useRef<THREE.Group>(null)
   const alvo = useMemo(() => new THREE.Vector3(...c.pos), [c.pos])
@@ -112,13 +164,15 @@ function Peca({ molde, c }: { molde: THREE.Object3D; c: Colocada }) {
     if (!g) return
     if (inicio.current) {
       inicio.current = false
-      // o caminhão já entra no lugar certo (ele está CHEGANDO); o resto cai
+      // o caminhão já entra no lugar certo (ele está CHEGANDO); o resto cai.
+      // A prévia nunca cai: ela não é uma peça sendo colocada, é o desenho
+      // de onde ela ficaria.
       g.position.copy(alvo)
-      if (c.peca !== 'oc_veiculo') g.position.y += 0.6
+      if (c.peca !== 'oc_veiculo' && !c.fantasma) g.position.y += 0.6
     }
     const antes = g.position.x
     g.position.lerp(alvo, Math.min(1, dt * 2.6))
-    if (c.peca === 'oc_veiculo') {
+    if (c.peca === 'oc_veiculo' && !c.fantasma) {
       // velocidade real da peça vira rotação de motor: o caminhão que
       // manobra se ouve, e para de se ouvir quando estaciona
       const v = Math.abs(g.position.x - antes) / Math.max(dt, 1e-3)
@@ -135,10 +189,43 @@ function Peca({ molde, c }: { molde: THREE.Object3D; c: Colocada }) {
     >
       <primitive object={obj} />
       {c.peca === 'oc_veiculo' && (
-        <CestoAereo molde={molde} elevacao={c.elevacao ?? 0} />
+        <CestoAereo
+          molde={molde} elevacao={c.elevacao ?? 0} fantasma={c.fantasma}
+        />
       )}
     </group>
   )
+}
+
+/**
+ * A escada de alumínio é a MESMA malha da de fibra, com o acabamento trocado.
+ *
+ * Modelar uma segunda escada só para a resposta errada seria caro e inútil:
+ * a diferença que importa entre as duas não é a forma, é o material — uma
+ * conduz e a outra não. Alumínio nu, espelhando a rede logo acima, diz isso
+ * numa olhada.
+ */
+function metalizar(raiz: THREE.Object3D): THREE.Material[] {
+  const criados: THREE.Material[] = []
+  raiz.traverse((n) => {
+    const m = n as THREE.Mesh
+    if (!m.isMesh) return
+    const lista = Array.isArray(m.material) ? m.material : [m.material]
+    const novos = lista.map((x) => {
+      const c = (x as THREE.MeshStandardMaterial).clone()
+      // metal quase puro (0,95) ficava PRETO: o céu desta cena é um HDRI a
+      // 0,22 de intensidade, e metal sem nada para refletir reflete o escuro.
+      // Alumínio escovado real já é difuso o bastante para 0,55/0,38.
+      c.color = new THREE.Color('#ced4da')
+      c.metalness = 0.55
+      c.roughness = 0.38
+      criados.push(c)
+      return c
+    })
+    m.material = novos.length === 1 ? novos[0] : novos
+    return
+  })
+  return criados
 }
 
 /**
@@ -147,14 +234,16 @@ function Peca({ molde, c }: { molde: THREE.Object3D; c: Colocada }) {
  * grupo no pino segura a lança (deslocada de −pino para girar em torno dele),
  * e o cesto recebe a posição já girada, com rotação zero.
  */
-function CestoAereo({ molde, elevacao }: { molde: THREE.Object3D; elevacao: number }) {
+function CestoAereo({
+  molde, elevacao, fantasma,
+}: { molde: THREE.Object3D; elevacao: number; fantasma?: boolean }) {
   const pecas = useMemo(() => {
     const l = molde.getObjectByName('oc_veiculo_lanca')?.clone(true)
     const c = molde.getObjectByName('oc_veiculo_cesto')?.clone(true)
-    if (l) l.visible = true
-    if (c) c.visible = true
+    if (l) { l.visible = true; if (fantasma) fantasmar(l) }
+    if (c) { c.visible = true; if (fantasma) fantasmar(c) }
     return { lanca: l ?? null, cesto: c ?? null }
-  }, [molde])
+  }, [molde, fantasma])
 
   const eixo = useRef<THREE.Group>(null)
   const cestoRef = useRef<THREE.Group>(null)

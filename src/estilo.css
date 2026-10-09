@@ -784,3 +784,159 @@ body {
   55% { opacity: .55 }
   to { opacity: 1 }
 }
+
+/* ===================================================================
+   VESTIÁRIO REFEITO
+   -------------------------------------------------------------------
+   Paleta própria, escopada em `.vest`. O jogo inteiro é grafite azulado
+   (#0f1419); o vestiário era a MESMA cor do trajeto noturno e da
+   ocorrência, e com o 3D cinza ao lado a fase inteira lia como um
+   formulário escuro. Aqui ele é verde-grafite quente, do lado do verde
+   dos armários que aparecem atrás do personagem: a interface e a cena
+   passam a ser o mesmo lugar.
+
+   As variáveis são redefinidas, não duplicadas — tudo que já usa
+   `var(--painel)` e `var(--borda)` segue junto sem uma linha a mais.
+   =================================================================== */
+.vest {
+  --painel: #16211c;
+  --painel-claro: #1f2e26;
+  --borda: #2f4238;
+  --verde: #27a35f;
+  --verde-claro: #55d892;
+  --ambar: #e3b452;
+  --texto-fraco: #a3b6a9;
+}
+.vest .vestiario-palco {
+  background:
+    radial-gradient(110% 85% at 50% 18%, #2e2b24 0%, #16140f 64%, #0c0b08 100%);
+}
+.vest .vestiario-painel { border-left: 1px solid #2f4238; }
+.vest .sobretitulo { color: var(--verde-claro); }
+
+.vest-data {
+  margin-top: 12px; font-size: 13px; color: var(--ambar);
+  letter-spacing: 0.04em;
+}
+.vest-contagem { font-size: 14px; color: var(--texto-fraco); margin-bottom: 12px; }
+.vest-contagem b { color: var(--texto); font-size: 17px; }
+
+/* ------------------------------------------------- marcas sobre o corpo */
+.marca {
+  position: relative; width: 32px; height: 32px; padding: 0;
+  border-radius: 50%; border: 2px solid currentColor; cursor: pointer;
+  background: rgba(8, 16, 11, 0.58); display: grid; place-items: center;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.marca:hover { transform: scale(1.14); }
+.marca.vazia { color: var(--ambar); animation: pulsa-marca 2s ease-in-out infinite; }
+.marca.cheia { color: var(--verde-claro); }
+.marca.aberta { box-shadow: 0 0 0 5px rgba(85, 216, 146, 0.22); }
+.marca-ponto {
+  width: 10px; height: 10px; border-radius: 50%; background: currentColor;
+}
+.marca.cheia .marca-ponto {
+  width: 14px; height: 14px; border-radius: 3px;
+  /* o ✓ em CSS: duas bordas de uma caixa girada. Fonte não serve, porque o
+     glifo muda de desenho entre o mac daqui e o Windows do totem. */
+  background: none; border-right: 3px solid currentColor;
+  border-bottom: 3px solid currentColor; transform: rotate(40deg) translate(-1px, -2px);
+  height: 11px; width: 7px;
+}
+.marca-nome {
+  position: absolute; left: 130%; top: 50%; transform: translateY(-50%);
+  white-space: nowrap; font: 600 13px/1 'Segoe UI', system-ui, sans-serif;
+  color: #e9f3ec; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+@keyframes pulsa-marca {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(227, 180, 82, 0.0); }
+  50% { box-shadow: 0 0 0 7px rgba(227, 180, 82, 0.16); }
+}
+
+/* --------------------------------------------------- arara com etiqueta */
+.vest .item { flex-direction: row; align-items: center; gap: 14px; }
+.item-acao {
+  margin-left: auto; flex: 0 0 auto; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.10em; text-transform: uppercase; color: var(--texto-fraco);
+  border: 1px solid var(--borda); border-radius: 999px; padding: 5px 10px;
+}
+.vest .item.ativa { border-color: var(--verde); background: #16352a; }
+.vest .item.ativa .item-acao { color: var(--verde-claro); border-color: var(--verde); }
+
+/* ----------------------------------------------- bancada de inspeção */
+.bancada {
+  flex: 1; overflow-y: auto; padding: 4px 26px 16px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.bancada-peca { display: flex; gap: 16px; align-items: flex-start; }
+.bancada-peca h3 {
+  font-size: 20px; font-weight: 700; color: var(--texto);
+  text-transform: none; letter-spacing: 0; margin: 0;
+}
+.bancada-icone {
+  flex: 0 0 auto; width: 68px; height: 68px; border-radius: 14px;
+  display: grid; place-items: center; color: var(--verde-claro);
+  background: var(--painel-claro); border: 1px solid var(--borda);
+}
+.bancada-icone svg { width: 40px; height: 40px; }
+
+/* A etiqueta é lida, não interpretada: papel claro sobre o painel escuro,
+   fonte de máquina, sem nenhuma cor de julgamento. Quem decide é o jogador. */
+.etiqueta {
+  background: #e9e5d8; color: #23201a; border-radius: 10px;
+  padding: 16px 18px; display: grid; gap: 12px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  font-family: 'Consolas', 'SF Mono', ui-monospace, monospace;
+}
+.etiqueta > div { display: grid; gap: 3px; }
+.etiqueta dt {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.12em;
+  color: #6d665a; font-weight: 700;
+}
+.etiqueta dd { font-size: 15px; line-height: 1.35; }
+
+/* --------------------------------------------------------- conferência */
+.conferencia {
+  list-style: none; flex: 1; overflow-y: auto;
+  padding: 10px 26px 12px; display: flex; flex-direction: column; gap: 12px;
+}
+.conferencia li {
+  border-left: 4px solid var(--borda); border-radius: 0 10px 10px 0;
+  background: var(--painel-claro); padding: 13px 16px;
+  animation: entra-conf 0.32s ease both;
+}
+@keyframes entra-conf {
+  from { opacity: 0; transform: translateX(-14px); }
+  to { opacity: 1; transform: none; }
+}
+.conf-vaga {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--texto-fraco); font-weight: 700;
+}
+.conf-peca { font-size: 16px; font-weight: 600; margin-top: 3px; }
+.conf-selo {
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; margin-top: 5px;
+}
+.conf-porque { font-size: 14px; color: var(--texto-fraco); margin-top: 7px; line-height: 1.5; }
+.conf-norma { font-size: 12px; color: #7e8f84; margin-top: 6px; font-style: italic; }
+.conf-correta { border-left-color: var(--verde); }
+.conf-correta .conf-selo { color: var(--verde-claro); }
+.conf-incompleta { border-left-color: var(--ambar); }
+.conf-incompleta .conf-selo { color: var(--ambar); }
+.conf-incorreta { border-left-color: var(--vermelho); }
+.conf-incorreta .conf-selo { color: var(--vermelho); }
+/* sete vagas não cabem numa fileira de 380 px: com rolagem lateral a última
+   fica sempre cortada e parece defeito. Aqui elas quebram em duas linhas. */
+.vest .abas { flex-wrap: wrap; overflow: visible; }
+.vest .bancada-icone svg { width: 44px; height: 44px; }
+.vest .item-icone { width: 44px; height: 44px; }
+.vest .item-icone svg { width: 28px; height: 28px; }
+
+/* A linha que explica a transparência da cena. Âmbar, como todo aviso do
+   jogo, mas sem o "atenção" do `.painel-aviso`: aqui nada deu errado ainda. */
+.aviso-previa {
+  font-size: 14px; color: var(--verde-claro); margin-bottom: 12px;
+  line-height: 1.45;
+}

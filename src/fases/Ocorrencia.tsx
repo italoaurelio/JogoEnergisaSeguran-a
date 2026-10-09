@@ -72,22 +72,58 @@ const AREA: Record<string, Colocada[]> = {
   nenhuma: [],
 }
 
-/** Ferramental e escada aparecem junto do poste a partir da etapa 3b. */
+/** A caixa de ferramentas, que chega com a equipe. */
 const APOIO: Colocada[] = [
   { peca: 'oc_caixa', pos: [-1.9, 0, -1.1], giro: 0.3 },
-  // A escada é uma peça de 4,63 m centrada no próprio meio. Com giro 0 e
-  // y 2,3 ela ficava EM PÉ, perfeitamente vertical, equilibrada no nada —
-  // é a "escada que não encosta no poste" do retorno.
-  //
-  // Agora: pé em (0,85, 0, −1,15), topo em (0,15, 4,45, −0,20), ou seja
-  // encostando no poste 25 cm fora do eixo dele. O vetor pé→topo tem 4,60 m,
-  // que é o comprimento da peça, e faz 15° com a vertical — o ângulo de
-  // ~75° com o chão que a NR-18 pede para escada de encosto.
-  { peca: 'oc_escada', pos: [0.50, 2.253, -0.675], giro: 0.928,
-    tombo: [0, 0.257] },
 ]
 
-const VISTA_FERRAMENTAL: Vista = { de: [-4.2, 2.3, 3.4], para: [-1.6, 0.5, -0.8], lente: 30 }
+/**
+ * A escada ENCOSTA no poste, e isso é conta, não palpite. Medido na cena com
+ * o jogo rodando:
+ *
+ *   poste  — seção duplo T, x ±0,055 constante, z ±0,139 na altura do topo
+ *            da escada (a face afina de 0,36 na base para 0,19 aos 9,30 m)
+ *   escada — eixo longo em Y, 4,63 m de sapata a topo, a própria peça com
+ *            0,040 de meia-espessura em X e 0,267 de meia-largura em Z
+ *
+ * Encostar na face de X estava descartado: os degraus de escalada do poste
+ * saem justamente em ±X, até 0,311 — a escada atravessaria um deles na altura
+ * de 4,36 m. Sobra a face de Z, que é lisa.
+ *
+ * A ordem de Euler do three.js é XYZ, então o `tombo` em Z é aplicado ANTES
+ * do `giro` em Y: a escada tomba no próprio plano (que é como uma escada
+ * tomba) e depois o giro aponta esse tombo para onde se quer. Com giro −90°
+ * o topo vai para +Z e o pé para −Z.
+ *
+ * Resultado: pé em (0, 0, −1,10), topo encostado na face do poste em
+ * (0, 4,47, +0,137), 15° fora da vertical — o encosto de ~75° da NR-18.
+ */
+const ESCADA: Colocada = {
+  peca: 'oc_escada', pos: [0, 2.255, -0.496], giro: -Math.PI / 2,
+  tombo: [0, -0.2618],
+}
+
+/**
+ * As peças que cada opção põe na cena, por decisão.
+ *
+ * Existe para a PRÉVIA: antes de confirmar, o jogador vê a escolha desenhada
+ * em transparente no lugar onde ela ficaria. Era a parte que faltava para a
+ * fase ensinar alguma coisa — "parar o caminhão protegendo a área" e "parar
+ * depois da área" são duas frases quase iguais no painel, e vinte metros de
+ * diferença na rua. Com a prévia, a diferença é vista antes de valer nota.
+ */
+const PECAS_DA_OPCAO: Record<string, Record<string, Colocada[]>> = {
+  posicao_veiculo: Object.fromEntries(
+    Object.entries(POSICOES_VEICULO).map(([k, v]) => [k, [v]]),
+  ),
+  distancia_sinalizacao: SINALIZACAO,
+  area_trabalho: AREA,
+}
+
+// A caixa de ferramentas E a escada inteira, que vai a 4,47 m: com o
+// enquadramento anterior (alvo a 0,5 m de altura) a escada saía cortada pelo
+// topo da tela justo na etapa em que o jogador decide se leva escada.
+const VISTA_FERRAMENTAL: Vista = { de: [-5.0, 3.2, 5.4], para: [-0.7, 2.2, -0.5], lente: 32 }
 const VISTA_REPARO: Vista = { de: [5.0, 4.6, 7.2], para: [0.3, 6.4, 0.1], lente: 40 }
 
 type Etapa = 'briefing' | 'chegada' | 'ferramental' | 'reparo'
@@ -102,6 +138,8 @@ export default function Fase3Ocorrencia({
   const [indice, setIndice] = useState(0)
   const [escolhas, setEscolhas] = useState<Record<string, string>>({})
   const [retorno, setRetorno] = useState<string | null>(null)
+  /** Opção escolhida mas ainda NÃO confirmada: é o que vira fantasma na cena. */
+  const [previa, setPrevia] = useState<string | null>(null)
   const [kit, setKit] = useState<string[]>([])
   const [ordem, setOrdem] = useState<string[]>([])
   const [erradosNaOrdem, setErrados] = useState<string[]>([])
@@ -123,9 +161,29 @@ export default function Fase3Ocorrencia({
     if (s) saida.push(...(SINALIZACAO[s] ?? []))
     const a = escolhas.area_trabalho
     if (a) saida.push(...(AREA[a] ?? []))
-    if (etapa === 'ferramental' || etapa === 'reparo') saida.push(...APOIO)
+    if (etapa === 'ferramental' || etapa === 'reparo') {
+      saida.push(...APOIO)
+      // A escada só existe na cena se o jogador a tiver separado — antes ela
+      // ficava encostada no poste mesmo para quem deixou escada nenhuma na
+      // caixa, o que desmentia a própria pergunta. Enquanto ele está
+      // separando o material, ela aparece em prévia; vira peça quando ele
+      // sobe para o serviço.
+      const alu = kit.includes('escada_aluminio')
+      if (kit.includes('escada_fibra') || alu) {
+        saida.push({
+          ...ESCADA,
+          metal: alu && !kit.includes('escada_fibra'),
+          fantasma: etapa === 'ferramental',
+        })
+      }
+    }
+    // a prévia entra por último, para desenhar por cima do que já está posto
+    if (etapa === 'chegada' && previa) {
+      const mapa = PECAS_DA_OPCAO[CHEGADA[indice].id]
+      for (const p of mapa?.[previa] ?? []) saida.push({ ...p, fantasma: true })
+    }
     return saida
-  }, [escolhas, etapa])
+  }, [escolhas, etapa, previa, indice, kit])
 
   const vista: Vista = useMemo(() => {
     if (etapa === 'briefing') return { de: [-13, 6.5, 12], para: [0, 4.0, 0], lente: 30 }
@@ -205,14 +263,19 @@ export default function Fase3Ocorrencia({
         {etapa === 'chegada' && (
           <Chegada
             decisao={CHEGADA[indice]}
-            escolhida={escolhas[CHEGADA[indice].id]}
+            previa={previa}
             retorno={retorno}
-            escolher={(id) => {
-              setEscolhas((a) => ({ ...a, [CHEGADA[indice].id]: id }))
-              setRetorno(id)
+            marcar={(id) => { setPrevia(id); som.clique() }}
+            confirmar={() => {
+              if (!previa) return
+              setEscolhas((a) => ({ ...a, [CHEGADA[indice].id]: previa }))
+              setRetorno(previa)
+              setPrevia(null)
+              som.confirmar()
             }}
             avancar={() => {
               setRetorno(null)
+              setPrevia(null)
               if (indice + 1 < CHEGADA.length) setIndice(indice + 1)
               else setEtapa('ferramental')
             }}
@@ -272,16 +335,18 @@ function Briefing({ comecar }: { comecar: () => void }) {
 }
 
 function Chegada({
-  decisao, escolhida, retorno, escolher, avancar, ultimo,
+  decisao, previa, retorno, marcar, confirmar, avancar, ultimo,
 }: {
   decisao: DecisaoChegada
-  escolhida?: string
+  previa: string | null
   retorno: string | null
-  escolher: (id: string) => void
+  marcar: (id: string) => void
+  confirmar: () => void
   avancar: () => void
   ultimo: boolean
 }) {
   const op = decisao.opcoes.find((o) => o.id === retorno)
+  const marcada = decisao.opcoes.find((o) => o.id === previa)
   return (
     <>
       <header className="painel-topo">
@@ -291,19 +356,37 @@ function Chegada({
       </header>
 
       {!op ? (
-        <section className="grupo cresce">
-          <div className="opcoes coluna">
-            {opcoesNaTela(decisao).map((o) => (
-              <button
-                key={o.id}
-                className={`opcao alta ${escolhida === o.id ? 'ativa' : ''}`}
-                onClick={() => escolher(o.id)}
-              >
-                {o.texto}
-              </button>
-            ))}
+        <>
+          <section className="grupo cresce">
+            <div className="opcoes coluna">
+              {opcoesNaTela(decisao).map((o) => (
+                <button
+                  key={o.id}
+                  className={`opcao alta ${previa === o.id ? 'ativa' : ''}`}
+                  onClick={() => marcar(o.id)}
+                >
+                  {o.texto}
+                </button>
+              ))}
+            </div>
+          </section>
+          <div className="painel-rodape">
+            {/*
+              O botão só aparece com uma opção marcada, e o texto diz o que a
+              transparência na cena significa. Sem essa linha o jogador clica
+              numa opção, vê um caminhão meio apagado aparecer e não sabe se
+              aquilo já valeu.
+            */}
+            <p className={marcada ? 'aviso-previa' : 'painel-aviso'}>
+              {marcada
+                ? 'Isto é uma prévia: o que está transparente na cena ainda não aconteceu.'
+                : 'Escolha uma opção para ver na cena antes de valer.'}
+            </p>
+            <button className="btn btn-grande" onClick={confirmar} disabled={!marcada}>
+              Executar a manobra
+            </button>
           </div>
-        </section>
+        </>
       ) : (
         <>
           <section className="grupo cresce">

@@ -82,7 +82,26 @@ export default function Personagem({ fisico, vestindo, giro }: Props) {
   /** Peças ainda assentando no corpo: nó -> quanto falta (1 a 0). */
   const entrando = useRef(new Map<THREE.Object3D, number>())
 
+  /**
+   * O Y DE REPOUSO de cada peça, lido uma vez antes de qualquer animação.
+   *
+   * A animação de assentar somava 4 cm em `position.y` e, ao terminar,
+   * zerava o campo. Isso só está certo para peça cuja origem já é zero — e
+   * `epi_capacete_b` tem origem na CABEÇA (0, 1,60, 0,052). Resultado: o
+   * capacete certo, o único da fase que dá ponto cheio, caía no chão entre
+   * os pés do personagem no instante em que era vestido, e ficava lá. Toda
+   * peça com origem própria tinha o mesmo destino.
+   */
+  const repouso = useRef(new Map<THREE.Object3D, number>())
+
   useEffect(() => {
+    // o repouso é lido aqui, e não no quadro em que a peça entra: naquele
+    // momento o Y já pode estar deslocado pela animação anterior
+    for (const no of scene.children) {
+      if (no.name.startsWith('epi_') && !repouso.current.has(no)) {
+        repouso.current.set(no, no.position.y)
+      }
+    }
     // só os nós do primeiro nível, nunca `traverse`. Uma peça com mais de um
     // material vira um grupo cujas malhas filhas herdam o nome (`epi_botina_
     // isolante_l`, `_1`, ...); percorrendo a árvore inteira cada filho não
@@ -102,14 +121,15 @@ export default function Personagem({ fisico, vestindo, giro }: Props) {
   useFrame((_, dt) => {
     if (!entrando.current.size) return
     for (const [no, t] of entrando.current) {
+      const base = repouso.current.get(no) ?? 0
       const novo = t - dt / 0.22
       if (novo <= 0) {
-        no.position.y = 0
+        no.position.y = base
         entrando.current.delete(no)
       } else {
         entrando.current.set(no, novo)
         // ease-out: cai rápido e encosta devagar
-        no.position.y = 0.04 * novo * novo
+        no.position.y = base + 0.04 * novo * novo
       }
     }
   })

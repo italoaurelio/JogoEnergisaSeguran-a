@@ -1,19 +1,37 @@
 /**
  * Fase 1 — Vestiário.
  *
- * Duas etapas na mesma tela: montar o físico do personagem e escolher o EPI
- * numa arara com mais peça errada do que certa. O personagem aparece de corpo
- * inteiro e veste na hora — o jogador tem de ver no que ele se transformou
- * antes de sair para o serviço.
+ * REFEITA. A versão anterior era um questionário de sete telas com um boneco
+ * ao lado: cada tela mostrava três nomes de peça, o jogador clicava num, a
+ * resposta certa aparecia na hora e a tela seguinte entrava. Três defeitos,
+ * e nenhum deles era de cor:
+ *
+ *  1. Cobrava MEMÓRIA, não leitura. "Capacete classe A" e "Capacete classe B"
+ *     são dois nomes: quem não sabe de cor qual é a classe elétrica chuta.
+ *     Agora cada peça tem ETIQUETA — CA, classe e data do ensaio elétrico —
+ *     e o cabeçalho diz que dia é hoje. A luva vencida é achável lendo.
+ *  2. Não tinha escolha espacial. Agora o jogador clica NO CORPO: sete marcas
+ *     sobre o personagem abrem o que vai em cada parte, na ordem que ele
+ *     quiser, e ele pode voltar e trocar antes de sair.
+ *  3. Entregava o veredito peça por peça, o que transforma o jogo em gabarito
+ *     interativo. O veredito agora é a CONFERÊNCIA no fim: o jogador fecha o
+ *     conjunto, manda conferir, e a avaliação desce o corpo item a item. É a
+ *     conferência de EPI que se faz de verdade antes de sair para a rua.
+ *
+ * O 3D também mudou de lugar: o personagem estava num disco cinza no vazio e
+ * agora está num vestiário com armários, banco e luz quente (`Vestiario3D`).
  */
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import { Html } from '@react-three/drei'
 import { Acabamento } from '../cena/Acabamento'
-import { Environment } from '@react-three/drei'
-import Personagem, { type Fisico } from '../cena/Personagem'
+import Personagem, { ALTURA_BASE, type Fisico } from '../cena/Personagem'
+import Vestiario3D, { LuzVestiario } from '../cena/Vestiario3D'
 import { ALTURAS, CABELOS, TONS, FISICO_INICIAL } from '../conteudo/fisico'
-import { PECAS, VAGAS, pecasDaVaga, type Peca, type Vaga } from '../conteudo/epi'
+import {
+  ETIQUETAS, PECAS, VAGAS, dataDoEnsaio, pecasDaVaga, type Peca, type Vaga,
+} from '../conteudo/epi'
 import { IconePeca } from '../icones'
 import { som } from '../som'
 import type { Registro } from '../conteudo/pontuacao'
@@ -22,10 +40,37 @@ const ORDEM_VAGAS: Vaga[] = [
   'cabeca', 'face', 'corpo', 'maos', 'pes', 'cintura', 'adorno',
 ]
 
+/**
+ * Onde cada marca pousa no personagem, em metros do MODELO (origem nos pés,
+ * 1,7996 m de altura). Medido no jogo rodando, varrendo o `matrixWorld` das
+ * peças do .glb: capacete em 1,65, visor em 1,59, peito em 1,25, cintura em
+ * 0,88, punhos em 0,85 e a ±0,57 do eixo, botina em 0,11.
+ *
+ * A mão esquerda é a vaga das LUVAS e a direita a dos ADORNOS: são as duas
+ * coisas que ficam no punho, e separá-las em punhos diferentes é o que faz
+ * "tirar o relógio" virar uma decisão com lugar no corpo em vez de um item
+ * de lista.
+ */
+const MARCAS: Record<Vaga, [number, number, number]> = {
+  cabeca: [0, 1.74, 0.08],
+  face: [0.27, 1.58, 0.16],
+  corpo: [0, 1.26, 0.24],
+  maos: [-0.62, 0.86, 0.12],
+  cintura: [0, 0.90, 0.27],
+  adorno: [0.62, 0.86, 0.12],
+  pes: [0.20, 0.12, 0.22],
+}
+
 /** Quanto o personagem gira por pixel arrastado. */
 const SENSIBILIDADE = 0.011
 
 type Escolhas = Partial<Record<Vaga, string>>
+type Ato = 'fisico' | 'equipar' | 'conferencia'
+
+const HOJE = new Date()
+const HOJE_TEXTO = HOJE.toLocaleDateString('pt-BR', {
+  day: '2-digit', month: '2-digit', year: 'numeric',
+})
 
 export default function Vestiario({
   aoConcluir,
@@ -34,28 +79,29 @@ export default function Vestiario({
     registros: Registro[], fisico: Fisico, maximo: number, vestindo: string[],
   ) => void
 }) {
-  const [etapa, setEtapa] = useState<'fisico' | 'epi'>('fisico')
+  const [ato, setAto] = useState<Ato>('fisico')
   const [altura, setAltura] = useState(FISICO_INICIAL.altura)
   const [tom, setTom] = useState(FISICO_INICIAL.tom)
   const [cabelo, setCabelo] = useState(FISICO_INICIAL.cabelo)
   const [passoFisico, setPassoFisico] = useState(0)
   const [escolhas, setEscolhas] = useState<Escolhas>({})
-  const [passo, setPasso] = useState(0)
-  const vaga = ORDEM_VAGAS[passo]
+  const [vaga, setVaga] = useState<Vaga>('cabeca')
+  const [inspecionando, setInspecionando] = useState<string | null>(null)
   const [giro, setGiro] = useState(0)
   const arrasto = useRef<{ x: number; giro: number } | null>(null)
 
   const fisico: Fisico = useMemo(
     () => ({ altura, tom, cabelo }), [altura, tom, cabelo],
   )
+  const escala = altura / ALTURA_BASE
+
   const vestindo = useMemo(() => {
     const ids = Object.values(escolhas).filter(Boolean) as string[]
-    const cobre = ids.some(
-      (id) => PECAS.find((p) => p.id === id)?.substituiBase,
-    )
+    const cobre = ids.some((id) => PECAS.find((p) => p.id === id)?.substituiBase)
     return cobre ? ids : ['base_roupa', ...ids]
   }, [escolhas])
 
+  const completo = ORDEM_VAGAS.every((v) => escolhas[v])
 
   const aoDescer = useCallback((e: React.PointerEvent) => {
     arrasto.current = { x: e.clientX, giro }
@@ -75,43 +121,45 @@ export default function Vestiario({
     } catch { /* ponteiro já solto */ }
   }, [])
 
-  function concluir() {
+  /** Vestir: a peça entra no corpo e o armário pula para a próxima vaga vazia. */
+  const vestir = useCallback((p: Peca) => {
+    setEscolhas((a) => {
+      const novas = { ...a, [p.vaga]: p.id }
+      const proxima = ORDEM_VAGAS.find((v) => !novas[v])
+      if (proxima) setVaga(proxima)
+      return novas
+    })
+    setInspecionando(null)
+    som.confirmar()
+  }, [])
+
+  const concluir = useCallback(() => {
     const registros: Registro[] = []
     let maximo = 0
     for (const v of ORDEM_VAGAS) {
       const opcoes = PECAS.filter((p) => p.vaga === v)
       maximo += opcoes.reduce((m, p) => Math.max(m, p.pontos), 0)
       const escolhida = opcoes.find((p) => p.id === escolhas[v])
-      if (escolhida) {
-        registros.push({
-          fase: 'vestiario',
-          id: escolhida.id,
-          titulo: escolhida.nome,
-          veredito: escolhida.veredito,
-          pontos: escolhida.pontos,
-          porque: escolhida.porque,
-          norma: escolhida.norma,
-        })
-      } else {
-        registros.push({
-          fase: 'vestiario',
-          id: `sem_${v}`,
-          titulo: `${VAGAS[v].nome}: sem proteção`,
-          veredito: 'incorreta',
-          pontos: 0,
-          porque: `Você saiu para o serviço sem nada em ${VAGAS[v].nome.toLowerCase()}.`,
-          norma: 'NR-6 — uso obrigatório de EPI na área',
-        })
-      }
+      registros.push(escolhida ? {
+        fase: 'vestiario', id: escolhida.id, titulo: escolhida.nome,
+        veredito: escolhida.veredito, pontos: escolhida.pontos,
+        porque: escolhida.porque, norma: escolhida.norma,
+      } : {
+        fase: 'vestiario', id: `sem_${v}`,
+        titulo: `${VAGAS[v].nome}: sem proteção`,
+        veredito: 'incorreta', pontos: 0,
+        porque: `Você saiu para o serviço sem nada em ${VAGAS[v].nome.toLowerCase()}.`,
+        norma: 'NR-6 — uso obrigatório de EPI na área',
+      })
     }
     // as peças seguem para as fases seguintes: o motorista sentado veste o
     // que foi escolhido aqui
     aoConcluir(registros, fisico, maximo,
                Object.values(escolhas).filter(Boolean) as string[])
-  }
+  }, [escolhas, fisico, aoConcluir])
 
   return (
-    <div className="vestiario">
+    <div className="vestiario vest">
       <div
         className="vestiario-palco"
         onPointerDown={aoDescer}
@@ -122,63 +170,63 @@ export default function Vestiario({
         <Canvas
           dpr={[1, 1.5]}
           shadows
-          camera={{ position: [0, 1.15, 3.1], fov: 34 }}
+          camera={{ position: [0.2, 1.62, 4.05], fov: 34 }}
           gl={{ antialias: true, toneMappingExposure: 1.0 }}
         >
-          {/* O HDRI é um céu aberto: a irradiância dele é altíssima, e acima
-              de ~0,15 ele lava a cena inteira — tecido de albedo 0,05 chega a
-              parecer cinza claro. Aqui ele serve só para dar reflexo; quem
-              ilumina são as três direcionais. */}
-          <Environment files="./hdri/ceu.hdr" environmentIntensity={0.10} />
-          <directionalLight
-            position={[-1.6, 3.0, 2.6]}
-            intensity={3.6}
-            castShadow
-            shadow-mapSize={[2048, 2048]}
-            shadow-camera-left={-1.4}
-            shadow-camera-right={1.4}
-            shadow-camera-top={2.4}
-            shadow-camera-bottom={-0.2}
-          />
-          <directionalLight position={[2.4, 1.4, 1.2]} intensity={1.1} color="#cfe0ff" />
-          <directionalLight position={[0.8, 2.2, -2.4]} intensity={1.9} color="#ffeccd" />
-          <group position={[0, -0.9, 0]}>
-            <Personagem fisico={fisico} vestindo={vestindo} giro={giro} />
-            <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-              <circleGeometry args={[2.4, 48]} />
-              <meshStandardMaterial color="#141a22" roughness={0.9} />
-            </mesh>
-          </group>
-          <OlharFisico alvo={etapa === 'fisico' ? passoFisico : 0} />
-          <Acabamento raio={0.35} />
+          <LuzVestiario />
+          <Vestiario3D />
+          <Personagem fisico={fisico} vestindo={vestindo} giro={giro} />
+          {ato === 'equipar' && (
+            <Marcas
+              escala={escala}
+              giro={giro}
+              escolhas={escolhas}
+              vaga={vaga}
+              abrir={(v) => { setVaga(v); setInspecionando(null); som.clique() }}
+            />
+          )}
+          <OlharVestiario ato={ato} passo={passoFisico} />
+          {/* raio curto: o vestiário é um ambiente de 2 a 3 m entre as peças,
+              e o raio de rua espalha a oclusão até o personagem ficar sujo */}
+          <Acabamento raio={0.9} />
         </Canvas>
         <p className="vestiario-dica">Arraste para girar o personagem</p>
       </div>
 
       <aside className="vestiario-painel">
-        {etapa === 'fisico' ? (
-          <EtapaFisico
+        {ato === 'fisico' && (
+          <AtoFisico
             passo={passoFisico}
-            altura={altura}
-            setAltura={setAltura}
-            tom={tom}
-            setTom={setTom}
-            cabelo={cabelo}
-            setCabelo={setCabelo}
+            altura={altura} setAltura={setAltura}
+            tom={tom} setTom={setTom}
+            cabelo={cabelo} setCabelo={setCabelo}
             voltar={() => setPassoFisico((n) => n - 1)}
             avancar={() => (passoFisico < 2
               ? setPassoFisico((n) => n + 1)
-              : setEtapa('epi'))}
+              : setAto('equipar'))}
           />
-        ) : (
-          <EtapaEpi
-            passo={passo}
+        )}
+
+        {ato === 'equipar' && (
+          <AtoEquipar
             vaga={vaga}
             escolhas={escolhas}
-            escolher={(v, id) => setEscolhas((a) => ({ ...a, [v]: id }))}
-            voltar={() => (passo === 0 ? setEtapa('fisico') : setPasso(passo - 1))}
-            avancar={() => setPasso(passo + 1)}
-            concluir={concluir}
+            inspecionando={inspecionando}
+            abrirVaga={(v) => { setVaga(v); setInspecionando(null) }}
+            inspecionar={(id) => { setInspecionando(id); som.clique() }}
+            devolver={() => setInspecionando(null)}
+            vestir={vestir}
+            completo={completo}
+            conferir={() => setAto('conferencia')}
+            voltarAoFisico={() => setAto('fisico')}
+          />
+        )}
+
+        {ato === 'conferencia' && (
+          <AtoConferencia
+            escolhas={escolhas}
+            refazer={() => setAto('equipar')}
+            sair={concluir}
           />
         )}
       </aside>
@@ -186,43 +234,106 @@ export default function Vestiario({
   )
 }
 
-/**
- * A câmera vai até o que está sendo escolhido: corpo inteiro para a altura,
- * rosto para o tom de pele e para o cabelo.
- *
- * É o que faz a montagem parecer viva em vez de um formulário com um boneco
- * ao lado — e tem razão prática junto: tom de pele e cor de cabelo são
- * diferenças de poucos por cento, e a dois metros de distância o jogador não
- * vê o que acabou de escolher.
- */
-const OLHARES: { de: [number, number, number]; para: [number, number, number] }[] = [
-  { de: [0, 1.15, 3.10], para: [0, 0.10, 0] },
-  { de: [0.34, 0.96, 1.30], para: [0, 0.76, 0] },
-  { de: [0.16, 1.16, 1.18], para: [0, 0.84, 0] },
-]
+/* --------------------------------------------------------------- câmera */
 
-function OlharFisico({ alvo }: { alvo: number }) {
-  const mira = useRef(new THREE.Vector3(...OLHARES[0].para))
+/**
+ * A câmera vai até o que está em jogo.
+ *
+ * No ato do físico ela fecha no rosto (tom de pele e cor de cabelo são
+ * diferenças de poucos por cento: a dois metros ninguém vê o que escolheu).
+ * No ato de equipar ela FICA PARADA no corpo inteiro de propósito — as sete
+ * marcas têm de estar todas em quadro e clicáveis o tempo todo, e câmera que
+ * se move a cada escolha tira marca da tela debaixo do dedo de quem joga.
+ */
+const OLHARES: Record<string, { de: [number, number, number]; para: [number, number, number] }> = {
+  corpo: { de: [0.20, 1.62, 4.05], para: [0, 0.96, 0] },
+  rosto: { de: [0.34, 1.86, 1.30], para: [0, 1.66, 0] },
+  cabeca: { de: [0.16, 2.02, 1.18], para: [0, 1.74, 0] },
+  equipar: { de: [0.62, 1.52, 3.85], para: [-0.06, 0.96, 0] },
+  conferencia: { de: [0.26, 1.54, 3.60], para: [0, 0.98, 0] },
+}
+
+function OlharVestiario({ ato, passo }: { ato: Ato; passo: number }) {
+  const chave = ato === 'equipar' ? 'equipar'
+    : ato === 'conferencia' ? 'conferencia'
+    : passo === 1 ? 'rosto' : passo === 2 ? 'cabeca' : 'corpo'
+  const mira = useRef(new THREE.Vector3(...OLHARES.corpo.para))
   useFrame(({ camera }, dt) => {
-    const o = OLHARES[Math.max(0, Math.min(OLHARES.length - 1, alvo))]
-    const passo = Math.min(1, dt * 3.2)
-    camera.position.lerp(new THREE.Vector3(...o.de), passo)
-    mira.current.lerp(new THREE.Vector3(...o.para), passo)
+    const o = OLHARES[chave]
+    const t = Math.min(1, dt * 3.2)
+    camera.position.lerp(new THREE.Vector3(...o.de), t)
+    mira.current.lerp(new THREE.Vector3(...o.para), t)
     camera.lookAt(mira.current)
   })
   return null
 }
 
-function EtapaFisico({
+/* ---------------------------------------------------------------- marcas */
+
+/**
+ * As sete marcas sobre o corpo. São HTML projetado pelo three (`Html` do
+ * drei), não sprite: o alvo precisa ser do tamanho do dedo num totem, e
+ * sprite dimensiona em metros de mundo — encolhe quando a câmera recua.
+ *
+ * Elas acompanham o giro do personagem porque estão DENTRO do grupo girado,
+ * e somem quando passam para trás dele (`occlude` não serve aqui: o corpo é
+ * decimado e a oclusão pisca na borda). Em vez disso a marca atrás fica com
+ * opacidade baixa, o que também diz ao jogador que aquele lado está de costas.
+ */
+function Marcas({
+  escala, giro, escolhas, vaga, abrir,
+}: {
+  escala: number
+  giro: number
+  escolhas: Escolhas
+  vaga: Vaga
+  abrir: (v: Vaga) => void
+}) {
+  return (
+    <group rotation={[0, giro, 0]} scale={escala}>
+      {ORDEM_VAGAS.map((v) => {
+        const p = MARCAS[v]
+        // o quanto a marca está virada para a câmera: −1 de costas, +1 de
+        // frente. A câmera está em +Z, então basta o Z do ponto já girado.
+        const frente = Math.cos(giro) * p[2] - Math.sin(giro) * p[0]
+        const lateral = Math.cos(giro) * p[0] + Math.sin(giro) * p[2]
+        const atras = frente < -0.05 || Math.abs(Math.sin(giro)) > 0.75
+        return (
+          <Html key={v} position={p} center zIndexRange={[12, 2]}>
+            <button
+              className={`marca ${escolhas[v] ? 'cheia' : 'vazia'} ${vaga === v ? 'aberta' : ''}`}
+              style={{ opacity: atras ? 0.22 : 1 }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); abrir(v) }}
+              title={VAGAS[v].nome}
+            >
+              <span className="marca-ponto" />
+              <span
+                className="marca-nome"
+                /* marca no lado direito da tela põe o nome à ESQUERDA dela,
+                   senão o texto sai pela borda do palco */
+                style={{ left: lateral > 0.3 ? 'auto' : undefined,
+                         right: lateral > 0.3 ? '130%' : undefined }}
+              >
+                {VAGAS[v].nome}
+              </span>
+            </button>
+          </Html>
+        )
+      })}
+    </group>
+  )
+}
+
+/* ------------------------------------------------------------ ato físico */
+
+function AtoFisico({
   passo, altura, setAltura, tom, setTom, cabelo, setCabelo, voltar, avancar,
 }: {
   passo: number
-  altura: number
-  setAltura: (v: number) => void
-  tom: [number, number, number]
-  setTom: (v: [number, number, number]) => void
-  cabelo: [number, number, number]
-  setCabelo: (v: [number, number, number]) => void
+  altura: number; setAltura: (v: number) => void
+  tom: [number, number, number]; setTom: (v: [number, number, number]) => void
+  cabelo: [number, number, number]; setCabelo: (v: [number, number, number]) => void
   voltar: () => void
   avancar: () => void
 }) {
@@ -287,9 +398,7 @@ function EtapaFisico({
   return (
     <>
       <header className="painel-topo">
-        <p className="sobretitulo">
-          Fase 1 · Vestiário · {passo + 1} de {etapas.length}
-        </p>
+        <p className="sobretitulo">Fase 1 · Vestiário · {passo + 1} de 3</p>
         <h2>{atual.titulo}</h2>
         <p className="painel-texto">{atual.nota}</p>
         <ol className="trilha" aria-label="Progresso da montagem">
@@ -299,7 +408,7 @@ function EtapaFisico({
         </ol>
       </header>
 
-      <section className="grupo">{atual.corpo}</section>
+      <section className="grupo cresce">{atual.corpo}</section>
 
       <div className="painel-rodape">
         <div className="linha-botoes">
@@ -307,7 +416,7 @@ function EtapaFisico({
             Voltar
           </button>
           <button className="btn btn-grande" onClick={avancar}>
-            {ultimo ? 'Ir para a arara de EPI' : 'Próximo'}
+            {ultimo ? 'Abrir o armário' : 'Próximo'}
           </button>
         </div>
       </div>
@@ -315,121 +424,230 @@ function EtapaFisico({
   )
 }
 
-function EtapaEpi({
-  passo, vaga, escolhas, escolher, voltar, avancar, concluir,
+/* ---------------------------------------------------------- ato equipar */
+
+function AtoEquipar({
+  vaga, escolhas, inspecionando, abrirVaga, inspecionar, devolver, vestir,
+  completo, conferir, voltarAoFisico,
 }: {
-  passo: number
   vaga: Vaga
   escolhas: Escolhas
-  escolher: (v: Vaga, id: string) => void
-  voltar: () => void
-  avancar: () => void
-  concluir: () => void
+  inspecionando: string | null
+  abrirVaga: (v: Vaga) => void
+  inspecionar: (id: string) => void
+  devolver: () => void
+  vestir: (p: Peca) => void
+  completo: boolean
+  conferir: () => void
+  voltarAoFisico: () => void
 }) {
   const opcoes = pecasDaVaga(vaga)
-  const escolhida = opcoes.find((p) => p.id === escolhas[vaga])
-  const ultimo = passo === ORDEM_VAGAS.length - 1
+  const peca = inspecionando ? PECAS.find((p) => p.id === inspecionando) : null
+  const quantos = ORDEM_VAGAS.filter((v) => escolhas[v]).length
 
   return (
     <>
       <header className="painel-topo">
-        <p className="sobretitulo">
-          Fase 1 · Vestiário · {passo + 1} de {ORDEM_VAGAS.length}
-        </p>
-        <h2>{VAGAS[vaga].nome}</h2>
+        <p className="sobretitulo">Fase 1 · Vestiário · armário</p>
+        <h2>{peca ? 'Na bancada' : VAGAS[vaga].nome}</h2>
         <p className="painel-texto">
-          {escolhida
-            ? 'Veja por que essa escolha vale o que vale, e siga.'
-            : 'Tem mais peça na arara do que você precisa. Escolha uma.'}
+          {peca
+            ? 'Vire a peça na mão e leia a etiqueta antes de vestir.'
+            : 'Clique numa parte do corpo para trocar de vaga. Tem mais peça no armário do que você precisa.'}
         </p>
-        <ol className="trilha" aria-label="Progresso do vestiário">
-          {ORDEM_VAGAS.map((v, i) => (
-            <li
-              key={v}
-              className={
-                i === passo ? 'atual' : escolhas[v] ? 'feita' : ''
-              }
-              title={VAGAS[v].nome}
-            />
-          ))}
-        </ol>
+        <p className="vest-data">Hoje é {HOJE_TEXTO}</p>
       </header>
 
-      <ul className="arara">
-        {opcoes.map((p) => (
-          <ItemArara
-            key={p.id}
-            peca={p}
-            escolhida={escolhas[vaga] === p.id}
-            travada={!!escolhida}
-            escolher={() => {
-              escolher(vaga, p.id)
-              som.veredito(p.veredito === 'correta')
-            }}
-          />
-        ))}
-      </ul>
-
-      {/*
-        O veredito aparece AQUI, no vestiário, e só aqui. Trajeto e ocorrência
-        seguem em silêncio até o relatório, como combinado: aquilo é prova.
-        Esta fase é onde se ENSINA o EPI, e não se reprova alguém em EPI antes
-        de ensinar. A escolha trava junto com o veredito — explicação que ainda
-        deixa trocar de resposta é gabarito, não ensino.
-      */}
-      {escolhida && (
-        <section className={`veredito veredito-${escolhida.veredito}`}>
-          <p className="veredito-selo">
-            {escolhida.veredito === 'correta' ? 'Escolha certa'
-              : escolhida.veredito === 'incompleta' ? 'Protege, mas não basta'
-              : 'Não protege'}
-          </p>
-          <p className="veredito-porque">{escolhida.porque}</p>
-          <p className="veredito-norma">{escolhida.norma}</p>
-        </section>
+      {!peca && (
+        <nav className="abas" aria-label="Partes do corpo">
+          {ORDEM_VAGAS.map((v) => (
+            <button
+              key={v}
+              className={`aba ${v === vaga ? 'ativa' : ''} ${escolhas[v] ? 'feita' : ''}`}
+              onClick={() => abrirVaga(v)}
+            >
+              {VAGAS[v].nome}
+            </button>
+          ))}
+        </nav>
       )}
+
+      {peca ? (
+        <Bancada peca={peca} devolver={devolver} vestir={() => vestir(peca)} />
+      ) : (
+        <ul className="arara">
+          {opcoes.map((p) => (
+            <li key={p.id}>
+              <button
+                className={`item ${escolhas[vaga] === p.id ? 'ativa' : ''}`}
+                onClick={() => inspecionar(p.id)}
+                aria-label={`${p.nome} — ${p.descricao}`}
+              >
+                <span className="item-icone"><IconePeca id={p.id} /></span>
+                <span className="item-texto">
+                  <span className="item-nome">{p.nome}</span>
+                  <span className="item-desc">{p.descricao}</span>
+                </span>
+                <span className="item-acao">
+                  {escolhas[vaga] === p.id ? 'vestido' : 'inspecionar'}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!peca && (
+        <div className="painel-rodape">
+          <p className="vest-contagem">
+            <b>{quantos}</b> de {ORDEM_VAGAS.length} partes resolvidas
+            {!completo && ' — falta fechar o conjunto antes de sair'}
+          </p>
+          <div className="linha-botoes">
+            <button className="btn btn-fraco" onClick={voltarAoFisico}>Físico</button>
+            <button className="btn btn-grande" onClick={conferir} disabled={!completo}>
+              Conferir o EPI
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+/**
+ * A bancada de inspeção — o miolo novo da fase.
+ *
+ * Aqui não há nenhum sinal de certo ou errado: nem cor, nem ícone, nem ordem.
+ * O que há é o que está escrito na peça. Pintar de vermelho a linha do ensaio
+ * vencido seria entregar a resposta e devolver a fase ao gabarito de onde ela
+ * saiu — a graça é o jogador comparar a data com o "hoje" do cabeçalho.
+ */
+function Bancada({
+  peca, devolver, vestir,
+}: { peca: Peca; devolver: () => void; vestir: () => void }) {
+  const e = ETIQUETAS[peca.id]
+  return (
+    <>
+      <section className="bancada">
+        <div className="bancada-peca">
+          <span className="bancada-icone"><IconePeca id={peca.id} /></span>
+          <div>
+            <h3>{peca.nome}</h3>
+            <p className="painel-texto">{peca.descricao}</p>
+          </div>
+        </div>
+
+        {e && (
+          <dl className="etiqueta">
+            <div>
+              <dt>Certificado de aprovação</dt>
+              <dd>{e.ca ?? 'Não tem CA'}</dd>
+            </div>
+            <div>
+              <dt>Classe declarada</dt>
+              <dd>{e.classe}</dd>
+            </div>
+            {e.ensaioMeses !== undefined && (
+              <div>
+                <dt>Ensaio elétrico</dt>
+                <dd>válido até {dataDoEnsaio(e.ensaioMeses, HOJE)}</dd>
+              </div>
+            )}
+            <div>
+              <dt>Estado da peça</dt>
+              <dd>{e.estado}</dd>
+            </div>
+          </dl>
+        )}
+      </section>
 
       <div className="painel-rodape">
         <div className="linha-botoes">
-          <button className="btn btn-fraco" onClick={voltar}>
-            {passo === 0 ? 'Voltar ao físico' : 'Voltar'}
-          </button>
-          <button
-            className="btn btn-grande"
-            onClick={ultimo ? concluir : avancar}
-            disabled={!escolhida}
-          >
-            {ultimo ? 'Sair para o serviço' : 'Próximo'}
-          </button>
+          <button className="btn btn-fraco" onClick={devolver}>Devolver</button>
+          <button className="btn btn-grande" onClick={vestir}>Vestir esta</button>
         </div>
       </div>
     </>
   )
 }
 
-function ItemArara({
-  peca, escolhida, travada, escolher,
-}: {
-  peca: Peca
-  escolhida: boolean
-  travada: boolean
-  escolher: () => void
-}) {
+/* ------------------------------------------------------ ato conferência */
+
+/**
+ * A conferência de EPI: o veredito desce o corpo item a item, 650 ms por
+ * parte, com o som de cada um. É o pagamento da fase — e, como vem DEPOIS de
+ * o conjunto estar fechado, é avaliação e não gabarito.
+ *
+ * O jogador ainda pode voltar e trocar peça: quem errou a luva e entendeu por
+ * quê deve poder sair para a rua com a luva certa. O relatório final lê o
+ * conjunto com que ele efetivamente saiu.
+ */
+function AtoConferencia({
+  escolhas, refazer, sair,
+}: { escolhas: Escolhas; refazer: () => void; sair: () => void }) {
+  const linhas = useMemo(
+    () => ORDEM_VAGAS.map((v) => ({
+      vaga: v, peca: PECAS.find((p) => p.id === escolhas[v]),
+    })),
+    [escolhas],
+  )
+  const [reveladas, setReveladas] = useState(0)
+
+  useEffect(() => {
+    if (reveladas >= linhas.length) return
+    const t = setTimeout(() => {
+      const p = linhas[reveladas].peca
+      som.veredito(p?.veredito === 'correta')
+      setReveladas((n) => n + 1)
+    }, reveladas === 0 ? 260 : 650)
+    return () => clearTimeout(t)
+  }, [reveladas, linhas])
+
+  const pronto = reveladas >= linhas.length
+  const certas = linhas.slice(0, reveladas)
+    .filter((l) => l.peca?.veredito === 'correta').length
+
   return (
-    <li>
-      <button
-        className={`item ${escolhida ? 'ativa' : ''} ${travada && !escolhida ? 'recusada' : ''}`}
-        onClick={escolher}
-        disabled={travada}
-        aria-pressed={escolhida}
-        aria-label={`${peca.nome} — ${peca.descricao}`}
-      >
-        <span className="item-icone"><IconePeca id={peca.id} /></span>
-        <span className="item-texto">
-          <span className="item-nome">{peca.nome}</span>
-          <span className="item-desc">{peca.descricao}</span>
-        </span>
-      </button>
-    </li>
+    <>
+      <header className="painel-topo">
+        <p className="sobretitulo">Fase 1 · Conferência de EPI</p>
+        <h2>Antes de sair</h2>
+        <p className="painel-texto">
+          O encarregado confere o conjunto de cima a baixo. Agora, sim, as
+          respostas.
+        </p>
+      </header>
+
+      <ul className="conferencia">
+        {linhas.slice(0, reveladas).map(({ vaga, peca }) => (
+          <li key={vaga} className={`conf-${peca?.veredito ?? 'incorreta'}`}>
+            <p className="conf-vaga">{VAGAS[vaga].nome}</p>
+            <p className="conf-peca">{peca?.nome ?? 'Sem proteção'}</p>
+            <p className="conf-selo">
+              {peca?.veredito === 'correta' ? 'Aprovado'
+                : peca?.veredito === 'incompleta' ? 'Protege, mas não basta'
+                : 'Reprovado'}
+            </p>
+            <p className="conf-porque">{peca?.porque}</p>
+            <p className="conf-norma">{peca?.norma}</p>
+          </li>
+        ))}
+      </ul>
+
+      <div className="painel-rodape">
+        <p className="vest-contagem">
+          <b>{certas}</b> de {linhas.length} partes aprovadas
+        </p>
+        <div className="linha-botoes">
+          <button className="btn btn-fraco" onClick={refazer} disabled={!pronto}>
+            Trocar peça
+          </button>
+          <button className="btn btn-grande" onClick={sair} disabled={!pronto}>
+            Sair para o serviço
+          </button>
+        </div>
+      </div>
+    </>
   )
 }

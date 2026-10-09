@@ -319,3 +319,137 @@ export const MAXIMO_FASE_1 = (Object.keys(VAGAS) as Vaga[]).reduce((soma, vaga) 
   )
   return soma + melhor
 }, 0)
+
+/* ------------------------------------------------------------- etiquetas */
+/**
+ * A ETIQUETA de cada peça — e a razão de ela existir.
+ *
+ * O vestiário antigo pedia que o jogador já soubesse a resposta: os botões
+ * diziam "Capacete classe A" e "Capacete classe B", e quem não sabe de cor
+ * qual classe é a elétrica chuta entre dois nomes. Isso não ensina nada; é
+ * prova de múltipla escolha com boneco ao lado.
+ *
+ * A etiqueta é o que o eletricista de verdade lê ANTES de vestir: número de
+ * CA, classe de ensaio, data do último ensaio elétrico e o estado visual da
+ * peça. Com ela, a fase deixa de cobrar memória e passa a cobrar leitura —
+ * a luva vencida é identificável porque a data está ali, não porque o nome
+ * da peça entrega.
+ *
+ * `ensaioMeses` é RELATIVO a hoje, não data fixa: um gabarito com "11/2025"
+ * escrito à mão vira mentira sozinho em alguns meses, e esta é a única
+ * informação da fase que o jogador tem de comparar com o calendário.
+ */
+export type Etiqueta = {
+  /** Número do Certificado de Aprovação, ou `null` quando a peça não tem. */
+  ca: string | null
+  /** Classe/especificação que a plaqueta da peça declara. */
+  classe: string
+  /** Meses até o vencimento do ensaio elétrico. Negativo = vencido. */
+  ensaioMeses?: number
+  /** O que se vê virando a peça na mão. */
+  estado: string
+}
+
+export const ETIQUETAS: Record<string, Etiqueta> = {
+  capacete_b: {
+    ca: 'CA 31.904', classe: 'Classe B — ensaiado a 20.000 V',
+    estado: 'Casco sem trinca, jugular de três pontos completa',
+  },
+  capacete_a: {
+    ca: 'CA 29.715', classe: 'Classe A — só impacto, sem ensaio dielétrico',
+    estado: 'Casco íntegro, sem jugular',
+  },
+  bone: {
+    ca: null, classe: 'Brim 100% algodão — vestuário',
+    estado: 'Novo, da última campanha',
+  },
+
+  protetor_facial_arco: {
+    ca: 'CA 36.210', classe: 'Arco elétrico ATPV 12 cal/cm² — visor + suporte',
+    estado: 'Visor sem risco, engate de capacete firme',
+  },
+  oculos_incolor: {
+    ca: 'CA 25.716', classe: 'Impacto e partícula — policarbonato incolor',
+    estado: 'Lente limpa, haste inteira',
+  },
+  oculos_escuro: {
+    ca: null, classe: 'Óculos solar — sem especificação de impacto',
+    estado: 'Lente escura, comprado em posto de gasolina',
+  },
+
+  vestimenta_fr: {
+    ca: 'CA 38.112', classe: 'Antichama ATPV 12,4 cal/cm² — risco calculado 8,6',
+    estado: 'Costura íntegra, sem remendo de tecido comum',
+  },
+  camisa_algodao: {
+    ca: null, classe: 'Uniforme — algodão, manga longa',
+    estado: 'Lavada, sem furo',
+  },
+  colete_refletivo: {
+    ca: 'CA 40.302', classe: 'Alta visibilidade classe 2 — sinalização',
+    estado: 'Faixa refletiva viva',
+  },
+
+  luva_isolante_cobertura: {
+    ca: 'CA 27.088', classe: 'Borracha classe 2 (17 kV) + cobertura de raspa',
+    ensaioMeses: 4,
+    estado: 'Teste de ar feito agora: sem vazamento',
+  },
+  luva_isolante_so: {
+    ca: 'CA 27.088', classe: 'Borracha classe 2 (17 kV) — sem cobertura',
+    ensaioMeses: 5,
+    estado: 'Borracha boa, sem a luva de raspa do par',
+  },
+  luva_isolante_vencida: {
+    ca: 'CA 27.088', classe: 'Borracha classe 2 (17 kV) + cobertura de raspa',
+    ensaioMeses: -5,
+    estado: 'Aparência perfeita, sem corte nem ressecamento visível',
+  },
+  luva_vaqueta: {
+    ca: 'CA 19.440', classe: 'Couro vaqueta — proteção mecânica',
+    estado: 'Palma inteira, costura firme',
+  },
+
+  botina_isolante: {
+    ca: 'CA 33.561', classe: 'Eletricista — solado isolante, sem metal',
+    estado: 'Solado com desenho, sem trinca',
+  },
+  botina_biqueira: {
+    ca: 'CA 30.118', classe: 'Segurança — biqueira de aço',
+    estado: 'Couro novo, biqueira sem amassado',
+  },
+  tenis: {
+    ca: null, classe: 'Calçado esportivo — uso pessoal',
+    estado: 'Solado liso de tanto uso',
+  },
+
+  paraquedista_talabarte: {
+    ca: 'CA 35.877', classe: 'Paraquedista + talabarte duplo em Y com absorvedor',
+    ensaioMeses: 7,
+    estado: 'Fitas sem desfiado, costura de segurança intacta',
+  },
+  cinto_abdominal: {
+    ca: 'CA 21.603', classe: 'Posicionamento — faixa abdominal única',
+    ensaioMeses: 9,
+    estado: 'Fivela boa, fita sem desgaste',
+  },
+
+  aliança_relogio: {
+    ca: null, classe: 'Objetos pessoais — aço e ouro',
+    estado: 'Aliança, relógio de pulso e corrente no pescoço',
+  },
+  nada_no_corpo: {
+    ca: null, classe: 'Nada no corpo — tudo guardado no armário',
+    estado: 'Bolsos vazios, mãos e pescoço livres',
+  },
+}
+
+/**
+ * A data do ensaio escrita como aparece na plaqueta (mês/ano), a partir do
+ * deslocamento em meses. Quem lê compara com a data de hoje no cabeçalho da
+ * fase — é essa comparação que é o conteúdo.
+ */
+export function dataDoEnsaio(meses: number, hoje = new Date()): string {
+  const d = new Date(hoje.getFullYear(), hoje.getMonth() + meses, 1)
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+}

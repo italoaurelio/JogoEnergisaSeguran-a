@@ -101,15 +101,22 @@ export const CHEGADA: DecisaoChegada[] = [
     ],
     norma: 'NR-10 — sinalização na distância adequada à velocidade da via',
     pontos: 14,
-    // Alta e aberta, com o POSTE e o trecho de via antes dele os dois em
-    // quadro.
+    // DE DENTRO DO CARRO QUE VEM CHEGANDO, e não de cima.
     //
-    // A câmera antiga enfiava o olhar pela via afora (alvo em x=-22) com
-    // teleobjetiva: aparecia o caminhão e asfalto vazio, e o poste —
-    // que é a área de trabalho — ficava fora da tela. A pergunta é "a que
-    // distância da ÁREA", e a área não estava na imagem: não dava para
-    // julgar distância nenhuma.
-    camera: { de: [-17, 11, 15], para: [-5, 1.5, 1.0], lente: 26 },
+    // Esta câmera já foi corrigida uma vez, de teleobjetiva para grande
+    // angular alta, e continuava errada pelo mesmo motivo de fundo: a
+    // resposta certa espalha cavalete e cones de x=−27 a x=−14, e tudo
+    // isso ficava ATRÁS do ponto de vista — quem escolhia "recuado" via
+    // dois cones no canto e nenhum cavalete. O acerto parecia igual ao
+    // erro, que é o pior defeito que uma pergunta sobre distância pode ter.
+    //
+    // Aqui o olho está na pista, a 2,6 m do chão e 35 m antes do poste,
+    // olhando no sentido do trânsito: é a vista de quem dirige e vai
+    // encontrar a equipe. O cavalete recuado chega grande no primeiro
+    // plano, os cones afunilam ao longe e o caminhão aparece no fim. Com
+    // "colado", o mesmo olho não vê nada até estar em cima do serviço —
+    // que é exatamente o que a opção custa na vida real.
+    camera: { de: [-34.5, 2.6, 6.2], para: [1.0, 2.2, 1.0], lente: 30 },
   },
   {
     id: 'area_trabalho',
