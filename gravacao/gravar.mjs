@@ -265,9 +265,25 @@ async function principal() {
 
   const nota = await page.locator('h2').first().innerText().catch(() => '(sem relatorio)')
   console.log('-> relatorio:', nota.replace(/\n/g, ' '))
-  await espera(4000)
+
+  // O RELATÓRIO É O FIM DA PARTIDA E PRECISA APARECER INTEIRO.
+  //
+  // A gravação anterior terminava no botão "Encerrar o serviço": os últimos
+  // segundos não chegaram ao arquivo. São duas coisas somadas — o vídeo não
+  // esperava o bastante, e `contexto.close()` corta o rabo do screencast se a
+  // página não for fechada antes. Agora espera, ROLA a tela (a lista do que
+  // precisa ser corrigido fica abaixo da dobra e é o que o cliente lê) e só
+  // então fecha a página, que é o que finaliza o arquivo.
+  await espera(3500)
+  await page.mouse.move(LARGURA / 2, ALTURA / 2)
+  for (let i = 0; i < 14; i++) {
+    await page.mouse.wheel(0, 170)
+    await espera(400)
+  }
+  await espera(3000)
 
   const video = page.video()
+  await page.close()
   await contexto.close()
   await navegador.close()
   const caminho = video ? await video.path() : null

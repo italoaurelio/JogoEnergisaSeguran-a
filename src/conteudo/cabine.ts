@@ -140,7 +140,7 @@ export const ITENS_CABINE: ItemCabine[] = [
     // alavanca, porque ela fica entre os dois; e de longe ela some no
     // assoalho preto. A alavanca também clareou (albedo 0,024 → 0,105): com
     // preto sobre preto, a pergunta não tem resposta na imagem.
-    camera: { de: [-0.06, 1.05, 0.26], para: [-0.09, 0.40, 0.02], lente: 40 },
+    camera: { de: [-0.34, 1.02, 0.62], para: [-0.08, 0.43, 0.02], lente: 28 },
   },
   {
     id: 'celular',
