@@ -14,10 +14,12 @@ import * as THREE from 'three'
 
 const MODELO = './modelos/ocorrencia.glb'
 const ELETRICISTA = './modelos/eletricista.glb'
+const VIA = './modelos/via.glb'
 const DRACO = './draco/gltf/'
 
 useGLTF.preload(MODELO, DRACO)
 useGLTF.preload(ELETRICISTA, DRACO)
+useGLTF.preload(VIA, DRACO)
 
 /** Uma peça posicionada pelo jogador. */
 export type Colocada = {
@@ -439,6 +441,145 @@ export function Cobertura({ posta }: { posta: boolean }) {
       <meshStandardMaterial color="#d2641c" roughness={0.65} />
     </mesh>
   )
+}
+
+/* ====================================================================
+   A CIDADE EM VOLTA
+   ====================================================================
+   A ocorrência acontecia num descampado: uma fileira de casas atrás do
+   poste e, fora dela, chão liso até o horizonte. Pior, os condutores
+   iam de z −19 a z +19 e TERMINAVAM NO AR — não havia poste nenhum nas
+   pontas segurando a linha.
+
+   Nada disto é modelo novo: são as peças que `via.glb` já tem, as
+   mesmas do trajeto, instanciadas aqui. O catálogo inteiro da via são
+   8.984 triângulos, então povoar sai quase de graça.
+
+   CONVENÇÃO: no trajeto o veículo olha para +Z e as casas olham para
+   −X (a rua é o eixo Z). Aqui a rua corre em X e a linha de
+   distribuição em Z, então tudo que veio da via entra girado 90°.
+   ==================================================================== */
+
+/** Sorteio preso à posição: a mesma cena em toda partida. */
+function sorte(i: number) {
+  const x = Math.sin(i * 12.9898) * 43758.5453
+  return x - Math.floor(x)
+}
+
+type Posta = {
+  peca: string
+  pos: [number, number, number]
+  giro: number
+  escala?: number
+}
+
+/**
+ * Onde cada coisa vai — e, principalmente, onde NÃO vai.
+ *
+ * A primeira tentativa encheu as duas calçadas e tapou a cena: as câmeras
+ * desta fase vivem entre z = 3,7 e z = 13, do lado de lá da rua, e uma
+ * árvore de 5,3 m plantada em z = 7,4 fica a quatro metros da lente. O
+ * quadro do briefing virou duas folhagens verdes.
+ *
+ * O corredor livre sai das câmeras, não do gosto. Lendo as sete vistas da
+ * fase, a mais recuada é a do briefing, em z = 12, mirando z = 0:
+ *
+ *     z  <  0   atrás do poste — é fundo, pode tudo
+ *     z 0..13   CORREDOR DE VISADA — só o que for rasteiro
+ *     z > 13    atrás de todas as câmeras — pode tudo de novo
+ *
+ * Por isso o lado de lá da rua começa só em z = 20: de dentro do jogo ele
+ * aparece como fundo atrás do poste, que é o que uma rua tem mesmo.
+ */
+const CIDADE: Posta[] = (() => {
+  const saida: Posta[] = []
+
+  // POSTES NAS PONTAS DA LINHA. Os condutores já iam até ±19 e não havia
+  // nada segurando eles — a linha nascia e morria no ar.
+  for (const z of [-19, 19, -39, 39]) {
+    saida.push({ peca: 'poste', pos: [0, 0, z], giro: 0 })
+  }
+  // e a linha segue além deles: `via_cabos` tem 40 m, centrado na origem
+  for (const z of [-39, 39]) {
+    saida.push({ peca: 'cabos', pos: [0, 0, z], giro: 0 })
+  }
+
+  // CASAS DO LADO DE LÁ, em z 20 — atrás de todas as câmeras
+  for (let i = 0; i < 10; i++) {
+    const x = -38 + i * 8.6 + sorte(i) * 1.4
+    saida.push({
+      peca: ['casa', 'casa_b', 'casa_c'][Math.floor(sorte(i * 3) * 3)],
+      pos: [x, 0, 20 + sorte(i * 7) * 1.6],
+      giro: -Math.PI / 2,
+    })
+  }
+  // o quarteirão de cá continua para os lados, onde ele terminava em corte
+  for (let i = 0; i < 6; i++) {
+    const lado = i < 3 ? -1 : 1
+    saida.push({
+      peca: ['casa_c', 'casa', 'casa_b'][i % 3],
+      pos: [lado * (21 + (i % 3) * 8.2), 0, -9 - sorte(i * 5) * 1.5],
+      giro: Math.PI / 2,
+    })
+  }
+
+  // ÁRVORES: as de cá ficam atrás do poste; as de lá, atrás das câmeras
+  for (let i = 0; i < 14; i++) {
+    const x = -36 + i * 5.4 + sorte(i * 11) * 2.2
+    // nada rente ao serviço: árvore em cima do poste tapa a própria cena
+    if (Math.abs(x) > 9) {
+      saida.push({
+        peca: 'arvore', pos: [x, 0, -4.2 - sorte(i) * 0.9],
+        giro: sorte(i * 13) * 6.28, escala: 0.85 + sorte(i * 17) * 0.35,
+      })
+    }
+    saida.push({
+      peca: 'arvore', pos: [x + 2.6, 0, 15.5 + sorte(i * 2) * 1.2],
+      giro: sorte(i * 19) * 6.28, escala: 0.9 + sorte(i * 23) * 0.3,
+    })
+  }
+
+  // ARBUSTOS no muro de cá: 1,7 m, baixos o bastante para não tapar nada
+  for (let i = 0; i < 12; i++) {
+    const x = -30 + i * 5.4 + sorte(i * 19) * 2
+    if (Math.abs(x) < 5) continue
+    saida.push({ peca: 'arbusto', pos: [x, 0, -4.9], giro: sorte(i * 23) * 6.28 })
+  }
+
+  // CARROS ESTACIONADOS na guia de lá, longe no eixo da rua: dentro do
+  // corredor eles ficariam entre a lente e o poste
+  for (const [i, x] of [-44, -30, 22, 34, 46].entries()) {
+    saida.push({
+      peca: 'carro', pos: [x + sorte(i * 29) * 1.4, 0, 5.4],
+      // o carro da via anda em +Z; estacionado nesta rua ele fica em X
+      giro: Math.PI / 2 + (sorte(i * 31) - 0.5) * 0.05,
+    })
+  }
+  return saida
+})()
+
+/** Instancia as peças da via em volta da ocorrência. */
+export function CidadeAoRedor() {
+  const { scene } = useGLTF(VIA, DRACO)
+
+  const copias = useMemo(() => CIDADE.map((p, i) => {
+    const base = scene.getObjectByName(`via_${p.peca}`)
+    if (!base) return null
+    const c = base.clone(true)
+    c.visible = true
+    c.position.set(...p.pos)
+    c.rotation.y = p.giro
+    if (p.escala) c.scale.setScalar(p.escala)
+    c.traverse((o) => {
+      const m = o as THREE.Mesh
+      // sombra SÓ de receber: 40 peças projetando sombra a 35 m do poste
+      // estouram o mapa de sombra da cena, e nenhuma delas aparece de perto
+      if (m.isMesh) { m.castShadow = false; m.receiveShadow = true }
+    })
+    return <primitive key={`${p.peca}_${i}`} object={c} />
+  }).filter(Boolean), [scene])
+
+  return <>{copias}</>
 }
 
 /**

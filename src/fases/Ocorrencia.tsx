@@ -15,8 +15,8 @@ import { Canvas } from '@react-three/fiber'
 import { Acabamento } from '../cena/Acabamento'
 import { Environment } from '@react-three/drei'
 import {
-  AlvosDoPoste, Aterramento, Bloqueio, CameraDaCena, CenaOcorrencia, Cobertura,
-  Eletricista, LuzOcorrencia, PortaFusivel,
+  AlvosDoPoste, Aterramento, Bloqueio, CameraDaCena, CenaOcorrencia,
+  CidadeAoRedor, Cobertura, Eletricista, LuzOcorrencia, PortaFusivel,
   type Colocada, type PoseEletricista, type Vista,
 } from '../cena/Ocorrencia3D'
 import {
@@ -424,6 +424,7 @@ export default function Fase3Ocorrencia({
           <Environment files="./hdri/ceu.hdr" environmentIntensity={0.22} />
           <LuzOcorrencia />
           <CenaOcorrencia colocadas={colocadas} />
+          <CidadeAoRedor />
           {etapa === 'reparo' && (
             <>
               <AlvosDoPoste
