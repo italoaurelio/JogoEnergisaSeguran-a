@@ -100,6 +100,70 @@ const CESTO_BASE = new THREE.Vector3(2.88, 1.96, 0)
  */
 const ELEVACAO_MAX = THREE.MathUtils.degToRad(62)
 
+/** Comprimento do braço em repouso: do pino até a base do cesto. */
+const BRACO = CESTO_BASE.clone().sub(PINO)
+
+/**
+ * ONDE O CESTO PRECISA PARAR para alguém trabalhar na chave fusível.
+ *
+ * 6,20 m de piso: o eletricista tem 1,47 m do pé à mão com os braços na
+ * altura do rosto (medido no rig), e a chave está a 7,73 m. 6,20 + 1,47 =
+ * 7,67 — ele alcança esticando, que é como se trabalha em altura.
+ *
+ * 1,40 m de afastamento do poste: cesto encostado no poste seria o próprio
+ * cesto batendo na cruzeta.
+ */
+const ALTURA_DE_TRABALHO = 6.20
+const AFASTAMENTO = 1.40
+
+/**
+ * A lança é TELESCÓPICA e gira na base, e isso não é enfeite: é o que faz o
+ * eletricista poder estar no cesto.
+ *
+ * O braço modelado tem 3,76 m. O caminhão, quando o jogador o estaciona
+ * protegendo a área — que é a resposta CERTA —, para a 8,5 m do poste. Com
+ * 3,76 m de alcance o cesto subia para o meio da rua, a sete metros de onde
+ * o serviço acontece, e era por isso que o eletricista tinha acabado parando
+ * em cima do transformador: não havia cesto nenhum perto do poste onde pôr
+ * ele.
+ *
+ * Equipamento de verdade para distribuição alcança 10 a 13 m, e alcança
+ * porque a lança ESTENDE e GIRA. Aqui a extensão é escala no eixo do braço
+ * (a lança é um perfil reto, então esticar lê como seção telescópica) e o
+ * giro é uma rotação em torno da vertical no pino. Os dois saem da posição
+ * em que o jogador estacionou, não de número escrito à mão — se ele parar em
+ * outro lugar, a lança aponta para o outro lado sozinha.
+ */
+export function miraDoCesto(posicaoCaminhao: [number, number, number]) {
+  const [tx, , tz] = posicaoCaminhao
+  // o poste está na origem do mundo; em coordenada do caminhão, aqui:
+  const alvoX = -tx - PINO.x
+  const alvoZ = -tz - PINO.z
+  const dist = Math.hypot(alvoX, alvoZ)
+  const giro = Math.atan2(-alvoZ, alvoX)
+
+  const horizontal = Math.max(1.2, dist - AFASTAMENTO)
+  const subida = ALTURA_DE_TRABALHO - PINO.y
+  const comprimento = Math.hypot(horizontal, subida)
+  const estica = Math.max(1, comprimento / BRACO.length())
+  // o braço em repouso já aponta 2,7° para baixo; a elevação é a diferença
+  const repouso = Math.atan2(BRACO.y, BRACO.x)
+  const elevar = Math.atan2(subida, horizontal) - repouso
+
+  // onde o piso do cesto para, em coordenada do MUNDO
+  const bracoEsticado = BRACO.clone().multiplyScalar(estica)
+  const girado = bracoEsticado.clone().applyAxisAngle(EIXO_Z, elevar)
+  const ponta = new THREE.Vector3(
+    PINO.x + girado.x * Math.cos(giro),
+    PINO.y + girado.y,
+    PINO.z - girado.x * Math.sin(giro),
+  )
+  return {
+    giro, estica, elevar,
+    cesto: [ponta.x + tx, ponta.y, ponta.z + tz] as [number, number, number],
+  }
+}
+
 export function CenaOcorrencia({ colocadas }: { colocadas: Colocada[] }) {
   const { scene } = useGLTF(MODELO, DRACO)
 
@@ -195,6 +259,7 @@ function Peca({ molde, c }: { molde: THREE.Object3D; c: Colocada }) {
       {c.peca === 'oc_veiculo' && (
         <CestoAereo
           molde={molde} elevacao={c.elevacao ?? 0} fantasma={c.fantasma}
+          onde={c.pos}
         />
       )}
     </group>
@@ -239,8 +304,14 @@ function metalizar(raiz: THREE.Object3D): THREE.Material[] {
  * e o cesto recebe a posição já girada, com rotação zero.
  */
 function CestoAereo({
-  molde, elevacao, fantasma,
-}: { molde: THREE.Object3D; elevacao: number; fantasma?: boolean }) {
+  molde, elevacao, fantasma, onde,
+}: {
+  molde: THREE.Object3D
+  elevacao: number
+  fantasma?: boolean
+  /** Posição do caminhão no mundo, para a lança saber onde está o poste. */
+  onde: [number, number, number]
+}) {
   const pecas = useMemo(() => {
     const l = molde.getObjectByName('oc_veiculo_lanca')?.clone(true)
     const c = molde.getObjectByName('oc_veiculo_cesto')?.clone(true)
@@ -249,33 +320,44 @@ function CestoAereo({
     return { lanca: l ?? null, cesto: c ?? null }
   }, [molde, fantasma])
 
+  const base = useRef<THREE.Group>(null)
   const eixo = useRef<THREE.Group>(null)
   const cestoRef = useRef<THREE.Group>(null)
   const atual = useRef(0)
+  const mira = useMemo(() => miraDoCesto(onde), [onde])
 
   useFrame((_, dt) => {
     // sobe devagar: guindaste não é elevador de prédio, e o movimento lento é
     // metade do que faz a cena parecer um equipamento e não um brinquedo
     atual.current += (elevacao - atual.current) * Math.min(1, dt * 0.9)
-    const t = atual.current * ELEVACAO_MAX
-    if (eixo.current) eixo.current.rotation.z = t
+    const t = atual.current
+    const elev = mira.elevar * t
+    const estica = 1 + (mira.estica - 1) * t
+
+    if (base.current) base.current.rotation.y = mira.giro * t
+    if (eixo.current) {
+      eixo.current.rotation.z = elev
+      eixo.current.scale.set(estica, 1, 1)
+    }
     if (cestoRef.current) {
-      const alvo = CESTO_BASE.clone().sub(PINO).applyAxisAngle(EIXO_Z, t).add(PINO)
-      cestoRef.current.position.copy(alvo).sub(CESTO_BASE)
+      const p = BRACO.clone().multiplyScalar(estica).applyAxisAngle(EIXO_Z, elev)
+      cestoRef.current.position.copy(p).sub(BRACO)
     }
   })
 
   return (
-    <>
-      <group ref={eixo} position={PINO}>
+    <group ref={base} position={PINO}>
+      <group ref={eixo}>
         {pecas.lanca && (
           <primitive object={pecas.lanca} position={PINO.clone().negate()} />
         )}
       </group>
       <group ref={cestoRef}>
-        {pecas.cesto && <primitive object={pecas.cesto} />}
+        {pecas.cesto && (
+          <primitive object={pecas.cesto} position={PINO.clone().negate()} />
+        )}
       </group>
-    </>
+    </group>
   )
 }
 
@@ -592,19 +674,24 @@ export function CidadeAoRedor() {
  * seria meio dia com risco de quebrar o EPI inteiro. A 7 m da câmera, com
  * 120 px de altura, trocar entre poses assadas lê como animação.
  *
- * ONDE ELE FICA: no poste, nos degraus de escalada, e não no cesto. O cesto
- * está onde o jogador estacionou o caminhão — a 8,5 m do poste, se ele
- * protegeu a área direito — e a lança tem 3,76 m. Pôr o eletricista no cesto
- * exigiria mover o caminhão, ou seja, desfazer a decisão dele. Subir pelos
- * degraus é o que o poste tem, e o cinturão paraquedista que ele veste na
- * fase 1 existe exatamente para isso.
+ * ONDE ELE FICA: no cesto do caminhão, que é de onde se trabalha numa chave
+ * a 7,7 m. A primeira versão o pôs nos degraus do poste porque a lança não
+ * alcançava — e ele acabou DENTRO DO TRANSFORMADOR, que ocupa exatamente
+ * aquela altura. A correção não foi mover o boneco: foi fazer a lança
+ * esticar e girar (ver `miraDoCesto`), que é o que equipamento de verdade
+ * faz.
  */
 export type PoseEletricista = 'parado' | 'trabalhando' | 'choque' | 'subindo'
 
-/** Pés dele na altura em que a mão alcança a chave fusível (7,73 m). */
-const ONDE_ELE_FICA: [number, number, number] = [0.62, 6.30, 0]
-
-export function Eletricista({ pose }: { pose: PoseEletricista }) {
+export function Eletricista({
+  pose, onde, giro = 0,
+}: {
+  pose: PoseEletricista
+  /** Piso do cesto, em coordenada do mundo. */
+  onde: [number, number, number]
+  /** Para que lado ele olha. */
+  giro?: number
+}) {
   const { scene } = useGLTF(ELETRICISTA, DRACO)
   const grupo = useRef<THREE.Group>(null)
   const tremor = useRef(0)
@@ -635,23 +722,22 @@ export function Eletricista({ pose }: { pose: PoseEletricista }) {
       tremor.current = Math.max(0, tremor.current - dt / 1.1)
       const a = tremor.current * tremor.current
       g.position.set(
-        ONDE_ELE_FICA[0] + Math.sin(t * 28) * 0.035 * a,
-        ONDE_ELE_FICA[1] + Math.sin(t * 33) * 0.022 * a,
-        ONDE_ELE_FICA[2] + Math.cos(t * 25) * 0.030 * a,
+        onde[0] + Math.sin(t * 28) * 0.035 * a,
+        onde[1] + Math.sin(t * 33) * 0.022 * a,
+        onde[2] + Math.cos(t * 25) * 0.030 * a,
       )
       g.rotation.z = Math.sin(t * 30) * 0.10 * a
       return
     }
 
-    // parado no poste: respira e se ajeita, como no vestiário
+    // parado no cesto: respira e se ajeita, como no vestiário
     g.rotation.z = 0
     const ar = Math.sin(t * 1.3)
-    g.position.set(
-      ONDE_ELE_FICA[0], ONDE_ELE_FICA[1] + ar * 0.006, ONDE_ELE_FICA[2])
+    g.position.set(onde[0], onde[1] + ar * 0.006, onde[2])
   })
 
   return (
-    <group ref={grupo} position={ONDE_ELE_FICA} rotation={[0, -Math.PI / 2, 0]}>
+    <group ref={grupo} position={onde} rotation={[0, giro, 0]}>
       <primitive object={scene} />
     </group>
   )

@@ -17,6 +17,7 @@ import { Environment } from '@react-three/drei'
 import {
   AlvosDoPoste, Aterramento, Bloqueio, CameraDaCena, CenaOcorrencia,
   CidadeAoRedor, Cobertura, Eletricista, LuzOcorrencia, PortaFusivel,
+  miraDoCesto,
   type Colocada, type PoseEletricista, type Vista,
 } from '../cena/Ocorrencia3D'
 import {
@@ -134,10 +135,12 @@ const VISTA_FERRAMENTAL: Vista = { de: [-5.0, 3.2, 5.4], para: [-0.7, 2.2, -0.5]
 // condutor (y 9,22), que são 3,5 m de poste. O alvo antigo mirava y 6,4 e
 // deixava a chave fusível e o ramal fora de quadro — eram justamente os dois
 // pontos em que o jogador precisa clicar.
-// De PERTO. A 7 m a chave fusível tem 40 px na tela e o porta-fusível
-// basculando — que é a ação central da fase — não lê. A 4,7 m ela ocupa um
-// quinto da altura e o condutor ainda cabe em quadro.
-const VISTA_REPARO: Vista = { de: [3.4, 7.6, 3.7], para: [0.4, 7.62, 0.02], lente: 42 }
+// Perto o bastante para a chave fusível ler, aberto o bastante para a LANÇA
+// aparecer. Com o alvo em cima do poste o cesto ficava na beira do quadro e
+// o braço que o segura, fora — o eletricista parecia flutuar ao lado do
+// poste. O alvo puxado para x −1,2 põe o homem, a chave e o braço na mesma
+// imagem.
+const VISTA_REPARO: Vista = { de: [5.2, 8.4, 5.6], para: [-1.2, 7.1, 0.3], lente: 34 }
 
 /**
  * Os pontos marcados NO POSTE. O rádio fica de fora de propósito.
@@ -342,6 +345,25 @@ export default function Fase3Ocorrencia({
     return saida
   }, [escolhas, etapa, previa, indice, kit])
 
+  /**
+   * Onde o eletricista fica de pé: no piso do cesto, olhando para o poste.
+   *
+   * Sai da MESMA conta que posiciona a lança (`miraDoCesto`), e não de um
+   * ponto escrito à mão — se o jogador estacionar o caminhão em outro lugar,
+   * o cesto vai parar em outro lugar e ele vai junto. Foi por ter um ponto
+   * escrito à mão que ele apareceu dentro do transformador.
+   */
+  const noCesto = useMemo(() => {
+    const v = escolhas.posicao_veiculo
+    const caminhao = (v ? POSICOES_VEICULO[v]?.pos : null) ?? CHEGANDO.pos
+    const m = miraDoCesto(caminhao)
+    return {
+      onde: [m.cesto[0], m.cesto[1] + 0.06, m.cesto[2]] as [number, number, number],
+      // de costas para a lança, olhando para o poste
+      giro: Math.PI / 2 - m.giro,
+    }
+  }, [escolhas.posicao_veiculo])
+
   const vista: Vista = useMemo(() => {
     if (etapa === 'briefing') return { de: [-13, 6.5, 12], para: [0, 4.0, 0], lente: 30 }
     if (etapa === 'chegada') return CHEGADA[indice].camera
@@ -434,7 +456,11 @@ export default function Fase3Ocorrencia({
                 escolher={usar}
               />
               <PortaFusivel aberta={estadoPoste.chaveAberta} pino={CHAVE_PINO} />
-              <Eletricista pose={pose} />
+              <Eletricista
+                pose={pose}
+                onde={noCesto.onde}
+                giro={noCesto.giro}
+              />
               <Aterramento posto={estadoPoste.aterrado} />
               <Bloqueio posto={estadoPoste.bloqueada} />
               <Cobertura posta={estadoPoste.vizinhosProtegidos} />
