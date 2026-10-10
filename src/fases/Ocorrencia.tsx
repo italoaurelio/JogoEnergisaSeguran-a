@@ -11,6 +11,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { som } from '../som'
+import { PalcoPronto } from '../cena/Carregando'
 import { Canvas } from '@react-three/fiber'
 import { Acabamento } from '../cena/Acabamento'
 import { Environment } from '@react-three/drei'
@@ -510,6 +511,7 @@ export default function Fase3Ocorrencia({
           )}
           <CameraDaCena vista={vista} />
           <Acabamento raio={2.2} />
+        <PalcoPronto />
         </Canvas>
       </div>
 

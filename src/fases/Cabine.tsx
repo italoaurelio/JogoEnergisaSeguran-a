@@ -6,6 +6,7 @@
  * conferência do pátio, item por item, que é a decisão real do dia a dia.
  */
 import { useCallback, useMemo, useState } from 'react'
+import { PalcoPronto } from '../cena/Carregando'
 import { Canvas } from '@react-three/fiber'
 import { Acabamento } from '../cena/Acabamento'
 import { Environment } from '@react-three/drei'
@@ -79,6 +80,7 @@ export default function Fase2Cabine({
           <Motorista vestindo={vestindo} />
           <CameraDaVista vista={item.camera} />
           <Acabamento raio={0.45} />
+        <PalcoPronto />
         </Canvas>
         <p className="vestiario-dica">
           Item {indice + 1} de {ITENS_CABINE.length}

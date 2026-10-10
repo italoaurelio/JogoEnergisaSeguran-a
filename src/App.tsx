@@ -6,6 +6,7 @@
  */
 import { useCallback, useState } from 'react'
 import { som } from './som'
+import Carregando from './cena/Carregando'
 import Abertura from './fases/Abertura'
 import Vestiario from './fases/Vestiario'
 import Fase2Cabine from './fases/Cabine'
@@ -116,6 +117,9 @@ export default function App() {
   return (
     <div className="app">
       <BotaoMudo />
+      {/* Uma só, aqui: o `useProgress` é global, então a mesma cobertura
+          serve as cinco fases e aparece de novo a cada troca. */}
+      <Carregando chave={etapa} temPalco={etapa !== 'relatorio'} />
       {etapa === 'abertura' && (
         <Abertura nome={nome} setNome={setNome} avancar={() => setEtapa('vestiario')} />
       )}

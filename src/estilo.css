@@ -1237,3 +1237,43 @@ body {
   34% { opacity: 0.6; transform: scale(1) translate(4px, 3px); }
   100% { opacity: 0; transform: scale(1.12); }
 }
+
+/* ---- cobertura de carregamento ------------------------------------- */
+.carregando {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: #0d1117;
+  transition: opacity 400ms ease;
+}
+/* `visibility` junto com `opacity`: só com opacidade 0 a cobertura continua
+   por cima e come todo clique do painel. */
+.carregando-fora { opacity: 0; visibility: hidden; pointer-events: none; }
+.carregando-caixa { width: min(420px, 70vw); text-align: center; }
+.carregando-titulo {
+  margin: 0 0 18px;
+  font-size: 15px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #8b97a6;
+}
+.carregando-trilho {
+  height: 4px;
+  border-radius: 2px;
+  background: #1e2630;
+  overflow: hidden;
+}
+.carregando-barra {
+  height: 100%;
+  background: var(--verde, #19b26b);
+  transition: width 220ms ease;
+}
+.carregando-item {
+  margin: 14px 0 0;
+  height: 1em;
+  font-size: 12px;
+  color: #5d6775;
+  font-variant-numeric: tabular-nums;
+}

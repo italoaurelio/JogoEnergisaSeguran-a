@@ -13,6 +13,7 @@ import {
   forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef,
   useState,
 } from 'react'
+import { PalcoPronto } from '../cena/Carregando'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { som } from '../som'
 import { Acabamento } from '../cena/Acabamento'
@@ -350,6 +351,7 @@ export default function Fase2Trajeto({
           />
           <CameraFixa distancia={distancia} celular={celular} />
           <Acabamento raio={2.0} />
+        <PalcoPronto />
         </Canvas>
       </div>
 

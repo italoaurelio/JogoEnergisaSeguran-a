@@ -22,6 +22,7 @@
  * agora está num vestiário com armários, banco e luz quente (`Vestiario3D`).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { PalcoPronto } from '../cena/Carregando'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Html } from '@react-three/drei'
@@ -191,6 +192,7 @@ export default function Vestiario({
           {/* raio curto: o vestiário é um ambiente de 2 a 3 m entre as peças,
               e o raio de rua espalha a oclusão até o personagem ficar sujo */}
           <Acabamento raio={0.9} />
+        <PalcoPronto />
         </Canvas>
         <p className="vestiario-dica">Arraste para girar o personagem</p>
       </div>

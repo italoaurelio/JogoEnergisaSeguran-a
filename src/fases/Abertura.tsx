@@ -24,6 +24,7 @@
  * o desenho, porque a promessa é "é assim que vai parecer".
  */
 import { Suspense, useState } from 'react'
+import { PalcoPronto } from '../cena/Carregando'
 import { Canvas } from '@react-three/fiber'
 import Personagem from '../cena/Personagem'
 import Vestiario3D, { LuzVestiario, MiraFixa } from '../cena/Vestiario3D'
@@ -83,6 +84,7 @@ export default function Abertura({
             />
             <MiraFixa para={[0, 0.98, 0]} />
             <Acabamento raio={0.9} />
+            <PalcoPronto />
           </Suspense>
         </Canvas>
       </div>
