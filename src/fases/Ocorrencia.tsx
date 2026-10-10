@@ -194,6 +194,19 @@ export default function Fase3Ocorrencia({
   const [estadoPoste, setEstadoPoste] = useState<Estado>(ESTADO_INICIAL)
   const [acidentes, setAcidentes] = useState<{ porque: string }[]>([])
   /*
+    A PILHA DE DESFAZER, um quadro por passo cumprido.
+
+    O acidente custa UM PASSO, não a fase. Perder tudo faria o jogador
+    refazer nove ações por um erro, e a terceira vez que isso acontece ele
+    para de ler e começa a clicar. Perder nada era o outro extremo: tomava o
+    choque, lia o texto e seguia de onde estava, sem consequência nenhuma.
+
+    Voltar um passo é um estado em que o jogador JÁ ESTEVE, então não existe
+    combinação morta do outro lado — o que estava disponível lá continua
+    disponível.
+  */
+  const [historico, setHistorico] = useState<{ estado: Estado; ordem: string[] }[]>([])
+  /*
     A FERRAMENTA NA MÃO mora aqui, e não dentro do `Reparo`.
 
     Os dois caminhos de clique — a marca sobre o poste em 3D e a lista no
@@ -209,7 +222,7 @@ export default function Fase3Ocorrencia({
    * na cara até o fim depois de trocar o elo. O que lê como ação é o
    * movimento de ida E VOLTA.
    */
-  const [pose, setPose] = useState<PoseEletricista>('subindo')
+  const [pose, setPose] = useState<PoseEletricista>('parado')
   useEffect(() => {
     if (pose === 'parado') return
     // O CHOQUE DURA MAIS QUE O CLARÃO, e isso é a diferença entre mostrar
@@ -276,36 +289,53 @@ export default function Fase3Ocorrencia({
       : acao.mata?.(agora)
     if (morte) {
       /*
-        DEPOIS DO ACIDENTE, O SERVIÇO CONTINUA.
-
-        Sem isto a fase travava: `religado` ficava ligado para sempre, todo
-        aterrar e todo trocar-elo seguintes matavam de novo, e `eloTrocado`
-        nunca chegava a virar verdadeiro — laço infinito de arco elétrico,
-        sem saída e sem botão de encerrar.
+        DEPOIS DO ACIDENTE, O SERVIÇO CONTINUA — UM PASSO ATRÁS.
 
         O arco abre a proteção a montante, então o trecho fica morto de novo.
-        O jogador se recompõe e segue; o acidente fica registrado e desconta
-        no relatório. É o que o cliente pediu: o cara toma o choque e
-        recomeça.
+        Sem este desfazer a fase travava: `religado` ficava ligado para
+        sempre, todo aterrar e todo trocar-elo seguintes matavam de novo, e
+        `eloTrocado` nunca virava verdadeiro — laço infinito de arco elétrico.
+
+        O que o acidente cobra é o ÚLTIMO PASSO CUMPRIDO: ele volta a não
+        estar feito e tem de ser refeito. O visto some do poste na mesma hora,
+        que é como o jogador percebe que perdeu terreno sem precisar ler.
       */
-      setEstadoPoste((e) => ({ ...e, religado: false, chaveAberta: true }))
+      const anterior = historico[historico.length - 1]
+      const perdido = anterior
+        ? PASSOS.find((p) => p.id === ordem[ordem.length - 1])
+        : undefined
+      if (anterior) {
+        setEstadoPoste({ ...anterior.estado, religado: false })
+        setOrdem(anterior.ordem)
+        setHistorico((h) => h.slice(0, -1))
+      } else {
+        setEstadoPoste((e) => ({ ...e, religado: false, chaveAberta: true }))
+      }
       setPose('choque')
       setAcidentes((a) => [...a, { porque: morte }])
       setClarao(true)
       window.setTimeout(() => setClarao(false), 1500)
       som.veredito(false)
-      setRecado({ tom: 'morte', texto: morte })
+      setRecado({
+        tom: 'morte',
+        texto: perdido
+          ? `${morte}\n\nA proteção a montante abriu e o trecho morreu de `
+            + `novo. Você se recompõe — mas perdeu o passo anterior: `
+            + `${perdido.texto.toLowerCase()}. Refaça.`
+          : morte,
+      })
       setFerramenta(null)
       return
     }
 
+    setHistorico((h) => [...h, { estado: estadoPoste, ordem }])
     setEstadoPoste((e) => ({ ...e, ...acao.aplicar(e) }))
     setPose(acao.gesto ?? 'trabalhando')
     setOrdem((a) => [...a, acao.passo])
     som.chave()
     setRecado({ tom: 'ok', texto: acao.feito })
     setFerramenta(null)
-  }, [ferramenta, estadoPoste])
+  }, [ferramenta, estadoPoste, historico, ordem])
 
   const colocadas = useMemo<Colocada[]>(() => {
     const saida: Colocada[] = []
@@ -356,14 +386,22 @@ export default function Fase3Ocorrencia({
    * o cesto vai parar em outro lugar e ele vai junto. Foi por ter um ponto
    * escrito à mão que ele apareceu dentro do transformador.
    */
+  /*
+    ELE SOBE COM O CESTO — não aparece lá em cima.
+
+    Aqui só vai o que não muda: de qual caminhão sai a lança e para onde ele
+    acaba olhando. A POSIÇÃO é refeita a cada quadro dentro do `Eletricista`,
+    pela mesma conta do braço, porque o caminho do cesto é um arco e a lança
+    leva uns três segundos para chegar. Antes este `useMemo` devolvia o ponto
+    FINAL e ele ficava parado no ar enquanto o cesto vazio ia buscá-lo.
+  */
   const noCesto = useMemo(() => {
     const v = escolhas.posicao_veiculo
     const caminhao = (v ? POSICOES_VEICULO[v]?.pos : null) ?? CHEGANDO.pos
-    const m = miraDoCesto(caminhao)
     return {
-      onde: [m.cesto[0], m.cesto[1] + 0.06, m.cesto[2]] as [number, number, number],
+      caminhao,
       // de costas para a lança, olhando para o poste
-      giro: Math.PI / 2 - m.giro,
+      giro: Math.PI / 2 - miraDoCesto(caminhao).giro,
     }
   }, [escolhas.posicao_veiculo])
 
@@ -461,8 +499,9 @@ export default function Fase3Ocorrencia({
               <PortaFusivel aberta={estadoPoste.chaveAberta} pino={CHAVE_PINO} />
               <Eletricista
                 pose={pose}
-                onde={noCesto.onde}
+                caminhao={noCesto.caminhao}
                 giro={noCesto.giro}
+                subindo={1}
               />
               <Aterramento posto={estadoPoste.aterrado} />
               <Bloqueio posto={estadoPoste.bloqueada} />

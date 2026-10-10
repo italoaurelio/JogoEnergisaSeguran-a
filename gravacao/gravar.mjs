@@ -25,7 +25,18 @@ const { chromium } = exigir('playwright')
 
 const AQUI = dirname(fileURLToPath(import.meta.url))
 const SAIDA = resolve(AQUI, 'bruto')
-const URL_JOGO = process.argv[2] ?? 'http://localhost:5273/'
+/*
+  `--ocorrencia` grava SÓ a última fase, a partir de `?fase=ocorrencia`.
+
+  Existe porque a partida inteira dá quase cinco minutos e quem precisa
+  revisar o reparo não vai assistir ao vestiário e à estrada de novo. Cortar
+  do vídeo cheio com ffmpeg daria o mesmo quadro, mas obrigaria a gravar os
+  quatro minutos antes para jogar fora.
+*/
+const SO_OCORRENCIA = process.argv.includes('--ocorrencia')
+const URL_JOGO = (process.argv[2] ?? '').startsWith('http')
+  ? process.argv[2]
+  : 'http://localhost:5273/'
 const LARGURA = 1280
 const ALTURA = 720
 
@@ -263,12 +274,19 @@ async function ocorrencia(page) {
     clicava as nove frases e, como sempre, não daria erro — ficaria 15 s
     esperando um botão que não existe mais.
 
-    A sequência abaixo é a CERTA, e de propósito: o vídeo é demonstração, não
-    prova. O acidente tem a sua própria gravação, se um dia alguém quiser.
+    A sequência passa DE PROPÓSITO pelo acidente. Abrir a chave e ir direto
+    no porta-fusível sem o cadeado é a omissão que a NR-10 inteira existe
+    para evitar, e é o que o cliente pediu para ver acontecendo: o Centro
+    religa o ramal, o arco estoura, e o jogador perde o passo anterior e
+    refaz. Mostrar só o caminho certo não ensina por que o cadeado existe.
   */
   const servico = [
     ['Rádio', 'Rádio'],
     ['Vara de manobra', 'Chave fusível'],
+    // sem bloquear: daqui sai o arco. 4,6 s porque o clarão come 1,5 s e a
+    // pose do choque dura 2,8 s — cortar antes tira do vídeo o acidente
+    ['Elo fusível', 'Porta-fusível', 4600],
+    ['Vara de manobra', 'Chave fusível'],   // refaz o passo que o acidente levou
     ['Cadeado', 'Chave fusível'],
     ['Detector', 'Ramal'],
     ['Aterramento', 'Ramal'],
@@ -277,13 +295,13 @@ async function ocorrencia(page) {
     ['Aterramento', 'Ramal'],
     ['Cadeado', 'Chave fusível'],
   ]
-  for (const [ferramenta, alvo] of servico) {
+  for (const [ferramenta, alvo, pausa] of servico) {
     await page.locator('.ferramenta', { hasText: ferramenta }).first().click()
     await espera(700)
     await page.locator('.opcoes.coluna .opcao', { hasText: alvo }).first().click()
     // 1,9 s: a pose do eletricista dura de 1,3 a 2,8 s, e cortar antes dela
     // terminar tira do vídeo justamente o que a cena ganhou
-    await espera(1900)
+    await espera(pausa ?? 1900)
   }
   await espera(1200)
   await clicar(page, 'Encerrar o serviço', { pausa: 3000 })
@@ -308,20 +326,25 @@ async function principal() {
   const page = await contexto.newPage()
   page.on('pageerror', (e) => console.error('ERRO NA PAGINA:', e.message))
 
-  await page.goto(URL_JOGO, { waitUntil: 'networkidle' })
+  const alvo = SO_OCORRENCIA
+    ? URL_JOGO + (URL_JOGO.includes('?') ? '&' : '?') + 'fase=ocorrencia'
+    : URL_JOGO
+  await page.goto(alvo, { waitUntil: 'networkidle' })
   await espera(1500)
 
-  console.log(`-> vestiario [${agora()}]`)
-  await vestiario(page)
-  console.log(`-> cabine [${agora()}]`)
-  await cabine(page)
-  console.log(`-> trajeto [${agora()}]`)
-  let ultimo = 0
-  await trajeto(page, {
-    aoVivo: (s) => {
-      if (s.d - ultimo >= 250) { ultimo = s.d; console.log(`   ${Math.round(s.d)} m · ${s.kmh} km/h · ${s.trecho}`) }
-    },
-  })
+  if (!SO_OCORRENCIA) {
+    console.log(`-> vestiario [${agora()}]`)
+    await vestiario(page)
+    console.log(`-> cabine [${agora()}]`)
+    await cabine(page)
+    console.log(`-> trajeto [${agora()}]`)
+    let ultimo = 0
+    await trajeto(page, {
+      aoVivo: (s) => {
+        if (s.d - ultimo >= 250) { ultimo = s.d; console.log(`   ${Math.round(s.d)} m · ${s.kmh} km/h · ${s.trecho}`) }
+      },
+    })
+  }
   console.log(`-> ocorrencia [${agora()}]`)
   await ocorrencia(page)
 

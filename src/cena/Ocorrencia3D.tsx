@@ -164,6 +164,46 @@ export function miraDoCesto(posicaoCaminhao: [number, number, number]) {
   }
 }
 
+/**
+ * Onde o piso do cesto está COM A LANÇA A MEIO CAMINHO.
+ *
+ * Existe porque o eletricista precisa subir JUNTO. Antes ele era posto no
+ * ponto final da lança desde o primeiro quadro: o cesto subia vazio e ele
+ * aparecia lá em cima desde o começo, flutuando no ar enquanto o braço ia
+ * atrás dele.
+ *
+ * O caminho do cesto é um ARCO, não uma reta — a lança gira e estica ao
+ * mesmo tempo. Interpolar entre a posição de repouso e a final em linha reta
+ * tiraria ele de dentro do cesto no meio da subida. Aqui se refaz a mesma
+ * conta da lança para o `t` pedido, que é o que mantém os dois grudados.
+ */
+export function cestoEm(
+  posicaoCaminhao: [number, number, number], t: number,
+): [number, number, number] {
+  const [tx, , tz] = posicaoCaminhao
+  const m = miraDoCesto(posicaoCaminhao)
+  const estica = 1 + (m.estica - 1) * t
+  const p = BRACO.clone().multiplyScalar(estica).applyAxisAngle(EIXO_Z, m.elevar * t)
+  const giro = m.giro * t
+  return [
+    tx + PINO.x + p.x * Math.cos(giro),
+    PINO.y + p.y,
+    tz + PINO.z - p.x * Math.sin(giro),
+  ]
+}
+
+/**
+ * A MESMA suavização do cesto, replicada por quem precisa acompanhá-lo.
+ *
+ * Não é estado compartilhado: é a mesma regra, com a mesma entrada, no mesmo
+ * laço de quadro. Dois `ref` independentes com `dt` igual produzem o mesmo
+ * número — e isso é mais simples de seguir do que um ponteiro mutável que
+ * dois componentes escrevem.
+ */
+export function subirCesto(atual: number, alvo: number, dt: number) {
+  return atual + (alvo - atual) * Math.min(1, dt * 0.9)
+}
+
 export function CenaOcorrencia({ colocadas }: { colocadas: Colocada[] }) {
   const { scene } = useGLTF(MODELO, DRACO)
 
@@ -329,7 +369,7 @@ function CestoAereo({
   useFrame((_, dt) => {
     // sobe devagar: guindaste não é elevador de prédio, e o movimento lento é
     // metade do que faz a cena parecer um equipamento e não um brinquedo
-    atual.current += (elevacao - atual.current) * Math.min(1, dt * 0.9)
+    atual.current = subirCesto(atual.current, elevacao, dt)
     const t = atual.current
     const elev = mira.elevar * t
     const estica = 1 + (mira.estica - 1) * t
@@ -685,17 +725,23 @@ export type PoseEletricista =
   | 'parado' | 'trabalhando' | 'choque' | 'subindo' | 'radio'
 
 export function Eletricista({
-  pose, onde, giro = 0,
+  pose, caminhao, subindo, giro = 0, altura = 0.06,
 }: {
   pose: PoseEletricista
-  /** Piso do cesto, em coordenada do mundo. */
-  onde: [number, number, number]
+  /** Onde o caminhão está: é dele que sai o caminho do cesto. */
+  caminhao: [number, number, number]
+  /** 0 lança recolhida, 1 cesto na posição de trabalho. */
+  subindo: number
   /** Para que lado ele olha. */
   giro?: number
+  /** Quanto os pés ficam acima do piso do cesto. */
+  altura?: number
 }) {
   const { scene } = useGLTF(ELETRICISTA, DRACO)
   const grupo = useRef<THREE.Group>(null)
   const tremor = useRef(0)
+  /** Cópia local da subida do cesto, pela mesma regra e com o mesmo dt. */
+  const t = useRef(0)
 
   useEffect(() => {
     scene.traverse((o) => {
@@ -714,7 +760,10 @@ export function Eletricista({
   useFrame((estado, dt) => {
     const g = grupo.current
     if (!g) return
-    const t = estado.clock.elapsedTime
+    t.current = subirCesto(t.current, subindo, dt)
+    const onde = cestoEm(caminhao, t.current)
+    onde[1] += altura
+    const tempo = estado.clock.elapsedTime
 
     // O TRANCO. A pose sozinha é uma estátua de braços abertos; o que faz
     // ler como choque é a figura TREMENDO por um segundo. Frequência alta
@@ -723,22 +772,25 @@ export function Eletricista({
       tremor.current = Math.max(0, tremor.current - dt / 1.1)
       const a = tremor.current * tremor.current
       g.position.set(
-        onde[0] + Math.sin(t * 28) * 0.035 * a,
-        onde[1] + Math.sin(t * 33) * 0.022 * a,
-        onde[2] + Math.cos(t * 25) * 0.030 * a,
+        onde[0] + Math.sin(tempo * 28) * 0.035 * a,
+        onde[1] + Math.sin(tempo * 33) * 0.022 * a,
+        onde[2] + Math.cos(tempo * 25) * 0.030 * a,
       )
-      g.rotation.z = Math.sin(t * 30) * 0.10 * a
+      g.rotation.z = Math.sin(tempo * 30) * 0.10 * a
       return
     }
 
     // parado no cesto: respira e se ajeita, como no vestiário
     g.rotation.z = 0
-    const ar = Math.sin(t * 1.3)
+    const ar = Math.sin(tempo * 1.3)
     g.position.set(onde[0], onde[1] + ar * 0.006, onde[2])
+    // o giro da lança leva ele junto: no começo olha para a frente do
+    // caminhão, no fim para o poste
+    g.rotation.y = giro * t.current
   })
 
   return (
-    <group ref={grupo} position={onde} rotation={[0, giro, 0]}>
+    <group ref={grupo} rotation={[0, 0, 0]}>
       <primitive object={scene} />
     </group>
   )
