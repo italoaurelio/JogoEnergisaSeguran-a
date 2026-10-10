@@ -7,6 +7,7 @@
  */
 import { useCallback, useMemo, useState } from 'react'
 import { PalcoPronto } from '../cena/Carregando'
+import Garagem3D from '../cena/Garagem3D'
 import { Canvas } from '@react-three/fiber'
 import { Acabamento } from '../cena/Acabamento'
 import { Environment } from '@react-three/drei'
@@ -76,6 +77,7 @@ export default function Fase2Cabine({
               se passar de ~0,15 */}
           <Environment files="./hdri/ceu.hdr" environmentIntensity={0.12} />
           <LuzCabine />
+          <Garagem3D />
           <Cabine ligados={ligados} />
           <Motorista vestindo={vestindo} />
           <CameraDaVista vista={item.camera} />

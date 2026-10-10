@@ -74,8 +74,17 @@ export const ITENS_CABINE: ItemCabine[] = [
       'Espelho virado para dentro mostra o que o motorista já sabe — a lataria — e esconde o que ele precisa ver. Em serviço na via, é por ali que aparece a moto que vem pela direita.',
     norma: 'CTB art. 103 e checklist de frota — campo de visão indireto',
     pontos: 10,
-    // Enquadra o espelho DO MOTORISTA, do lado dele, a partir do olho de
-    // quem vai dirigir — que é de onde a pergunta é feita.
+    // Enquadra o espelho DO MOTORISTA, de dentro da cabine, com a cabeça
+    // dele ATRÁS da câmera.
+    //
+    // Ficava no olho de quem dirige, que é de onde a pergunta é feita — e
+    // era defensável enquanto o banco estava vazio. Com o motorista sentado
+    // (e 18 cm à frente, desde que `Y_BANCO` mudou para ele alcançar o
+    // volante) a câmera nascia DENTRO DA CABEÇA: na tela saíam dois globos
+    // oculares brancos ocupando meia tela, vistos por dentro.
+    //
+    // Daqui, entre os bancos e um palmo à frente dele, o espelho do lado do
+    // motorista aparece limpo e a cabeça fica fora de quadro.
     //
     // A câmera de antes ficava em x=-0,45 olhando o espelho em x=-0,92: os
     // dois do lado do PASSAGEIRO, numa pergunta sobre o equipamento do
@@ -84,7 +93,7 @@ export const ITENS_CABINE: ItemCabine[] = [
     // (A nota antiga sobre o antebraço nu do motorista saiu: aquele defeito
     // era o recorte da manga seguir a pose do corpo, e foi corrigido em
     // 06/10 — ver "Item 2" no PLANO.md.)
-    camera: { de: [0.30, 1.20, -0.18], para: [0.95, 1.02, 0.56], lente: 32 },
+    camera: { de: [1.85, 1.42, 1.70], para: [0.95, 1.06, 0.52], lente: 38 },
     no: { errado: 'retro_desregulado', certo: 'retro_ok' },
   },
   {
