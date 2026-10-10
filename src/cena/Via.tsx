@@ -34,6 +34,20 @@ const DRACO = './draco/gltf/'
 /** Até onde o mundo é desenhado à frente. */
 /** Faixa contrária: do outro lado do eixo da via, que fica em x = +1,75. */
 const CONTRA_X = 3.5
+
+/**
+ * `?setaacesa=1` trava a seta do ônibus acesa, só em desenvolvimento.
+ *
+ * Existe porque conferir uma lanterna que pisca a 2,4 Hz por captura de tela
+ * é loteria: a leitura do estado e o `screenshot` são duas chamadas, e entre
+ * elas passa mais do que meio ciclo do pisca. Passei três capturas achando
+ * que a lanterna não renderizava — ela estava apagada nos três quadros.
+ */
+const SETA_SEMPRE_ACESA = import.meta.env.DEV
+  && new URLSearchParams(window.location.search).has('setaacesa')
+
+/** Laranja de lanterna, em HDR: ver a nota no material da seta do ônibus. */
+const LARANJA_SETA = new THREE.Color(7.0, 2.6, 0.35)
 /** Velocidade de quem vem de frente, em m/s (≈ 50 km/h). */
 const VELOCIDADE_CONTRA = 14
 /** Distância entre um veículo e o seguinte na fila contrária. */
@@ -405,6 +419,73 @@ function OnibusEscolar({
     c.visible = true
     return c
   }, [molde])
+  /*
+    A SETA DO ÔNIBUS, no canto traseiro esquerdo.
+
+    O modelo não tem lanterna, e mandar uma de volta pelo Blender por causa
+    de uma luz de 12 cm seria desproporcional: aqui ela é uma caixinha com
+    material básico, que não depende de luz nenhuma para brilhar.
+
+    O canto sai da caixa envolvente do próprio ônibus, e não de números
+    escritos à mão — o modelo já mudou de tamanho uma vez.
+  */
+  const cantoSeta = useMemo(() => {
+    if (!bus) return null
+    /*
+      A CAIXA DA CARROCERIA, e não a do objeto inteiro.
+
+      `setFromObject(bus)` devolvia x de -2,32 a 1,47 — quase quatro metros
+      de largura, porque o braço da placa PARE e o espelho entram na conta.
+      A lanterna nascia em 1,49 e ficava boiando um metro e meio ao lado do
+      ônibus, no ar, que na tela parece defeito e não seta.
+
+      A carroceria é a malha com mais vértices: é o único critério que não
+      depende do nome que o exportador deu a cada peça.
+
+      Dirigindo para +z, a esquerda é +x (direita × cima = -x). A traseira é
+      o lado de menor z: é a face que o jogador, que vem de trás, vê.
+    */
+    let corpo: THREE.Mesh | null = null
+    let maior = 0
+    bus.traverse((o) => {
+      const m = o as THREE.Mesh
+      const n = m.isMesh ? (m.geometry.getAttribute('position')?.count ?? 0) : 0
+      if (n > maior) { maior = n; corpo = m }
+    })
+    const b = new THREE.Box3().setFromObject(corpo ?? bus)
+    /*
+      A LARGURA MEDIDA NA TRASEIRA, e não no ônibus inteiro.
+
+      Mesmo pegando só a carroceria a caixa dá 3,37 m de largura: o espelho
+      sai 43 cm da lataria lá na frente, e a lanterna colada nesse extremo
+      aparecia destacada do ônibus, no ar ao lado dele.
+
+      Os vértices dos últimos 60 cm de traseira não têm espelho nenhum, então
+      o maior x entre eles É a quina traseira esquerda. Vale para qualquer
+      modelo que venha depois, que é mais do que se pode dizer de subtrair
+      43 cm escritos à mão.
+    */
+    let quina = b.max.x
+    const pos = (corpo as THREE.Mesh | null)?.geometry?.getAttribute('position')
+    if (pos) {
+      quina = -Infinity
+      for (let i = 0; i < pos.count; i++) {
+        if (pos.getZ(i) < b.min.z + 0.6 && pos.getX(i) > quina) quina = pos.getX(i)
+      }
+      if (!Number.isFinite(quina)) quina = b.max.x
+    }
+    if (import.meta.env.DEV) {
+      ;(window as unknown as Record<string, unknown>).__caixaOnibus = {
+        caixa: [b.min.toArray().map((n) => +n.toFixed(2)),
+                b.max.toArray().map((n) => +n.toFixed(2))],
+        quinaTraseira: +quina.toFixed(2),
+      }
+    }
+    // 2 cm PARA FORA da lataria, senão a lanterna briga por profundidade com
+    // ela e some em metade dos quadros.
+    return [quina + 0.02, 1.05, b.min.z + 0.14] as [number, number, number]
+  }, [bus])
+  const seta = useRef<THREE.Mesh>(null)
   const filhos = useMemo(() => {
     if (!moldeCrianca) return []
     // Fila NO LADO DO MEIO-FIO, atrás da porta, de frente para ela.
@@ -467,7 +548,22 @@ function OnibusEscolar({
       // mais encosta depois do embarque, e o ônibus sai de cena sozinho. Na
       // prática ninguém vê essa velocidade — quem respeita os 30 km/h do
       // trecho escolar vê uma arrancada normal e o ônibus sumindo à frente.
-      saiu.current += Math.min(VEICULO.maxima, 2 + saiu.current * 0.6) * dt
+      /*
+        DEVAGAR NOS PRIMEIROS 18 m, e só depois embora.
+
+        Com a rampa única (`2 + saiu*0,6`) ele chegava aos 25 m/s do
+        caminhão em três segundos — nenhum ônibus escolar faz isso, e pior:
+        a entrada na via acontecia inteira longe demais para ser vista.
+        Medido tentando filmar, ele sumia do quadro antes do segundo
+        fotograma.
+
+        A rampa mais mansa (0,35) leva 4,1 s para cobrir os 18 m da entrada,
+        que é o tempo de ver a seta piscar e o ônibus se encaixar na faixa.
+        Passados os 18 m volta a rampa antiga, que é o que garante que o vão
+        só aumente e o jogador não fique preso atrás dele.
+      */
+      const rampa = saiu.current < 18 ? 0.35 : 0.6
+      saiu.current += Math.min(VEICULO.maxima, 2 + saiu.current * rampa) * dt
     }
     // Cada uma ANDA até a porta na sua vez, e some ao entrar. Antes elas
     // piscavam no lugar: o embarque era uma contagem, não uma cena, e o
@@ -495,17 +591,72 @@ function OnibusEscolar({
     // `liberado` já nasce verdadeiro): o ônibus estava em z = 1097 m, ainda
     // com `visible` ligado, tendo atravessado a tela inteira de trás para a
     // frente enquanto o caminhão estava parado.
+    /*
+      ELE VOLTA PARA A VIA, não arranca de lado.
+
+      Parado ele encosta em x -1,00, junto ao meio-fio. Antes ele saía dali
+      em linha reta e seguia a viagem inteira com meio ônibus fora da pista,
+      o que não é o que um ônibus escolar faz nem o que o jogador precisa
+      aprender a esperar: ele entra na via, e por isso quem vem atrás tem de
+      estar pronto para ceder.
+
+      18 m para completar a entrada, que a 30 km/h dá pouco mais de dois
+      segundos — tempo de a seta piscar três ou quatro vezes antes de ele
+      estar na faixa.
+    */
+    const entrando = Math.min(1, saiu.current / 18)
+    const x = -1.0 + 0.8 * entrando
     const zf = z + saiu.current
-    g.position.set(-1.0, 0, zf)
+    g.position.set(x, 0, zf)
+    // pisca enquanto entra, e só; 2,4 Hz é o ritmo de pisca-pisca de veículo
+    if (seta.current) {
+      seta.current.visible = liberado.current && entrando < 1
+        && (SETA_SEMPRE_ACESA || Math.floor(performance.now() / 420) % 2 === 0)
+    }
     g.visible = zf > -30 && zf < ALCANCE
     onde.current = metro + saiu.current
     if (criancas.current) criancas.current.visible = saiu.current < 1
+    if (import.meta.env.DEV) {
+      // para conferir a entrada na via por número, e não por palpite de
+      // quando apertar o botão da captura
+      ;(window as unknown as Record<string, unknown>).__onibus = {
+        x: +x.toFixed(2), saiu: +saiu.current.toFixed(1), z: +zf.toFixed(1),
+        seta: seta.current?.visible ?? false,
+        setaMundo: seta.current
+          ? seta.current.getWorldPosition(new THREE.Vector3()).toArray()
+              .map((n) => +n.toFixed(2))
+          : null,
+      }
+    }
   })
 
   if (!bus) return null
   return (
     <group ref={grupo}>
       <primitive object={bus} />
+      {cantoSeta && (
+        <mesh ref={seta} position={cantoSeta} visible={false}>
+          {/*
+            26 cm, que é o tamanho de uma lanterna de ônibus de verdade.
+            Com os 10 cm da primeira tentativa ela tinha 3 PIXELS na tela: a
+            entrada na via acontece uns 38 m à frente, e ali cada pixel vale
+            quase 3 cm. Medido no quadro, não estimado.
+          */}
+          <boxGeometry args={[0.08, 0.26, 0.22]} />
+          {/*
+            Básico, e não standard: lanterna acesa não depende da luz do sol,
+            e com `standard` ela some na sombra da copa das árvores.
+
+            A COR PASSA DE 1 DE PROPÓSITO. `toneMapped={false}` só dispensa o
+            tom do material — o AgX do `Acabamento` roda depois, sobre o
+            quadro inteiro, e esmagava um `#ffae2b` (0,45 de luminância) num
+            marrom escuro no rear do ônibus. Com 7 a 1 de alcance ela
+            atravessa o AgX acesa e ainda entra no bloom, que é o que faz
+            lanterna parecer lanterna.
+          */}
+          <meshBasicMaterial color={LARANJA_SETA} toneMapped={false} />
+        </mesh>
+      )}
       <group ref={criancas}>
         {filhos.map((c, i) => <primitive key={i} object={c} />)}
       </group>
