@@ -143,71 +143,83 @@ async function cabine(page) {
  * Lê o estado pelo gancho de desenvolvimento `window.__trajeto` e responde com
  * tecla de verdade, para o vídeo mostrar o jogo reagindo a entrada real.
  */
+/**
+ * Piloto: mantém a velocidade compatível, para na faixa e guarda distância.
+ *
+ * ELE RODA DENTRO DA PÁGINA, não aqui. A versão anterior lia o estado por
+ * `page.evaluate` e mandava tecla por CDP a cada 110 ms — e cada ida e volta
+ * custa caro num Chromium com janela visível gravando vídeo. O piloto reagia
+ * a cada ~250 ms, oscilava entre acelerar e frear e o trajeto de 87 segundos
+ * levava 4min22 no vídeo. Medido: a página entrega 14,8 fps gravando, e o
+ * caminhão anda em velocidade real — o atraso era todo do controle remoto.
+ *
+ * Dentro da página ele decide a cada quadro, que é como um jogador decide.
+ * Daqui só se espera o fim e se lê o progresso de vez em quando.
+ */
 async function trajeto(page, { aoVivo = () => {} } = {}) {
-  // O METRO DA LOMBADA SAI DO CONTEÚDO, não escrito à mão.
-  //
-  // Estava fixo em 1130, do trajeto antigo de 1.340 m. Com o trajeto cortado
-  // para 640 a lombada foi para o metro 370, e a condição `|d − 1130| < 55`
-  // deixou de ser verdadeira em qualquer ponto da rota: o piloto parou de
-  // reduzir na lombada e passou a tomar a falta toda vez, em silêncio.
-  const LOMBADA = await page.evaluate(() => {
+  await page.evaluate(() => {
     const t = window.__trajeto
-    return t && t.lombada != null ? t.lombada : 370
+    const LOMBADA = t?.lombada ?? 370
+    const ONIBUS = t?.onibus ?? null
+    const CICLISTA = t?.ciclista ?? null
+    const bA = [...document.querySelectorAll('button')]
+      .find((b) => b.textContent.includes('Acelerar'))
+    const bF = [...document.querySelectorAll('button')]
+      .find((b) => b.textContent.includes('Frear'))
+    const ap = (el, tipo) =>
+      el.dispatchEvent(new PointerEvent(tipo, { bubbles: true, pointerId: 1 }))
+    let pedal = null
+    const segurar = (n) => {
+      if (n === pedal) return
+      if (pedal) ap(pedal === 'a' ? bA : bF, 'pointerup')
+      if (n) ap(n === 'a' ? bA : bF, 'pointerdown')
+      pedal = n
+    }
+    window.__pilotoVivo = true
+    const passo = () => {
+      if (!document.querySelector('.trajeto-palco')) {
+        segurar(null)
+        window.__pilotoVivo = false
+        return
+      }
+      const s = window.__trajeto
+      if (!s) { requestAnimationFrame(passo); return }
+      const al = document.querySelector('.trajeto-alerta')
+      const parando = al && al.style.display !== 'none'
+      let alvo = s.limite - 3
+      // aproxima devagar da faixa e só então para: parar a cem metros é
+      // exagero e deixa o vídeo parado olhando para o nada
+      if (parando) alvo = s.ateParada != null && s.ateParada > 16 ? 14 : 0
+      if (Math.abs(s.d - LOMBADA) < 55) alvo = Math.min(alvo, 17)
+      // o jogo cobra ≤20 no ônibus escolar e ≤30 no ciclista
+      if (ONIBUS != null && Math.abs(s.d - ONIBUS) < 45) alvo = Math.min(alvo, 16)
+      if (CICLISTA != null && Math.abs(s.d - CICLISTA) < 40) alvo = Math.min(alvo, 24)
+      if (s.vao != null && s.vao < Math.max(10, (s.kmh / 3.6) * 2.4)) {
+        alvo = Math.min(alvo, Math.max(0, s.kmh - 12))
+      }
+      if (s.kmh < alvo - 2) segurar('a')
+      else if (s.kmh > alvo + 1) segurar('f')
+      else segurar(null)
+      requestAnimationFrame(passo)
+    }
+    requestAnimationFrame(passo)
   })
-  let pedal = null
-
-  const segurar = async (novo) => {
-    if (novo === pedal) return
-    if (pedal) await page.keyboard.up(pedal === 'acelera' ? 'ArrowUp' : 'ArrowDown')
-    if (novo) await page.keyboard.down(novo === 'acelera' ? 'ArrowUp' : 'ArrowDown')
-    pedal = novo
-  }
 
   const inicio = Date.now()
   for (;;) {
-    if (Date.now() - inicio > 260000) break          // rede de segurança
-    const s = await page.evaluate(() => {
-      const t = window.__trajeto
-      if (!t) return null
-      const al = document.querySelector('.trajeto-alerta')
-      const parando = al && al.style.display !== 'none'
-      return { ...t, parando }
-    })
-    if (!s) break                                     // saiu do trajeto
-    aoVivo(s)
-
-    let alvo = s.limite - 3
-    // aproxima devagar da faixa e só então para: parar a cem metros é
-    // exagero e deixa o vídeo parado olhando para o nada
-    if (s.parando) alvo = s.ateParada != null && s.ateParada > 16 ? 14 : 0
-    if (Math.abs(s.d - LOMBADA) < 55) alvo = Math.min(alvo, 17)
-    // ônibus escolar em embarque e ciclista: o jogo cobra ≤20 e ≤30 km/h, e
-    // o piloto passava a 27 e 57 — tomava as duas faltas sem nunca saber
-    if (s.onibus != null && Math.abs(s.d - s.onibus) < 45) alvo = Math.min(alvo, 16)
-    if (s.ciclista != null && Math.abs(s.d - s.ciclista) < 40) alvo = Math.min(alvo, 24)
-    if (s.vao != null && s.vao < Math.max(10, (s.kmh / 3.6) * 2.4)) {
-      alvo = Math.min(alvo, Math.max(0, s.kmh - 12))
-    }
-
-    if (s.kmh < alvo - 2) await segurar('acelera')
-    else if (s.kmh > alvo + 1) await segurar('freia')
-    else await segurar(null)
-
-    await espera(110)
+    if (Date.now() - inicio > 260000) break        // rede de segurança
+    const s = await page.evaluate(() => ({
+      vivo: window.__pilotoVivo === true,
+      t: window.__trajeto,
+      naTela: !!document.querySelector('.trajeto-palco'),
+    }))
+    if (!s.vivo || !s.naTela) break
+    if (s.t) aoVivo(s.t)
+    await espera(900)
   }
-  await segurar(null)
   await espera(2000)
 }
 
-/**
- * Fase 3. Desde 09/10 a escolha NÃO vale ao ser clicada: ela aparece em
- * transparente na cena e só "Executar a manobra" a torna real.
- *
- * Na pergunta da distância o piloto marca de propósito a opção errada antes
- * da certa, e espera nas duas. É a única maneira de a gravação mostrar o que
- * a prévia serve para ensinar: com a sinalização colada no caminhão, a vista
- * de quem chega dirigindo não tem nada; recuada, o cavalete chega de longe.
- */
 async function ocorrencia(page) {
   await clicar(page, 'Chegar ao local', { pausa: 2200 })
 
