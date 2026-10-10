@@ -88,6 +88,24 @@ const ALTURA_CABINE = 0.52
  */
 const OLHO: [number, number, number] = [0.38, 1.17 + ALTURA_CABINE, -0.20]
 
+/**
+ * Quanto o caminhão se afasta para ultrapassar o ciclista, em metros.
+ *
+ * O ciclista anda em x -1,30, junto à borda. A lateral direita do caminhão
+ * fica por volta de x -1,10 — ou seja, o jogo passava a 20 cm dele, que é
+ * exatamente o "passou colado" que o relatório já cobrava mas que ninguém
+ * via acontecer na tela.
+ *
+ * Com 1,50 m de desvio a lateral vai para +0,40 e sobra 1,45 m até o guidão
+ * (o ciclista tem uns 25 cm de meia-largura) — a folga que o CTB art. 201
+ * manda dar. O caminhão fica montado no eixo da via, que é como se ultrapassa
+ * bicicleta de verdade.
+ */
+const DESVIO_CICLISTA = 1.5
+/** Onde a manobra começa e onde termina, em metros ANTES e DEPOIS dele. */
+const ANTES_CICLISTA = 26
+const DEPOIS_CICLISTA = 9
+
 type Pedal = 'acelera' | 'freia' | null
 
 type Situacao = {
@@ -103,6 +121,8 @@ type Situacao = {
   ateSinal: number | null
   /** Metros até a saída de garagem em manobra, ou null. */
   ateGaragem: number | null
+  /** Seta ligada, ou null. A manobra acende sozinha — o jogador não dirige. */
+  seta: 'esquerda' | 'direita' | null
 }
 
 /** Onde cada trecho começa, em metros de trajeto. */
@@ -202,6 +222,9 @@ export default function Fase2Trajeto({
   // remontava nós da cena 3D e derrubava o jogo para 1 quadro por segundo.
   // Aqui o laço de quadro escreve direto no DOM do painel.
   const painel = useRef<PainelAPI>(null)
+  /** Deslocamento lateral do caminhão (ultrapassagem). O `Motor` escreve. */
+  const lateral = useRef(0)
+  const seta = useRef<'esquerda' | 'direita' | null>(null)
   const [acabou, setAcabou] = useState(false)
   /** Legenda da fala do personagem. Estado, porque é texto na tela. */
   const [legenda, setLegenda] = useState<string | null>(null)
@@ -331,6 +354,7 @@ export default function Fase2Trajeto({
               metro: evento('garagem')?.metro ?? null,
               liberada: garagemLiberada,
             }}
+            lateral={lateral}
           />
           <Motor
             distancia={distancia}
@@ -345,6 +369,8 @@ export default function Fase2Trajeto({
             sinal={sinal}
             celular={celular}
             painel={painel}
+            lateral={lateral}
+            seta={seta}
             aoChegar={() => setChegando(true)}
             mostrarFone={setFoneAVista}
             dizer={setLegenda}
@@ -421,8 +447,8 @@ function CameraFixa({
 
 function Motor({
   distancia, velocidade, pedal, carro, faltas, pedestreLiberado, onibusLiberado,
-  onibusOnde, garagemLiberada, sinal, celular, painel, aoChegar, mostrarFone,
-  dizer,
+  onibusOnde, garagemLiberada, sinal, celular, painel, lateral, seta, aoChegar,
+  mostrarFone, dizer,
 }: {
   distancia: React.RefObject<number>
   velocidade: React.RefObject<number>
@@ -436,6 +462,8 @@ function Motor({
   sinal: React.RefObject<number>
   celular: React.RefObject<'dormindo' | 'tocando' | 'atendeu' | 'ignorou'>
   painel: React.RefObject<PainelAPI | null>
+  lateral: React.RefObject<number>
+  seta: React.RefObject<'esquerda' | 'direita' | null>
   aoChegar: () => void
   mostrarFone: (v: boolean) => void
   dizer: (texto: string | null) => void
@@ -557,6 +585,36 @@ function Motor({
         if (kmh > teto) contar(faltas, chave, 1)
       }
     }
+
+    /*
+      A ULTRAPASSAGEM DO CICLISTA É UMA MANOBRA, e não uma linha no relatório.
+
+      Antes o jogo cobrava "passou colado" num texto que só aparecia depois
+      da fase terminar — e na tela o ciclista passava raspando a lataria sem
+      que nada acontecesse. Agora o caminhão SAI da faixa, dá a seta, passa
+      com folga e volta.
+
+      Quem comanda é a velocidade: só sai da faixa quem já está em
+      velocidade de ultrapassar. Passar a 60 sem desviar continua sendo o
+      erro, e agora ele se vê acontecendo em vez de ser lido no fim.
+
+      A seta acende sozinha porque o jogador não dirige — ele só controla o
+      pedal. Mostrá-la é o que ensina que a manobra tem um aviso, mesmo sem
+      ter um volante para girar.
+    */
+    const evCiclista = evento('ciclista')
+    let desviar = 0
+    if (evCiclista) {
+      const falta = evCiclista.metro - d
+      if (falta < ANTES_CICLISTA && falta > -DEPOIS_CICLISTA
+          && kmh <= CONDUTA.ciclistaKmh) desviar = DESVIO_CICLISTA
+    }
+    // 1,1 e não um salto: a 30 km/h a manobra leva uns dois segundos, que é
+    // o tempo de um caminhão mudar de faixa sem jogar a carga para o lado.
+    lateral.current += (desviar - lateral.current) * Math.min(1, dt * 1.1)
+    seta.current = desviar > 0 && lateral.current < desviar - 0.05 ? 'esquerda'
+      : desviar === 0 && lateral.current > 0.08 ? 'direita'
+      : null
 
     // Veículo saindo da garagem. Vale nota, então tudo aqui é função do
     // METRO do jogador, nunca do relógio — dois colaboradores têm de
@@ -749,6 +807,7 @@ function Motor({
         faltas: { ...faltas.current },
         paradoDesde: +paradoDesde.current.toFixed(2),
         pedestreLiberado: pedestreLiberado.current,
+        lateral: +lateral.current.toFixed(2), seta: seta.current,
       }
     }
 
@@ -759,7 +818,7 @@ function Motor({
         distancia: distancia.current, velocidade: v, trecho,
         limite: trecho.limite, ateParada,
         sinal: sinal.current, ateSinal,
-        ateGaragem,
+        ateGaragem, seta: seta.current,
       })
     }
     // Chegou: a tela esmaece ANTES de trocar de fase. O corte seco fazia
@@ -833,6 +892,7 @@ const Painel = forwardRef<
     const barraEl = useRef<HTMLElement>(null)
     const alertaEl = useRef<HTMLDivElement>(null)
     const sinalEl = useRef<HTMLDivElement>(null)
+    const setaEl = useRef<HTMLDivElement>(null)
     // A chamada é o único pedaço do painel que passa pelo estado do React:
     // ela aparece uma vez por partida, então o re-render não custa nada —
     // e sem estado não dá para montar os dois botões.
@@ -860,6 +920,14 @@ const Painel = forwardRef<
         if (tracoEl.current) {
           const g = -135 + 270 * (s.limite / ESCALA_VELOCIMETRO)
           tracoEl.current.setAttribute('transform', `rotate(${g} 60 60)`)
+        }
+        // A SETA PISCA PELO RELÓGIO, e não pelo metro: é o único pedaço do
+        // painel que não precisa ser reprodutível entre duas partidas, e uma
+        // seta que não pisca não lê como seta.
+        if (setaEl.current) {
+          const piscando = s.seta != null && Math.floor(Date.now() / 420) % 2 === 0
+          setaEl.current.className =
+            `trajeto-seta${s.seta ? ` seta-${s.seta}` : ''}${piscando ? ' acesa' : ''}`
         }
         if (trechoEl.current) trechoEl.current.textContent = s.trecho.nome
         if (avisoEl.current) {
@@ -964,6 +1032,13 @@ const Painel = forwardRef<
             </div>
           </div>
         )}
+
+        {/* As duas setas, sempre na tela e apagadas: aparecendo e sumindo
+            elas empurrariam o velocímetro de lado a cada manobra. */}
+        <div className="trajeto-seta" ref={setaEl} aria-hidden>
+          <svg viewBox="0 0 24 24"><path d="M15 5 L8 12 L15 19" /></svg>
+          <svg viewBox="0 0 24 24"><path d="M9 5 L16 12 L9 19" /></svg>
+        </div>
 
         <div className="trajeto-velocimetro">
           <svg viewBox="0 0 120 120" aria-hidden>

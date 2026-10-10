@@ -657,7 +657,7 @@ function Garagem({
 
 export function Mundo({
   distancia, marcos, carro, tracado, sinal, garagem, faixa, pedestreLiberado,
-  onibus, onibusLiberado, onibusOnde,
+  onibus, onibusLiberado, onibusOnde, lateral,
 }: {
   distancia: React.RefObject<number>
   marcos: Marco[]
@@ -677,6 +677,16 @@ export function Mundo({
   pedestreLiberado: React.RefObject<boolean>
   /** Metro da saída de garagem, e se o jogador já cedeu passagem. */
   garagem?: { metro: number | null; liberada: React.RefObject<boolean> }
+  /**
+   * Quanto o caminhão se afastou para a esquerda, em metros.
+   *
+   * Quem anda é o MUNDO, para o lado contrário. A cabine é uma malha fixa com
+   * a câmera dentro dela: mover a câmera para ultrapassar o ciclista a
+   * arrancaria de dentro do próprio caminhão, e mover as duas juntas só
+   * acrescentaria um segundo lugar para a conta sair errada. Deslizar a via
+   * dá exatamente a mesma imagem, com uma linha.
+   */
+  lateral?: React.RefObject<number>
 }) {
   const { scene } = useGLTF(MODELO, DRACO)
   const [asfaltoCor, asfaltoRelevo, terraCor, terraRelevo, gramaCor, gramaRelevo] =
@@ -847,6 +857,9 @@ export function Mundo({
   // há como CONTAR o que está na tela, e densidade de cenário só se julga
   // contando — "parece vazio" não é medida
   const raiz = useRef<THREE.Group>(null)
+  useFrame(() => {
+    if (raiz.current) raiz.current.position.x = -(lateral?.current ?? 0)
+  })
   useEffect(() => {
     if (import.meta.env.DEV) {
       ;(window as unknown as Record<string, unknown>).__via = raiz.current

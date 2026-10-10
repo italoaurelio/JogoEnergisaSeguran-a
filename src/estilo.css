@@ -1277,3 +1277,25 @@ body {
   color: #5d6775;
   font-variant-numeric: tabular-nums;
 }
+
+/* ---- seta da ultrapassagem ------------------------------------------ */
+.trajeto-seta {
+  position: absolute;
+  left: 50%;
+  bottom: 118px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 96px;
+  pointer-events: none;
+}
+.trajeto-seta svg {
+  width: 34px; height: 34px;
+  fill: none; stroke: #2b3440; stroke-width: 2.6;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+/* só o lado da manobra acende, e só no meio do pisca */
+.trajeto-seta.acesa.seta-esquerda svg:first-child,
+.trajeto-seta.acesa.seta-direita svg:last-child {
+  stroke: #4ade9b;
+  filter: drop-shadow(0 0 10px rgba(74, 222, 155, 0.9));
+}
