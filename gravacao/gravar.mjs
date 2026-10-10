@@ -34,6 +34,18 @@ const SAIDA = resolve(AQUI, 'bruto')
   quatro minutos antes para jogar fora.
 */
 const SO_OCORRENCIA = process.argv.includes('--ocorrencia')
+/*
+  `--sem-video` joga a partida sem gravar nada.
+
+  Serve para CONFERIR, que é o uso mais frequente: a gravação é o que pesa,
+  não o jogo. Medido com o `top`, o `ffmpeg` do Playwright come 84% de um
+  núcleo sozinho e segura os quadros de 1280x720 na memória — e nesta
+  máquina, com 65 MB livres, isso põe o sistema a paginar e o load passa de
+  25. A partida que leva 5 minutos passava de 20 e travava.
+
+  Sem vídeo sobra o navegador, que é o que se quer medir.
+*/
+const SEM_VIDEO = process.argv.includes('--sem-video')
 const URL_JOGO = (process.argv[2] ?? '').startsWith('http')
   ? process.argv[2]
   : 'http://localhost:5273/'
@@ -321,7 +333,9 @@ async function principal() {
   const contexto = await navegador.newContext({
     viewport: { width: LARGURA, height: ALTURA },
     deviceScaleFactor: 1,
-    recordVideo: { dir: SAIDA, size: { width: LARGURA, height: ALTURA } },
+    ...(SEM_VIDEO
+      ? {}
+      : { recordVideo: { dir: SAIDA, size: { width: LARGURA, height: ALTURA } } }),
   })
   const page = await contexto.newPage()
   page.on('pageerror', (e) => console.error('ERRO NA PAGINA:', e.message))
