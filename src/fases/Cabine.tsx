@@ -23,7 +23,17 @@ export default function Fase2Cabine({
   /** O EPI escolhido no vestiário: o motorista aparece vestindo o que foi escolhido. */
   vestindo: string[]
 }) {
-  const [indice, setIndice] = useState(0)
+  /*
+    `?item=N` abre a conferência direto no item N (1 é o primeiro).
+
+    É para conferir ENQUADRAMENTO: cada item tem a sua câmera, e achar um
+    corpo na frente do apoio de cabeça custava clicar os quatro itens
+    anteriores a cada ajuste de meio centímetro. Fora da URL, não muda nada.
+  */
+  const [indice, setIndice] = useState(() => {
+    const n = Number(new URLSearchParams(window.location.search).get('item'))
+    return n >= 1 && n <= ITENS_CABINE.length ? n - 1 : 0
+  })
   const [respostas, setRespostas] = useState<Record<string, Resposta>>({})
   const [mostrandoRetorno, setMostrandoRetorno] = useState(false)
 

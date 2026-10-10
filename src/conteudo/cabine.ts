@@ -98,18 +98,20 @@ export const ITENS_CABINE: ItemCabine[] = [
       'Apoio baixo não é apoio: numa colisão traseira ele vira o ponto de apoio sobre o qual o pescoço dobra para trás. O topo tem de ficar na altura do alto da cabeça, não da nuca.',
     norma: 'CONTRAN e checklist de frota — regulagem do apoio de cabeça',
     pontos: 8,
-    // Três quartos do banco do passageiro, olhando o apoio DO MOTORISTA.
+    // DE DENTRO DA CABINE, por cima do ombro, atrás dos dois bancos.
     //
-    // A câmera antiga mirava x=-0,38 — o encosto do passageiro — numa
-    // pergunta sobre o apoio de quem vai dirigir (x=+0,38). Daqui aparecem a
-    // cabeça do motorista E o apoio atrás dela, que é exatamente a
-    // comparação que o item pede: o topo tem de ficar na altura do alto da
-    // cabeça, não da nuca.
-    // PERFIL, pela janela do motorista. Altura se julga de lado: de frente o
-    // apoio fica na frente do encosto e o vão some, e de dentro da cabine o
-    // apoio do PASSAGEIRO entra na frente. Pela janela é a única linha livre
-    // (o pilar B está em y 0,43-0,51 e esta vista passa em y 0,57).
-    camera: { de: [0.92, 1.18, 0.20], para: [0.42, 1.06, -0.32], lente: 30 },
+    // A tentativa anterior era um perfil pela janela do motorista, e na tela
+    // dava um borrão azul: a câmera ficava a meio metro do alvo com a CABEÇA
+    // DELE no meio do caminho. Pior, de perfil o apoio quase não aparece —
+    // o forro da porta sobe até z 0,95 e o apoio na posição baixa tem o topo
+    // em 1,03, então sobrava uma tira de 8 cm acima do peitoril, justamente
+    // no item que pergunta se o apoio está baixo demais.
+    //
+    // Daqui o apoio aparece inteiro, contra a cabeça, e a diferença entre o
+    // batente de baixo e o de cima é visível de longe. Os limites da cabine:
+    // parede traseira em z -1,06 (câmera em -0,92 e nem um dedo mais) e
+    // forro em y 1,42.
+    camera: { de: [-0.25, 1.33, -0.92], para: [0.42, 1.07, -0.30], lente: 46 },
     no: { errado: 'apoio_baixo', certo: 'apoio_alto' },
   },
   {
