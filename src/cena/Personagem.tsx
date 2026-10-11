@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
+import { domarSheen } from './texturas'
 
 const MODELO = './modelos/personagem.glb'
 // decodificador Draco local: o padrão do drei baixa de CDN, o que quebraria o
@@ -49,6 +50,8 @@ type Props = {
 
 export default function Personagem({ fisico, vestindo, giro }: Props) {
   const { scene } = useGLTF(MODELO, DRACO)
+  // mesmo uniforme, mesmo sheen branco vindo do forno
+  useEffect(() => { domarSheen(scene) }, [scene])
   const grupo = useRef<THREE.Group>(null)
   const vestidos = useMemo(() => new Set(vestindo), [vestindo])
 

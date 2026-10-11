@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
+import { domarSheen } from './texturas'
 
 /** Mesma curva de entra-e-sai da respiração do personagem em pé. */
 function suave(x: number) {
@@ -45,6 +46,12 @@ const EIXO_QUADRIL: [number, number, number] = [0.38, 0.455, -0.16]
 
 export function Motorista({ vestindo }: { vestindo: string[] }) {
   const { scene } = useGLTF(MODELO, DRACO)
+  useEffect(() => { domarSheen(scene) }, [scene])
+  // gancho de desenvolvimento: sem ele, investigar material do motorista
+  // exige adivinhar, e eu já perdi uma rodada adivinhando
+  if (import.meta.env.DEV) {
+    ;(window as unknown as Record<string, unknown>).__motorista = scene
+  }
   const quadril = useRef<THREE.Group>(null)
 
   /*

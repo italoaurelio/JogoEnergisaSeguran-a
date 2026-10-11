@@ -142,3 +142,35 @@ export function vestir(
   }
   material.needsUpdate = true
 }
+
+
+/**
+ * DOMA O SHEEN DO TECIDO, que chega do `.glb` em branco e no máximo.
+ *
+ * O cliente escreveu duas vezes que o personagem está "esquisito". Medido na
+ * tela: o material do uniforme chega como `MeshPhysicalMaterial` com
+ * `sheen = 1` e `sheenColor` BRANCO.
+ *
+ * Sheen é brilho de fio, e ele cresce no ângulo rasante. Num peito, que é
+ * quase plano para a câmera, só a borda fica rasante e o efeito passa
+ * despercebido — num BRAÇO, que é um cilindro, quase toda a superfície
+ * visível é rasante, e o braço inteiro vira um tubo branco e nublado. Era
+ * isso, e não a textura: o atlas do uniforme é um jeans escuro correto.
+ *
+ * A origem é o forno: `resgatar_sheen` devolve `Sheen Weight = 0,55` no
+ * Blender, mas o `KHR_materials_sheen` do glTF não tem peso escalar — ele
+ * tem só uma COR, e o exportador escreve branco. O 0,55 se perde no caminho
+ * e o jogo recebe o efeito no dobro.
+ *
+ * Conferido com três valores lado a lado no mesmo quadro: branco apaga o
+ * jeans, 0,2 ainda lava o braço, e sem sheen nenhum o tecido lê certo. Fica
+ * um décimo, que devolve o fio sem devolver o problema.
+ */
+export function domarSheen(raiz: THREE.Object3D) {
+  raiz.traverse((o) => {
+    const m = (o as THREE.Mesh).material as THREE.MeshPhysicalMaterial
+    if (!m || !('sheen' in m) || !m.sheen) return
+    m.sheenColor.setRGB(0.10, 0.11, 0.13)
+    m.needsUpdate = true
+  })
+}
