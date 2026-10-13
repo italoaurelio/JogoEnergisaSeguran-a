@@ -1175,12 +1175,15 @@ body {
 
 /* o cesto ------------------------------------------------------------ */
 .cesto {
-  list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px;
+  list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;
 }
 .ferramenta {
-  padding: 10px 13px; border-radius: 10px; cursor: pointer;
+  /* 7 px e não 10: com a ordem de serviço de nove passos no mesmo painel, as
+     duas fileiras de ferramentas custavam 130 px e empurravam metade da
+     lista para fora da tela — e num totem ninguém rola. */
+  padding: 7px 12px; border-radius: 9px; cursor: pointer;
   border: 1px solid var(--borda); background: var(--painel-claro);
-  color: var(--texto); font: inherit; font-size: 14px;
+  color: var(--texto); font: inherit; font-size: 13.5px;
 }
 .ferramenta:hover { border-color: #3d4d5f; }
 .ferramenta.na-mao {
@@ -1193,9 +1196,9 @@ body {
 
 /* o que a ação devolveu ---------------------------------------------- */
 .recado {
-  margin-top: 16px; padding: 13px 15px; border-radius: 10px;
+  margin-top: 11px; padding: 10px 14px; border-radius: 10px;
   border-left: 4px solid var(--borda); background: var(--painel-claro);
-  font-size: 14.5px; line-height: 1.55;
+  font-size: 14px; line-height: 1.5;
 }
 .recado-ok { border-left-color: var(--verde); }
 .recado-nao { border-left-color: var(--ambar); color: var(--texto-fraco); }
@@ -1298,4 +1301,70 @@ body {
 .trajeto-seta.acesa.seta-direita svg:last-child {
   stroke: #4ade9b;
   filter: drop-shadow(0 0 10px rgba(74, 222, 155, 0.9));
+}
+
+/* ---- em que pé está o serviço (fase 3) ------------------------------ */
+.situacao {
+  display: grid;
+  gap: 3px;
+  margin: 0 0 12px;
+  padding: 9px 13px;
+  border-radius: 10px;
+  border-left: 3px solid var(--tom);
+  background: color-mix(in srgb, var(--tom) 12%, transparent);
+}
+.situacao strong { font-size: 15px; color: var(--tom); }
+.situacao span { font-size: 13px; color: #9aa5b3; line-height: 1.45; }
+/* o cadeado em linha própria: é o passo que mais se esquece, e esquecê-lo é
+   o único acidente do jogo que vem de uma omissão e não de um gesto */
+/* na mesma linha do detalhe: ter a própria linha custava 18 px e o painel
+   estava cortando o fim da ordem de serviço */
+.situacao em {
+  font-style: normal;
+  color: var(--tom);
+  opacity: 0.85;
+}
+.situacao-vivo  { --tom: #e8705a; }
+.situacao-meio  { --tom: #e2b24a; }
+.situacao-seguro { --tom: var(--verde-claro, #35c98c); }
+
+/* ---- ordem de serviço do reparo ------------------------------------- */
+.roteiro { list-style: none; margin: 0; padding: 0; counter-reset: passo; }
+.roteiro li {
+  counter-increment: passo;
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 9px;
+  align-items: center;
+  padding: 1px 0;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: #5f6a79;            /* ainda por fazer, e longe: fica apagado */
+}
+.roteiro li::before {
+  content: counter(passo);
+  justify-self: center;
+  width: 19px; height: 19px;
+  border-radius: 50%;
+  border: 1px solid #39424f;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+.roteiro li.feito { color: #7c8795; text-decoration: line-through; }
+.roteiro li.feito::before {
+  content: '✓';
+  border-color: var(--verde, #16a46a);
+  color: var(--verde-claro, #35c98c);
+}
+/* O PRÓXIMO, destacado. Sem isto a lista é um muro de nove linhas e o
+   jogador relê tudo a cada ação para achar onde parou. */
+.roteiro li.agora {
+  color: #e6ebf2;
+  font-weight: 600;
+}
+.roteiro li.agora::before {
+  border-color: var(--verde-claro, #35c98c);
+  color: #06130d;
+  background: var(--verde-claro, #35c98c);
 }

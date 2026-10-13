@@ -266,6 +266,82 @@ export const NOME_FERRAMENTA: Record<string, string> = {
 }
 
 /**
+ * O QUE CADA FERRAMENTA FAZ, numa linha.
+ *
+ * O retorno foi "não consigo decifrar". Olhando a tela dá para ver por quê:
+ * o cesto mostra oito nomes secos — "Cobertura isolante", "Aterramento
+ * temporário" — e quem não é eletricista não tem como saber o que cada um
+ * serve para fazer. Eram oito ferramentas por cinco alvos, quarenta
+ * combinações, e nenhuma pista.
+ *
+ * Isto NÃO entrega a ordem, que é o que está sendo avaliado: diz o que a
+ * peça faz, não quando usá-la. Saber que o aterramento "manda para a terra
+ * a corrente que voltar" não diz se ele vem antes ou depois do detector.
+ */
+export const PARA_QUE: Record<string, string> = {
+  radio: 'Falar com o Centro de Operação: pedir desligamento e avisar quando acabar.',
+  bloqueio: 'Cadeado e etiqueta na chave aberta, para ninguém religar com você na linha.',
+  cobertura: 'Manta isolante sobre o que continua energizado perto de você.',
+  vara_manobra: 'Abre e fecha a chave fusível à distância, sem encostar na rede.',
+  vara_trincada: 'A mesma vara, com uma trinca longitudinal perto da cabeça.',
+  detector_at: 'Testa se o cabo ainda tem tensão. Testa-se o detector antes e depois.',
+  multimetro: 'Multímetro de bancada, de baixa tensão.',
+  aterramento: 'Liga o cabo à terra: se a linha voltar, a corrente vai para o solo.',
+  elo_certo: 'O elo fusível novo, do valor que o projeto manda.',
+  elo_maior: 'Elo de amperagem acima da do projeto.',
+  alicate_isolado: 'Alicate com isolação ensaiada para 1000 V.',
+  alicate_comum: 'Alicate de cabo emborrachado, sem ensaio.',
+  corda_icamento: 'Sobe e desce ferramenta sem carregar na mão.',
+  escada_fibra: 'Escada isolante, para quando não há cesto.',
+  escada_aluminio: 'Escada de alumínio. Alumínio conduz.',
+}
+
+/**
+ * EM QUE PÉ ESTÁ O SERVIÇO, para aparecer sempre na tela.
+ *
+ * Era o que mais faltava: o jogador não tinha como saber se o trecho estava
+ * vivo, se a ausência de tensão já tinha sido comprovada, se havia cadeado
+ * na chave. Tudo isso é coisa que um eletricista lê do poste num relance e
+ * que a tela escondia por completo — e sem isso a ordem vira adivinhação.
+ */
+export function situacao(e: Estado): {
+  tom: 'vivo' | 'meio' | 'seguro'
+  titulo: string
+  detalhe: string
+} {
+  if (energizado(e)) {
+    return {
+      tom: 'vivo',
+      titulo: 'Trecho energizado',
+      detalhe: e.desligamentoPedido
+        ? 'O Centro autorizou, mas a chave ainda está fechada.'
+        : 'Ninguém autorizou manobra nenhuma ainda.',
+    }
+  }
+  if (!e.ausenciaConstatada) {
+    return {
+      tom: 'meio',
+      titulo: 'Chave aberta — tensão não comprovada',
+      detalhe: 'Chave aberta não é prova de que o cabo está morto.',
+    }
+  }
+  if (!e.aterrado) {
+    return {
+      tom: 'meio',
+      titulo: 'Ausência de tensão constatada',
+      detalhe: 'Sem aterramento, uma religação por engano acha você.',
+    }
+  }
+  return {
+    tom: 'seguro',
+    titulo: 'Desenergizado e aterrado',
+    detalhe: e.vizinhosProtegidos
+      ? 'Zona delimitada. Dá para trabalhar.'
+      : 'Falta cobrir o que ficou energizado por perto.',
+  }
+}
+
+/**
  * Ferramenta errada no alvo certo: não faz nada, mas DIZ POR QUÊ.
  *
  * Sem isto o jogador clica, não acontece nada e ele conclui que o jogo está

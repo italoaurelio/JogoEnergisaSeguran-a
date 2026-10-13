@@ -298,6 +298,15 @@ export const MAXIMO_FERRAMENTAL = FERRAMENTAL
 export type Passo = {
   id: string
   texto: string
+  /**
+   * O mesmo passo em três ou quatro palavras, para a ordem de serviço.
+   *
+   * `texto` é a frase do relatório, onde há espaço e onde ela precisa ser
+   * completa. Na checklist da fase ela vira duas linhas, e nove passos de
+   * duas linhas não cabem no painel — o jogador passa a rolar a tela a cada
+   * ação para achar onde parou.
+   */
+  curto: string
   porque: string
   norma: string
 }
@@ -330,6 +339,7 @@ export function opcoesNaTela(d: DecisaoChegada) {
 export const PASSOS: Passo[] = [
   {
     id: 'desligamento',
+    curto: 'Pedir desligamento ao Centro',
     texto: 'Solicitar o desligamento do trecho ao Centro de Operação',
     porque:
       'Quem manda desligar é quem enxerga a rede inteira. Manobra combinada por rádio, com confirmação, e não por iniciativa da equipe em campo.',
@@ -337,6 +347,7 @@ export const PASSOS: Passo[] = [
   },
   {
     id: 'seccionar',
+    curto: 'Abrir a chave',
     texto: 'Abrir a chave e seccionar o trecho',
     porque:
       'Abrir a chave é o ato que separa fisicamente o trecho da fonte. Sem abertura visível não há desenergização — há apenas um disjuntor que alguém pode religar.',
@@ -344,6 +355,7 @@ export const PASSOS: Passo[] = [
   },
   {
     id: 'bloquear',
+    curto: 'Bloquear e etiquetar',
     texto: 'Impedir a reenergização: bloquear e etiquetar',
     porque:
       'O bloqueio impede o religamento físico; a etiqueta diz quem bloqueou e por quê. Sem os dois, alguém religa de boa-fé com a equipe no poste.',
@@ -351,6 +363,7 @@ export const PASSOS: Passo[] = [
   },
   {
     id: 'constatar',
+    curto: 'Constatar ausência de tensão',
     texto: 'Constatar a ausência de tensão, testando o detector antes e depois',
     porque:
       'Testar o detector antes e depois é o que separa "não acusou tensão" de "o detector está quebrado". Os dois testes fazem parte da medição, não são zelo extra.',
@@ -358,6 +371,7 @@ export const PASSOS: Passo[] = [
   },
   {
     id: 'aterrar',
+    curto: 'Aterrar o trecho',
     texto: 'Instalar o aterramento temporário',
     porque:
       'O aterramento é o que protege contra religamento indevido e contra tensão induzida pela rede vizinha. Ele entra DEPOIS da constatação — nunca antes.',
@@ -365,6 +379,7 @@ export const PASSOS: Passo[] = [
   },
   {
     id: 'delimitar',
+    curto: 'Cobrir a rede vizinha',
     texto: 'Proteger o que ficou energizado por perto e delimitar a zona',
     porque:
       'O trecho desligado quase nunca é o único que existe no poste. O que continua vivo precisa de cobertura, e a zona de trabalho precisa de limite visível.',
@@ -372,6 +387,7 @@ export const PASSOS: Passo[] = [
   },
   {
     id: 'executar',
+    curto: 'Trocar o elo fusível',
     texto: 'Substituir o elo fusível',
     porque:
       'É o serviço em si — e ele é o passo sete, não o passo um. Tudo que veio antes existe para que esta parte seja rotina.',
@@ -379,6 +395,7 @@ export const PASSOS: Passo[] = [
   },
   {
     id: 'retirar_aterramento',
+    curto: 'Retirar o aterramento',
     texto: 'Retirar o aterramento temporário',
     porque:
       'A reenergização desfaz as barreiras na ordem inversa. Religar com o aterramento instalado é provocar um curto franco na própria rede.',
@@ -386,6 +403,7 @@ export const PASSOS: Passo[] = [
   },
   {
     id: 'desbloquear',
+    curto: 'Retirar bloqueio e comunicar',
     texto: 'Retirar o bloqueio e a etiqueta, e comunicar o Centro de Operação',
     porque:
       'Quem bloqueou é quem desbloqueia, e só depois de conferir que a equipe e as ferramentas saíram da zona. O religamento é do Centro, não do campo.',

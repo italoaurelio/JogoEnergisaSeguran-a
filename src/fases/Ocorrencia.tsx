@@ -22,7 +22,7 @@ import {
   type Colocada, type PoseEletricista, type Vista,
 } from '../cena/Ocorrencia3D'
 import {
-  ACOES, ALVOS, ESTADO_INICIAL, NOME_FERRAMENTA, RECUSAS, SEMPRE_NO_CESTO,
+  ACOES, ALVOS, ESTADO_INICIAL, NOME_FERRAMENTA, PARA_QUE, RECUSAS, SEMPRE_NO_CESTO, situacao,
   energizado, type Alvo, type Estado,
 } from '../conteudo/reparo'
 import {
@@ -754,18 +754,47 @@ function Reparo({
   )
 
   const acabou = estado.eloTrocado && !estado.aterrado && estado.comunicado
+  const agora = situacao(estado)
 
   return (
     <>
       <header className="painel-topo">
         <p className="sobretitulo">Fase 3 · O reparo</p>
         <h2>{ferramenta ? 'Onde você vai usar?' : 'O que você vai fazer?'}</h2>
-        <p className="painel-texto">
-          {ferramenta
-            ? `${NOME_FERRAMENTA[ferramenta]} na mão. Clique no ponto do poste.`
-            : 'Pegue uma coisa do cesto e encoste onde ela serve. A ordem é o que está sendo avaliado.'}
-        </p>
+        {/*
+          O PARÁGRAFO SÓ EXISTE COM FERRAMENTA NA MÃO.
+
+          Sem ela, a ordem de serviço logo abaixo já diz o que fazer, e a
+          frase genérica custava 22 px num painel que estava cortando os três
+          últimos passos da lista. Medido: a coluna soma 790 px numa caixa de
+          720.
+        */}
+        {ferramenta && (
+          <p className="painel-texto">
+            {PARA_QUE[ferramenta] ?? `${NOME_FERRAMENTA[ferramenta]} na mão.`}
+          </p>
+        )}
       </header>
+
+      {/*
+        EM QUE PÉ ESTÁ O SERVIÇO, sempre na tela.
+
+        O retorno foi "não consigo decifrar". Era isto: o jogador escolhia
+        entre oito ferramentas e cinco alvos sem saber se o trecho estava
+        vivo, se a ausência de tensão já tinha sido comprovada ou se havia
+        cadeado na chave. Um eletricista lê tudo isso do poste num relance; a
+        tela escondia por completo, e sem isso a ordem vira adivinhação.
+
+        Não entrega o gabarito: diz o ESTADO, não o próximo passo. Saber que
+        o cabo ainda não foi testado não diz com o quê se testa.
+      */}
+      <div className={`situacao situacao-${agora.tom}`}>
+        <strong>{agora.titulo}</strong>
+        <span>
+          {agora.detalhe}{' '}
+          <em>{estado.bloqueada ? '· chave bloqueada' : '· sem bloqueio'}</em>
+        </span>
+      </div>
 
       <section className="grupo cresce">
         <h3>No cesto</h3>
@@ -807,13 +836,41 @@ function Reparo({
           <p className={`recado recado-${recado.tom}`}>{recado.texto}</p>
         )}
 
+        {/*
+          A ORDEM DE SERVIÇO, inteira e sempre à vista.
+
+          Antes aqui só aparecia o que JÁ tinha sido feito, e o jogador tinha
+          de deduzir o resto de cabeça. O retorno foi direto: "essa parte da
+          manutenção eu não consigo decifrar, eu entendo, mas tá difícil
+          demais" — e depois "deixa mais claro o que deve ser feito, tipo uma
+          checklist".
+
+          Entregar a sequência custa: a nota da fase é 6 pontos por passo na
+          posição certa. O que sobra de exercício é o que já era a parte
+          perigosa — descobrir COM O QUÊ e ONDE se cumpre cada item, que é de
+          onde saem os acidentes (abrir a chave e esquecer o cadeado continua
+          valendo -18). Um eletricista de verdade também não decora a NR-10
+          no poste: ele tem a ordem de serviço na mão.
+        */}
         {!ferramenta && (
-          <ol className="feito-ate-agora">
-            {ordem.map((id, i) => {
-              const p = PASSOS.find((x) => x.id === id)
-              return <li key={`${id}_${i}`}>{p?.texto ?? id}</li>
-            })}
-          </ol>
+          <>
+            <h3 style={{ marginTop: 8 }}>Ordem de serviço</h3>
+            <ol className="roteiro">
+              {PASSOS.map((p) => {
+                const feito = ordem.includes(p.id)
+                const agoraEste = !feito
+                  && !PASSOS.slice(0, PASSOS.indexOf(p)).some((x) => !ordem.includes(x.id))
+                return (
+                  <li
+                    key={p.id}
+                    className={feito ? 'feito' : agoraEste ? 'agora' : ''}
+                  >
+                    {p.curto}
+                  </li>
+                )
+              })}
+            </ol>
+          </>
         )}
       </section>
 
