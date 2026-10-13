@@ -4,7 +4,14 @@
     {
       "name": "jogo-seguranca",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "5273"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5273",
+        "--host"
+      ],
       "port": 5273
     }
   ]
