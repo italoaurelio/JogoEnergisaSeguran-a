@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Html, useGLTF } from '@react-three/drei'
 import { som } from '../som'
+import { domarSheen } from './texturas'
 import * as THREE from 'three'
 
 const MODELO = './modelos/ocorrencia.glb'
@@ -748,6 +749,17 @@ export function Eletricista({
       const m = o as THREE.Mesh
       if (m.isMesh) { m.castShadow = true; m.receiveShadow = true }
     })
+    // O MESMO SHEEN BRANCO do motorista e do personagem em pé.
+    //
+    // Medido aqui: `tecido_epi_uniforme_fr`, a jugular, o cadarço e o
+    // absorvedor do talabarte chegam todos com `sheen = 1` e cor BRANCA. O
+    // eletricista é quem o jogador olha a fase inteira do reparo, que é a
+    // parte que o cliente chama de mais importante — e era justamente a que
+    // tinha ficado de fora da correção.
+    domarSheen(scene)
+    if (import.meta.env.DEV) {
+      ;(window as unknown as Record<string, unknown>).__eletricista = scene
+    }
   }, [scene])
 
   useEffect(() => {
