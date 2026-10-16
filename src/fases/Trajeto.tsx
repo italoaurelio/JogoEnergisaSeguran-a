@@ -86,7 +86,38 @@ const ALTURA_CABINE = 0.52
  * inclinar 4 graus no `lookAt` e a metade da correcao; a outra metade e o aro
  * de caminhao em `arte/blender/veiculo.py`, e uma sem a outra nao resolve.
  */
-const OLHO: [number, number, number] = [0.38, 1.17 + ALTURA_CABINE, -0.20]
+const OLHO: [number, number, number] = (() => {
+  /*
+    O OLHO ANDOU 28 cm PARA A FRENTE e 10 cm para cima.
+
+    A via ocupava uma tira de 17% da altura: o céu levava 44% e o painel,
+    que é massa escura sem informação nenhuma, levava 39%. E o jogo inteiro
+    da fase — pedestre, ciclista, ônibus, lombada, faixa — acontece naquela
+    tira. Era o motivo mais direto de "a estrada tá feia": jogava-se pelo
+    buraco da fechadura.
+
+    Como o painel está perto e a via está longe, andar para a frente empurra
+    o painel para fora do quadro e quase não mexe na via — a paralaxe faz o
+    trabalho, sem tocar em geometria.
+
+    Varridas quatro posições e comparadas lado a lado. Em +0,40 a cabine
+    some inteira e perde-se a sensação de estar num caminhão; em +0,16 ainda
+    sobra painel demais. Em +0,28 ficam o pilar, o retrovisor e o friso do
+    painel, que é o bastante para ancorar, e a via ganha a tela.
+
+    A nota antiga dizia que baixar o olho de 1,21 para 1,17 era para o
+    volante continuar visível. Ele continua, pela borda de baixo — e o
+    volante nunca foi controle nesta fase, só âncora.
+  */
+  const base: [number, number, number] = [0.38, 1.27 + ALTURA_CABINE, 0.08]
+  // `?olho=y,z` varre o enquadramento sem recompilar. Composição não se
+  // resolve por número — se resolve olhando várias de uma vez.
+  if (!import.meta.env.DEV) return base
+  const v = new URLSearchParams(window.location.search).get('olho')
+  if (!v) return base
+  const [dy, dz] = v.split(',').map(Number)
+  return [base[0], base[1] + (dy || 0), base[2] + (dz || 0)]
+})()
 
 /**
  * Quanto o caminhão se afasta para ultrapassar o ciclista, em metros.
