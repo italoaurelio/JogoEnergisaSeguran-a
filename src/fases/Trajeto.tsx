@@ -255,6 +255,19 @@ export default function Fase2Trajeto({
   const painel = useRef<PainelAPI>(null)
   /** Deslocamento lateral do caminhão (ultrapassagem). O `Motor` escreve. */
   const lateral = useRef(0)
+  /*
+    QUANTO SE ESTÁ ACIMA DO LIMITE, de 0 a 1, para a cabine tremer.
+
+    Das dez condutas que a fase avalia, cinco não produziam NADA na tela —
+    somavam num `ref` e o mundo seguia impassível. Dava para rodar vinte
+    segundos a 55 num trecho de 30 e a única coisa que mudava era a cor de um
+    número no canto.
+
+    Isto não é veredito e não diz que o jogador errou: é o caminhão passando
+    do ponto. Quem desce a velocidade sente parar sozinho. A conta continua
+    aparecendo só no relatório, que é a regra que o cliente comprou.
+  */
+  const excesso = useRef(0)
   const seta = useRef<'esquerda' | 'direita' | null>(null)
   const [acabou, setAcabou] = useState(false)
   /** Legenda da fala do personagem. Estado, porque é texto na tela. */
@@ -409,11 +422,12 @@ export default function Fase2Trajeto({
             painel={painel}
             lateral={lateral}
             seta={seta}
+            excesso={excesso}
             aoChegar={() => setChegando(true)}
             mostrarFone={setFoneAVista}
             dizer={setLegenda}
           />
-          <CameraFixa distancia={distancia} celular={celular} />
+          <CameraFixa distancia={distancia} celular={celular} excesso={excesso} />
           {/*
             `leve` desliga o MSAA 4x (redundante: o SMAA já está na cadeia e
             faz o antisserrilhado) e roda a oclusão em meia resolução. O modo
@@ -450,10 +464,12 @@ export default function Fase2Trajeto({
 const ONDE_CELULAR: [number, number, number] = [-0.10, 0.91 + ALTURA_CABINE, 0.455]
 
 function CameraFixa({
-  distancia, celular,
+  distancia, celular, excesso,
 }: {
   distancia: React.RefObject<number>
   celular: CelularRef
+  /** 0 dentro do limite, 1 a 25 km/h acima. Faz a cabine tremer. */
+  excesso: React.RefObject<number>
 }) {
   const { current: base } = useRef(new THREE.Vector3(...OLHO))
   const inclinacao = useRef(0)
@@ -465,10 +481,37 @@ function CameraFixa({
 
   useFrame(({ camera, clock }, dt) => {
     const t = clock.elapsedTime
+    /*
+      O TREMOR DE QUEM ESTÁ RÁPIDO DEMAIS.
+
+      Três senos de frequência não múltipla (18, 14,5 e 11,3 Hz), para não
+      virar uma vibração periódica que o olho decora em dois segundos.
+
+      E ABAIXO DE NYQUIST, de propósito: o jogo desenha a 57 fps, então um
+      seno de 31 Hz — que foi o primeiro valor que escrevi — não cabe no
+      quadro e volta como bamboleio lento por aliasing, que é o oposto de
+      vibração. A 18 Hz sobram três amostras por ciclo e o tremor lê como
+      tremor. Medido: desvio da câmera de 1,9 mm dentro do limite (a
+      respiração que já existia) contra 6,7 mm bem acima.
+
+      A amplitude
+      é QUADRÁTICA no excesso: nos primeiros km/h acima da tolerância quase
+      não se nota, e a partir de uns 15 km/h fica desconfortável — que é a
+      curva certa, porque 5 acima do limite não é a mesma coisa que 25.
+
+      Máximo de 9 mm. Mais do que isso embaralha a leitura da via, e a via é
+      onde o jogo acontece.
+    */
+    const e = excesso.current ?? 0
+    const treme = e * e * 0.009
+    if (import.meta.env.DEV) {
+      // a câmera, para medir o tremor sem o mundo rolando por cima
+      ;(window as unknown as Record<string, unknown>).__olho = camera
+    }
     camera.position.set(
-      base.x + Math.sin(t * 2.1) * 0.004,
-      base.y + Math.sin(t * 3.3) * 0.005,
-      base.z,
+      base.x + Math.sin(t * 2.1) * 0.004 + Math.sin(t * 18.0) * treme,
+      base.y + Math.sin(t * 3.3) * 0.005 + Math.sin(t * 14.5) * treme,
+      base.z + Math.sin(t * 11.3) * treme * 0.6,
     )
     // A cabeça vira para o celular quando ele toca, e volta sozinha. Ela vira
     // DEVAGAR (1,6 s de ida) de propósito: é o tempo que o olhar fica fora da
@@ -492,8 +535,8 @@ function CameraFixa({
 
 function Motor({
   distancia, velocidade, pedal, carro, faltas, pedestreLiberado, onibusLiberado,
-  onibusOnde, garagemLiberada, sinal, celular, painel, lateral, seta, aoChegar,
-  mostrarFone, dizer,
+  onibusOnde, garagemLiberada, sinal, celular, painel, lateral, seta, excesso,
+  aoChegar, mostrarFone, dizer,
 }: {
   distancia: React.RefObject<number>
   velocidade: React.RefObject<number>
@@ -509,6 +552,7 @@ function Motor({
   painel: React.RefObject<PainelAPI | null>
   lateral: React.RefObject<number>
   seta: React.RefObject<'esquerda' | 'direita' | null>
+  excesso: React.RefObject<number>
   aoChegar: () => void
   mostrarFone: (v: boolean) => void
   dizer: (texto: string | null) => void
@@ -777,6 +821,10 @@ function Motor({
 
     // velocidade compatível
     if (kmh > trecho.limite + CONDUTA.toleranciaKmh) contar(faltas, 'excesso', dt)
+    // satura 25 km/h acima da tolerância: passado disso não adianta tremer mais
+    excesso.current = Math.min(
+      1, Math.max(0, (kmh - trecho.limite - CONDUTA.toleranciaKmh) / 25),
+    )
     // Andar devagar só conta quando o jogador NÃO está acelerando: sair de
     // uma parada obrigatória passa necessariamente por velocidade baixa, e
     // punir a retomada ensinaria a coisa errada.
@@ -853,6 +901,7 @@ function Motor({
         paradoDesde: +paradoDesde.current.toFixed(2),
         pedestreLiberado: pedestreLiberado.current,
         lateral: +lateral.current.toFixed(2), seta: seta.current,
+        excesso: +excesso.current.toFixed(2),
       }
     }
 
