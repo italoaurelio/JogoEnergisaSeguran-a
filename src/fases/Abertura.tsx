@@ -96,9 +96,27 @@ export default function Abertura({
       </div>
 
       <div className="abertura-conteudo">
-        {passo === 0 && <Historia avancar={() => setPasso(1)} pular={avancar} />}
-        {passo === 1 && <OQueVaiAcontecer voltar={() => setPasso(0)} avancar={() => setPasso(2)} />}
-        {passo === 2 && <ComoSeJoga voltar={() => setPasso(1)} avancar={() => setPasso(3)} />}
+        {/*
+          O PULAR VAI PARA A ÚLTIMA TELA, e não para fora do onboarding.
+
+          Ele existia só aqui na tela 0 e levava direto ao jogo — o que fazia
+          quem pulasse PERDER O CAMPO DO NOME, que fica na tela 3, e a linha
+          que explica como a nota funciona. Numa feira, em pé e com fila
+          atrás, pular é o caminho mais usado, e era o único com um buraco.
+
+          Agora ele salta as três telas de leitura e para no nome, a um
+          clique de jogar. E está nas três, não só na primeira: dá para
+          desistir da leitura no meio dela.
+        */}
+        {passo === 0 && <Historia avancar={() => setPasso(1)} pular={() => setPasso(3)} />}
+        {passo === 1 && (
+          <OQueVaiAcontecer voltar={() => setPasso(0)} avancar={() => setPasso(2)}
+                            pular={() => setPasso(3)} />
+        )}
+        {passo === 2 && (
+          <ComoSeJoga voltar={() => setPasso(1)} avancar={() => setPasso(3)}
+                      pular={() => setPasso(3)} />
+        )}
         {passo === 3 && (
           <ANota nome={nome} setNome={setNome} voltar={() => setPasso(2)} comecar={avancar} />
         )}
@@ -147,7 +165,8 @@ function Historia({ avancar, pular }: { avancar: () => void; pular: () => void }
 
 /* ------------------------------------------------- 2. o que vai acontecer */
 
-function OQueVaiAcontecer({ voltar, avancar }: { voltar: () => void; avancar: () => void }) {
+function OQueVaiAcontecer({ voltar, avancar, pular }:
+  { voltar: () => void; avancar: () => void; pular: () => void }) {
   return (
     <>
       <p className="sobretitulo">O que vai acontecer</p>
@@ -168,6 +187,7 @@ function OQueVaiAcontecer({ voltar, avancar }: { voltar: () => void; avancar: ()
 
       <div className="linha-botoes">
         <button className="btn btn-fraco" onClick={voltar}>Voltar</button>
+        <button className="btn btn-fraco" onClick={pular}>Pular</button>
         <button className="btn btn-grande" onClick={avancar}>Como se joga</button>
       </div>
     </>
@@ -176,7 +196,8 @@ function OQueVaiAcontecer({ voltar, avancar }: { voltar: () => void; avancar: ()
 
 /* ------------------------------------------------------- 3. como se joga */
 
-function ComoSeJoga({ voltar, avancar }: { voltar: () => void; avancar: () => void }) {
+function ComoSeJoga({ voltar, avancar, pular }:
+  { voltar: () => void; avancar: () => void; pular: () => void }) {
   return (
     <>
       <p className="sobretitulo">Como se joga</p>
@@ -220,6 +241,7 @@ function ComoSeJoga({ voltar, avancar }: { voltar: () => void; avancar: () => vo
 
       <div className="linha-botoes">
         <button className="btn btn-fraco" onClick={voltar}>Voltar</button>
+        <button className="btn btn-fraco" onClick={pular}>Pular</button>
         <button className="btn btn-grande" onClick={avancar}>Como é a nota</button>
       </div>
     </>
@@ -245,8 +267,21 @@ function ANota({
         <li>
           <span className="onb-bola">1</span>
           <p>
-            Cada decisão vale ponto. Errar desconta — mas <b>ninguém avisa na
-            hora</b>, fora do vestiário, que é onde se ensina.
+            {/*
+              A REGRA ESTAVA MENTINDO, por meia frase. O texto dizia "fora do
+              vestiário", mas a conferência do veículo TAMBÉM dá veredito na
+              hora ("Decisão correta" / "Decisão errada", em `Cabine.tsx`).
+              Sobravam duas fases que avisam e duas que não, e o jogador só
+              era avisado de uma delas.
+
+              A regra de verdade é melhor do que a prometida e cabe numa
+              linha: as duas fases de PREPARAÇÃO ensinam na hora, as duas de
+              CAMPO não. Quem mente para o jogador sobre as regras perde o
+              jogador.
+            */}
+            Cada decisão vale ponto. Errar desconta. No vestiário e na
+            conferência do veículo você descobre na hora; <b>na rua e no poste,
+            ninguém avisa</b> — a conta aparece no fim.
           </p>
         </li>
         <li>

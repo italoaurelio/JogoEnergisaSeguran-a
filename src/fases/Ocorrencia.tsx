@@ -312,19 +312,33 @@ export default function Fase3Ocorrencia({
       } else {
         setEstadoPoste((e) => ({ ...e, religado: false, chaveAberta: true }))
       }
+      /*
+        O ARCO É O SEGUNDO MAIS ENSINÁVEL DE OITO MINUTOS, e passava antes de
+        o olho registrar: 1,5 s de clarão, meio segundo de som e um parágrafo
+        aparecendo por cima de tudo ao mesmo tempo.
+
+        Agora ele é segurado em três tempos. O clarão estoura. O MUNDO FICA
+        MUDO por 1,4 s — silêncio custa nada e pesa mais que qualquer efeito;
+        é o que um susto de verdade faz com a audição. E só depois do clarão
+        o texto entra, para o jogador assistir à cena em vez de ler por cima
+        dela.
+      */
       setPose('choque')
       setAcidentes((a) => [...a, { porque: morte }])
       setClarao(true)
-      window.setTimeout(() => setClarao(false), 1500)
       som.veredito(false)
-      setRecado({
+      som.ambiente(false)
+      window.setTimeout(() => setClarao(false), 1500)
+      window.setTimeout(() => som.ambiente(true), 1400)
+      window.setTimeout(() => setRecado({
         tom: 'morte',
         texto: perdido
           ? `${morte}\n\nA proteção a montante abriu e o trecho morreu de `
             + `novo. Você se recompõe — mas perdeu o passo anterior: `
             + `${perdido.texto.toLowerCase()}. Refaça.`
           : morte,
-      })
+      }), 1100)
+      setRecado(null)
       setFerramenta(null)
       return
     }
