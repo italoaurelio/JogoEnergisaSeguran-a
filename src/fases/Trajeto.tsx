@@ -268,6 +268,15 @@ export default function Fase2Trajeto({
     aparecendo só no relatório, que é a regra que o cliente comprou.
   */
   const excesso = useRef(0)
+  /**
+   * O SOLAVANCO da lombada: 1 no impacto, cai sozinho.
+   *
+   * Passar rápido na lombada era a terceira conduta que somava num `ref` e
+   * não produzia nada na tela. O texto do relatório já dizia que passar
+   * rápido "arremessa a carga da caçamba, castiga a suspensão e tira o
+   * controle" — e nada disso acontecia.
+   */
+  const solavanco = useRef(0)
   const seta = useRef<'esquerda' | 'direita' | null>(null)
   const [acabou, setAcabou] = useState(false)
   /** Legenda da fala do personagem. Estado, porque é texto na tela. */
@@ -428,11 +437,13 @@ export default function Fase2Trajeto({
             lateral={lateral}
             seta={seta}
             excesso={excesso}
+            solavanco={solavanco}
             aoChegar={() => setChegando(true)}
             mostrarFone={setFoneAVista}
             dizer={setLegenda}
           />
-          <CameraFixa distancia={distancia} celular={celular} excesso={excesso} />
+          <CameraFixa distancia={distancia} celular={celular} excesso={excesso}
+                      solavanco={solavanco} />
           {/*
             `leve` desliga o MSAA 4x (redundante: o SMAA já está na cadeia e
             faz o antisserrilhado) e roda a oclusão em meia resolução. O modo
@@ -469,12 +480,14 @@ export default function Fase2Trajeto({
 const ONDE_CELULAR: [number, number, number] = [-0.10, 0.91 + ALTURA_CABINE, 0.455]
 
 function CameraFixa({
-  distancia, celular, excesso,
+  distancia, celular, excesso, solavanco,
 }: {
   distancia: React.RefObject<number>
   celular: CelularRef
   /** 0 dentro do limite, 1 a 25 km/h acima. Faz a cabine tremer. */
   excesso: React.RefObject<number>
+  /** 1 no impacto da lombada. A câmera salta e volta. */
+  solavanco: React.RefObject<number>
 }) {
   const { current: base } = useRef(new THREE.Vector3(...OLHO))
   const inclinacao = useRef(0)
@@ -509,13 +522,26 @@ function CameraFixa({
     */
     const e = excesso.current ?? 0
     const treme = e * e * 0.009
+    /*
+      O SALTO DA LOMBADA. Decai em 0,55 s, que é o tempo de a suspensão de
+      um caminhão carregado parar de oscilar — rápido demais e lê como
+      falha de quadro, devagar demais e lê como barco.
+
+      O seno de 9 Hz dá o repique: sobe, desce abaixo do ponto de partida e
+      volta. Uma batida só, sem oscilação, parece a câmera tendo um soluço.
+    */
+    if ((solavanco.current ?? 0) > 0) {
+      solavanco.current = Math.max(0, solavanco.current - dt / 0.55)
+    }
+    const b = solavanco.current ?? 0
+    const salto = Math.sin(b * Math.PI * 3) * b * 0.13
     if (import.meta.env.DEV) {
       // a câmera, para medir o tremor sem o mundo rolando por cima
       ;(window as unknown as Record<string, unknown>).__olho = camera
     }
     camera.position.set(
       base.x + Math.sin(t * 2.1) * 0.004 + Math.sin(t * 18.0) * treme,
-      base.y + Math.sin(t * 3.3) * 0.005 + Math.sin(t * 14.5) * treme,
+      base.y + Math.sin(t * 3.3) * 0.005 + Math.sin(t * 14.5) * treme + salto,
       base.z + Math.sin(t * 11.3) * treme * 0.6,
     )
     // A cabeça vira para o celular quando ele toca, e volta sozinha. Ela vira
@@ -541,7 +567,7 @@ function CameraFixa({
 function Motor({
   distancia, velocidade, pedal, carro, faltas, pedestreLiberado, onibusLiberado,
   onibusOnde, garagemLiberada, sinal, celular, painel, lateral, seta, excesso,
-  aoChegar, mostrarFone, dizer,
+  solavanco, aoChegar, mostrarFone, dizer,
 }: {
   distancia: React.RefObject<number>
   velocidade: React.RefObject<number>
@@ -558,6 +584,7 @@ function Motor({
   lateral: React.RefObject<number>
   seta: React.RefObject<'esquerda' | 'direita' | null>
   excesso: React.RefObject<number>
+  solavanco: React.RefObject<number>
   aoChegar: () => void
   mostrarFone: (v: boolean) => void
   dizer: (texto: string | null) => void
@@ -819,8 +846,18 @@ function Motor({
     if (evLombada) {
       const antes = evLombada.metro - d
       const depois = evLombada.metro - (d + v * dt)
-      if (antes > 0 && depois <= 0 && kmh > CONDUTA.lombadaKmh) {
-        contar(faltas, 'lombada', 1)
+      if (antes > 0 && depois <= 0) {
+        // 0 no limite, 1 a 55 km/h. A batida existe mesmo dentro do limite,
+        // só que pequena: lombada é lombada.
+        // 0,10 no piso e 1 a partir de 50 km/h. O piso existe porque lombada
+        // é lombada: mesmo no limite o caminhão balança um pouco. O teto em
+        // 30 acima do limite, e não 35, para a diferença entre passar certo
+        // e passar errado ser grande — era de 13 para 22 mm e não bastava.
+        const forte = Math.min(1, Math.max(0.10,
+          (kmh - CONDUTA.lombadaKmh) / 30))
+        solavanco.current = forte
+        som.solavanco(forte)
+        if (kmh > CONDUTA.lombadaKmh) contar(faltas, 'lombada', 1)
       }
     }
 

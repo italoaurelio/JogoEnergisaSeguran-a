@@ -492,6 +492,43 @@ export const som = {
     f.stop(t + dur + 0.05)
   },
 
+  /**
+   * SOLAVANCO: a suspensão batendo e a carga da caçamba caindo de volta.
+   *
+   * Duas camadas, porque uma batida de caminhão não é um som só: um tom
+   * grave de 58 Hz que é o chassi, e um estalo de ruído filtrado que é a
+   * ferragem solta atrás da cabine. O estalo entra 40 ms depois — a carga
+   * sobe com o impacto e cai DEPOIS dele, e é esse atraso que faz a batida
+   * soar carregada em vez de oca.
+   *
+   * `forte` é o quanto se passou do limite da lombada, de 0 a 1.
+   */
+  solavanco(forte = 1) {
+    const c = ligar()
+    if (!c || !mestre || !ruido) return
+    const t = c.currentTime
+    // 1. o chassi
+    const o = c.createOscillator()
+    o.type = 'sine'
+    o.frequency.setValueAtTime(58, t)
+    o.frequency.exponentialRampToValueAtTime(32, t + 0.18)
+    const g = c.createGain()
+    bater(g, 0.30 * forte, 0.22, t)
+    o.connect(g).connect(mestre)
+    o.start(t); o.stop(t + 0.3)
+    // 2. a carga, 40 ms atrás
+    const f = c.createBufferSource()
+    f.buffer = ruido
+    const bp = c.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.frequency.value = 320
+    bp.Q.value = 1.1
+    const gc = c.createGain()
+    bater(gc, 0.16 * forte, 0.13, t + 0.04)
+    f.connect(bp).connect(gc).connect(mestre)
+    f.start(t + 0.04); f.stop(t + 0.22)
+  },
+
   /** Pisca-alerta: o relê batendo. A batida de ligar é mais seca que a de soltar. */
   pisca: (() => {
     let timer: number | null = null
