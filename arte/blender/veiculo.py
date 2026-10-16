@@ -90,9 +90,15 @@ def mat_vidro():
     cabine inteira. Baixar o IOR mata o Fresnel e deixa o vidro apenas como uma
     lamina transparente — que e o que o jogo precisa mostrar.
     """
+    # TRANSMISSAO ZERO, de proposito. Transmissao faz o three renderizar a
+    # cena opaca inteira uma segunda vez por quadro, com MSAA e mipmaps — e
+    # entrega exatamente o que a transparencia simples entrega, porque o IOR
+    # ja foi baixado para 1.04 para matar o Fresnel. Media-se 33 fps contra
+    # 60 nas outras fases so por causa disto. A opacidade entra no jogo, em
+    # `src/cena/Cabine3D.tsx`.
     mat = C.mat_simples("vidro", (0.96, 0.97, 0.98), rugosidade=0.0, ior=1.04)
     b = mat.node_tree.nodes["Principled BSDF"]
-    for nome, valor in (("Transmission Weight", 1.0),
+    for nome, valor in (("Transmission Weight", 0.0),
                         ("Specular IOR Level", 0.04)):
         if nome in b.inputs:
             b.inputs[nome].default_value = valor

@@ -289,7 +289,14 @@ export default function Fase2Trajeto({
   return (
     <div className="trajeto">
       <div className="trajeto-palco">
-        <Canvas dpr={[1, 1.5]} shadows camera={{ position: OLHO, fov: 52 }}>
+        {/*
+          `dpr={1}` travado, e não `[1, 1.5]`. Medido: 88% do quadro desta
+          fase é custo POR PIXEL, então numa tela HiDPI o 1,5 multiplica os
+          pixels por 2,25 e triplica o custo. Nesta máquina o valor resolvia
+          para 1 e não aparecia em medida nenhuma — no mini-PC do totem é a
+          diferença entre rodar e não rodar.
+        */}
+        <Canvas dpr={1} shadows camera={{ position: OLHO, fov: 52 }}>
           {/*
             O CÉU É A HDRI, NÃO O `<Sky>`.
 
@@ -376,7 +383,14 @@ export default function Fase2Trajeto({
             dizer={setLegenda}
           />
           <CameraFixa distancia={distancia} celular={celular} />
-          <Acabamento raio={2.0} />
+          {/*
+            `leve` desliga o MSAA 4x (redundante: o SMAA já está na cadeia e
+            faz o antisserrilhado) e roda a oclusão em meia resolução. O modo
+            existia desde sempre no `Acabamento` e o trajeto — a única fase
+            que precisava dele — nunca o usou: seis passes de oclusão em
+            resolução cheia custavam 6,5 dos 31 ms do quadro.
+          */}
+          <Acabamento raio={2.0} qualidade="leve" />
         <PalcoPronto />
         </Canvas>
       </div>

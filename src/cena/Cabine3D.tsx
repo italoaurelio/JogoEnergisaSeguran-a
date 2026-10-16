@@ -53,7 +53,54 @@ export function Cabine({ ligados }: { ligados: string[] }) {
       uvPorEixoDominante(m.geometry)
       for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
         const material = mat as THREE.MeshStandardMaterial
-        if (!material?.name || material.normalMap) continue
+        if (!material?.name) continue
+
+        /*
+          O PARA-BRISA CUSTAVA UMA RENDERIZAÇÃO INTEIRA DA CENA POR QUADRO.
+
+          Ele vem do Blender com `Transmission Weight = 1`, e qualquer
+          material transmissivo faz o three renderizar a cena opaca uma
+          SEGUNDA vez, num alvo próprio, com MSAA 4x, meio-float e cadeia de
+          mipmaps — tudo na resolução da janela. Medido: 1264 chamadas de
+          desenho para ~630 malhas visíveis, e o trajeto a 33 fps contra 60
+          nas outras fases.
+
+          E era por nada. O comentário do `mat_vidro` em
+          `arte/blender/veiculo.py` diz que o IOR foi baixado para 1,04
+          justamente para matar o Fresnel e deixar "apenas uma lâmina
+          transparente" — que é exatamente o que `transparent` entrega de
+          graça. Com `thickness` 0 e `roughness` 0, a transmissão não estava
+          desenhando nada que a transparência não desenhe.
+
+          A OPACIDADE É 0,04, e isso foi medido na tela, não escolhido.
+
+          A transmissão era INVISÍVEL de dentro: com IOR 1,04 e espessura 0
+          ela deixa a luz passar sem tingir nada. O alfa simples não — ele
+          mistura a cor PRÓPRIA do vidro, que é quase branca. Com 0,12 o
+          vidro lateral virou um retângulo branco lavando metade do interior,
+          e eu só vi isso comparando o antes e o depois lado a lado.
+
+          `depthWrite: false` junto, porque vidro não deve ocultar o que está
+          atrás dele na ordenação. `DoubleSide` fica como estava: a normal
+          destes painéis não é confiável, e foi por isso que o modelo nasceu
+          com os dois lados.
+        */
+        if (material.name === 'vidro') {
+          const v = material as unknown as THREE.MeshPhysicalMaterial
+          v.transmission = 0
+          v.transparent = true
+          v.opacity = 0.04
+          // e a COR escurece. A 0,96 (quase branco, como saiu do Blender) até
+          // 4% de opacidade clareava o interior de forma visível na
+          // comparação lado a lado. Vidro de caminhão é levemente fumê; a
+          // 0,18 ele soma quase nada por dentro e continua lendo como vidro
+          // por fora, que é onde a fase 2 o mostra.
+          v.color.setScalar(0.18)
+          v.depthWrite = false
+          v.needsUpdate = true
+          continue
+        }
+        if (material.normalMap) continue
         const regra = GRAO_CABINE.find((g) => material.name.startsWith(g.prefixo))
         if (!regra) continue
         vestir(
