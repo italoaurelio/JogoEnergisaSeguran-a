@@ -15,9 +15,26 @@ const CHAVE_MUDO = 'jogoSeguranca.mudo'
 
 let ctx: AudioContext | null = null
 let mestre: GainNode | null = null
-// Nasce MUDO. Som que começa sozinho incomoda em sala de treinamento e em
-// totem; quem quiser liga no botão, e a escolha fica guardada.
-let mudo = localStorage.getItem(CHAVE_MUDO) !== '0'
+/*
+  NASCE COM SOM, e isso é uma reversão deliberada.
+
+  A regra antiga era nascer mudo, e a razão escrita era "som que começa
+  sozinho incomoda em sala de treinamento e em totem". Para a sala, continua
+  verdade. Para o TOTEM DE FEIRA é o contrário: tela muda não para ninguém,
+  e são 659 linhas de áudio sintetizado — motor com marchas, Doppler nas
+  passagens, pátio de escola, chave fusível — que ninguém jamais ouviu,
+  porque o botão de ligar é um ícone de 36 px num canto.
+
+  A escolha do operador continua valendo: ele clica uma vez e fica guardada
+  no `localStorage`. E `?mudo=1` nasce mudo, para o atalho da sala de aula.
+
+  Isto não faz som tocar na carga da página: o navegador só libera o
+  `AudioContext` depois de um gesto, e o primeiro gesto do jogo é o botão da
+  tela de abertura.
+*/
+const PEDIU_MUDO = new URLSearchParams(window.location.search).has('mudo')
+const GUARDADO = localStorage.getItem(CHAVE_MUDO)
+let mudo = PEDIU_MUDO || GUARDADO === '1'
 
 /** Ruído branco de 2 s, reaproveitado por todo efeito que precisa de chiado. */
 let ruido: AudioBuffer | null = null

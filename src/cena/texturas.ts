@@ -125,6 +125,17 @@ export function vestir(
   anisotropia: number,
   clarear = 0.85,
   ladrilhoExplicito?: number,
+  /**
+   * Tingimento, para a textura não trazer a cor dela sozinha.
+   *
+   * Sem isto o `setScalar` abaixo TROCAVA a cor base por um cinza neutro e
+   * jogava fora a cor escolhida no Blender — o acostamento virava o salmão
+   * cru da textura do Poly Haven. E esse salmão era a coisa mais saturada da
+   * tela inteira do trajeto: o olho ia para o acostamento, que não carrega
+   * informação nenhuma, em vez de ir para o ciclista que estava em cima
+   * dele. Problema de composição, não de técnica.
+   */
+  tinta?: [number, number, number],
 ) {
   const ladrilho = ladrilhoExplicito ?? LADRILHO[material.name] ?? 4
   if (mapas.cor) {
@@ -132,7 +143,8 @@ export function vestir(
     preparar(t, ladrilho, true, anisotropia)
     material.map = t
     // o `map` multiplica a cor base; sem clarear, o albedo original apaga
-    material.color.setScalar(clarear)
+    if (tinta) material.color.setRGB(tinta[0], tinta[1], tinta[2]).multiplyScalar(clarear / 0.5)
+    else material.color.setScalar(clarear)
   }
   if (mapas.relevo) {
     const t = mapas.relevo.clone()
@@ -172,5 +184,38 @@ export function domarSheen(raiz: THREE.Object3D) {
     if (!m || !('sheen' in m) || !m.sheen) return
     m.sheenColor.setRGB(0.10, 0.11, 0.13)
     m.needsUpdate = true
+  })
+  assentarCadarco(raiz)
+}
+
+/**
+ * BAIXA O CADARÇO DO CINTURÃO, que rouba a silhueta do personagem.
+ *
+ * O material nasce em `arte/blender/epi.py` com albedo (0,55 · 0,30 · 0,03)
+ * e brilho de fio 0,35. Fita de poliamida de cinturão de verdade fica entre
+ * 0,10 e 0,22. A 0,55, contra um uniforme de ~0,06, a razão de valor passa de
+ * 8 para 1: o acessório vence o personagem. Na tela de abertura — a primeira
+ * coisa que qualquer pessoa vê — não se lia "eletricista de cinturão
+ * paraquedista", se lia "boneco com tubos laranja amarrados no peito".
+ *
+ * O sheen piora: cada tirante é um cilindro, então quase toda a superfície
+ * visível é rasante, que é o mesmo mecanismo do uniforme branco já corrigido
+ * acima — só que o cadarço tinha ficado de fora.
+ *
+ * Está aqui, e não no Blender, de propósito: assim dá para ver o resultado
+ * sem pagar um rebake. Se ficar como se quer, o valor sobe para
+ * `mat_cadarco` e esta função perde a razão de existir.
+ */
+function assentarCadarco(raiz: THREE.Object3D) {
+  raiz.traverse((o) => {
+    const malha = o as THREE.Mesh
+    if (!malha.isMesh) return
+    for (const mat of Array.isArray(malha.material) ? malha.material : [malha.material]) {
+      const m = mat as THREE.MeshPhysicalMaterial
+      if (!m?.name?.startsWith('cadarco')) continue
+      m.color.setRGB(0.165, 0.090, 0.022)
+      if ('sheen' in m) m.sheenColor.setRGB(0.08, 0.07, 0.06)
+      m.needsUpdate = true
+    }
   })
 }

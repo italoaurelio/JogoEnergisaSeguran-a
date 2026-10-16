@@ -485,7 +485,24 @@ export default function Fase3Ocorrencia({
       {clarao && <div className="clarao" aria-hidden />}
       <div className="vestiario-palco">
         <Canvas dpr={[1, 1.5]} shadows camera={{ position: [-16, 8, 18], fov: 40 }}>
-          <Environment files="./hdri/ceu.hdr" environmentIntensity={0.22} />
+          {/*
+            O CÉU ESTAVA FALTANDO, e o que aparecia no lugar dele era o
+            `background` do CSS de `.vestiario-palco` — um gradiente radial
+            que CLAREIA NO ALTO e escurece até o horizonte, ou seja, o
+            contrário de um céu.
+
+            O resultado era uma cena de sol a pino (hemisférica a 1,5,
+            direcional a 3,2, sombra dura) contra um fundo de madrugada. Não
+            lia como estilo, lia como render quebrado — e os cabos, que são a
+            razão de ser da cena, eram fio escuro sobre fundo escuro, sem
+            contraste para o SMAA resolver.
+
+            A névoa é a mesma do trajeto, cuja cor já foi medida contra o
+            horizonte desta HDRI. Sem ela a casa a 40 m tinha o mesmo
+            contraste da casa a 4 m e a cena não tinha profundidade nenhuma.
+          */}
+          <fog attach="fog" args={['#b8c6d4', 55, 190]} />
+          <Environment files="./hdri/ceu.hdr" environmentIntensity={0.42} background />
           <LuzOcorrencia />
           <CenaOcorrencia colocadas={colocadas} />
           <CidadeAoRedor />

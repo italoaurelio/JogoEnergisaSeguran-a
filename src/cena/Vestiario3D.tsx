@@ -182,7 +182,13 @@ export function LuzVestiario() {
       />
       <directionalLight position={[3.2, 1.8, 2.0]} intensity={0.85} color="#bcd4ff" />
       {/* rebatimento dos armários: entra por trás e desenha a silhueta */}
-      <directionalLight position={[0.4, 1.9, -2.6]} intensity={1.15} color="#7fd6a6" />
+      {/* 0,40 e não 1,15. Isto representa o REBATIMENTO dos armários verdes, e
+          rebatimento de parede é difuso, fraco e vem de uma área grande — uma
+          direcional saturada a 1,15 vinda de trás não rebate, PINTA. A tela se
+          chama "Tom de pele" e o tom de pele era a única coisa que ela não
+          mostrava: o lado de sombra do maxilar e do pescoço saía
+          cinza-esverdeado, e o marrom escolhido no painel chegava bege. */}
+      <directionalLight position={[0.4, 1.9, -2.6]} intensity={0.40} color="#a8c9b6" />
     </>
   )
 }

@@ -874,15 +874,18 @@ export function Mundo({
           // ~0,25 e o asfalto do jogo nasceu em 0,042. Clarear demais
           // deixou a pista bege — mais chapada do que antes da textura.
           // Asfalto de verdade fica entre 0,06 e 0,12 de albedo.
-          vestir(material, { cor: asfaltoCor, relevo: asfaltoRelevo }, anis, 0.42)
+          vestir(material, { cor: asfaltoCor, relevo: asfaltoRelevo }, anis, 0.42,
+                 undefined, [0.42, 0.43, 0.46])   // devolve o frio do asfalto
         } else if (material.name === 'via_terra') {
-          vestir(material, { cor: terraCor, relevo: terraRelevo }, anis, 0.5)
+          vestir(material, { cor: terraCor, relevo: terraRelevo }, anis, 0.5,
+                 undefined, [0.46, 0.41, 0.36])    // tira o vermelho sem apagar o grão
         } else if (material.name === 'via_mato') {
           // A grama é gerada em arte/gerar_grama.py: não havia nenhuma em
           // arte/tex, e é a maior superfície do trajeto — chapada, era ela
           // que tirava a referência de profundidade e fazia arbusto a 150 m
           // parecer flutuando.
-          vestir(material, { cor: gramaCor, relevo: gramaRelevo }, anis, 0.55)
+          vestir(material, { cor: gramaCor, relevo: gramaRelevo }, anis, 0.55,
+                 undefined, [0.42, 0.52, 0.34])
         }
       }
     })

@@ -24,6 +24,7 @@
  * o desenho, porque a promessa é "é assim que vai parecer".
  */
 import { Suspense, useState } from 'react'
+import { Environment } from '@react-three/drei'
 import { PalcoPronto } from '../cena/Carregando'
 import { Canvas } from '@react-three/fiber'
 import Personagem from '../cena/Personagem'
@@ -75,6 +76,11 @@ export default function Abertura({
           gl={{ antialias: true }}
         >
           <Suspense fallback={null}>
+            {/* Sem IBL, TODO METAL RENDERIZA PRETO: ele só tem reflexo para
+                mostrar. O puxador do armário (metalness 0,85), as fivelas e a
+                argola dorsal do cinturão sumiam numa massa chapada. Sem
+                `background` — o cenário é fechado, o que se quer é o reflexo. */}
+            <Environment files="./hdri/ceu.hdr" environmentIntensity={0.10} />
             <LuzVestiario />
             <Vestiario3D />
             <Personagem

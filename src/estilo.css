@@ -8,6 +8,18 @@
   --borda: #2c3846;
   --texto: #eef3f8;
   --texto-fraco: #9fb0c0;
+  /*
+    A MARGEM DA INTERFACE SOBREPOSTA AO 3D, num valor só.
+
+    Era sete valores diferentes espalhados pelo arquivo — 22, 22, 24, 26,
+    18, 12 e 6 px — e um elemento (a dica do vestiário) colado em zero, na
+    borda. Medido na tela, não deduzido. Nenhum deles estava errado sozinho;
+    o que lê como desleixo é não haver dois iguais.
+
+    28 px num palco de 1280: dá respiro sem comer área de jogo, e num totem
+    de 1366 continua longe o bastante da moldura física.
+  */
+  --margem-hud: 28px;
   --verde: #16a46a;
   --verde-claro: #35c98c;
   --ambar: #d9a326;
@@ -242,7 +254,8 @@ body {
 .vestiario-palco canvas { display: block; }
 
 .vestiario-dica {
-  position: absolute; left: 0; right: 0; bottom: 18px;
+  position: absolute; left: var(--margem-hud); right: var(--margem-hud);
+  bottom: var(--margem-hud);
   text-align: center; color: var(--texto-fraco); font-size: 14px;
   pointer-events: none;
 }
@@ -379,7 +392,8 @@ body {
 .trajeto-palco canvas { display: block; }
 
 .trajeto-topo {
-  position: absolute; top: 0; left: 0; right: 0; padding: 14px 20px 10px;
+  position: absolute; top: 0; left: 0; right: 0;
+  padding: 14px var(--margem-hud) 12px;
   background: linear-gradient(#0b0f14dd, #0b0f1400);
   pointer-events: none;
 }
@@ -518,7 +532,7 @@ body {
    onde está dentro da escala e, principalmente, onde está em relação ao
    TRAÇO DO LIMITE, que anda junto com o trecho. */
 .trajeto-velocimetro {
-  position: absolute; left: 22px; bottom: 24px;
+  position: absolute; left: var(--margem-hud); bottom: var(--margem-hud);
   width: 152px; height: 152px; display: grid; place-items: center;
   pointer-events: none;
 }
@@ -558,7 +572,8 @@ body {
 }
 
 .trajeto-pedais {
-  position: absolute; right: 22px; bottom: 26px; display: flex; gap: 14px;
+  position: absolute; right: var(--margem-hud); bottom: var(--margem-hud);
+  display: flex; gap: 14px;
 }
 .pedal {
   width: 132px; height: 96px; border-radius: 18px; font: inherit;
@@ -579,7 +594,15 @@ body {
 .pedal-freio { border-color: #6b2b22; background: #2a1512cc; }
 
 .trajeto-dica {
-  position: absolute; right: 22px; bottom: 6px; font-size: 12px;
+  /*
+    AO CENTRO, embaixo. Os dois cantos de baixo já estão ocupados — o
+    velocímetro à esquerda, os pedais à direita (96 px de altura a partir da
+    margem) — e foi por isso que esta dica vivia a 6 px da borda da tela,
+    passando por baixo deles. Ao centro ela não disputa com nada e fica
+    onde o olho já está, entre os dois controles.
+  */
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: var(--margem-hud); font-size: 12px; text-align: center;
   color: var(--texto-fraco); pointer-events: none;
 }
 
@@ -658,7 +681,7 @@ body {
 .abertura .sobretitulo { padding-right: 52px; }
 
 .btn-mudo {
-  position: fixed; top: 12px; right: 12px; z-index: 50;
+  position: fixed; top: var(--margem-hud); right: var(--margem-hud); z-index: 50;
   width: 38px; height: 38px; border-radius: 50%;
   display: grid; place-items: center;
   font-size: 16px; line-height: 1; cursor: pointer;
