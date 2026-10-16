@@ -106,6 +106,92 @@ function Fileira({
   return <group ref={grupo} />
 }
 
+/**
+ * O CICLISTA, que agora REAGE a quem passa colado.
+ *
+ * Antes ele era uma cópia estática numa fileira: o caminhão passava a 20 cm
+ * do guidão a 60 km/h e ele não balançava, não gritava, não olhava. O
+ * momento mais visceral disponível na fase era justamente o que, quando o
+ * jogador errava, não existia — e a falta ia para um `ref` que só aparecia
+ * no relatório.
+ *
+ * Isto NÃO é veredito: é um ciclista levando um susto. Quem passa com a
+ * folga que o CTB manda não vê nada disso acontecer.
+ */
+function Ciclista({
+  molde, distancia, metro, lateral,
+}: {
+  molde: THREE.Object3D | null
+  distancia: React.RefObject<number>
+  metro: number | null
+  /** Quanto o caminhão se afastou para ultrapassar. Define a folga. */
+  lateral: React.RefObject<number>
+}) {
+  const grupo = useRef<THREE.Group>(null)
+  const copia = useMemo(() => {
+    if (!molde) return null
+    const c = molde.clone(true)
+    c.visible = true
+    return c
+  }, [molde])
+  /** 1 no instante do susto, cai para 0. */
+  const susto = useRef(0)
+  const julgado = useRef(false)
+
+  useFrame((_, bruto) => {
+    const g = grupo.current
+    if (!g || metro == null) return
+    const dt = Math.min(bruto, TETO_DT)
+    const d = distancia.current ?? 0
+    const z = metro - d
+
+    /*
+      A FOLGA, em metros. O ciclista anda em x -1,30 e a lateral direita do
+      caminhão fica em -1,10, então sem desvio nenhum passa-se a 20 cm dele.
+      `lateral` é o quanto o caminhão se afastou.
+    */
+    const folga = 0.2 + (lateral.current ?? 0)
+
+    /*
+      O SUSTO COMEÇA NA APROXIMAÇÃO, e não quando o caminhão já passou.
+
+      A primeira versão disparava em z < 1,2 — com o caminhão ao lado dele.
+      A 65 km/h o balanço levava 1,6 s para acontecer e o ciclista já estava
+      TRINTA METROS ATRÁS: a reação existia e o jogador nunca via. Medido no
+      gancho antes de commitar.
+
+      Agora a janela abre a 22 m, que a 65 km/h dá 1,2 s de aproximação. Ele
+      ouve o caminhão vindo rápido, se encolhe, e o pico do balanço cai
+      justamente quando o para-choque passa pelo guidão. Ataque rápido
+      (0,35 s) e solta devagar (1,6 s) — é a curva de um susto.
+    */
+    const perto = z < 22 && z > -6 && folga < 0.9
+    if (perto && !julgado.current) { julgado.current = true; som.fala(2, 0.75) }
+    if (z > 30) julgado.current = false
+    susto.current = perto
+      ? Math.min(1, susto.current + dt / 0.35)
+      : Math.max(0, susto.current - dt / 1.6)
+    const s = susto.current
+    // guinada para o meio-fio e balanço do guidão, os dois decaindo juntos
+    const guinada = -0.42 * s * s
+    const balanco = Math.sin(susto.current * 34) * 0.30 * s
+
+    g.position.set(-1.3 + guinada, 0, z)
+    g.rotation.z = balanco
+    g.rotation.y = balanco * 0.45
+    g.visible = z > -TRECHO && z < ALCANCE
+    if (import.meta.env.DEV) {
+      ;(window as unknown as Record<string, unknown>).__ciclista = {
+        z: +z.toFixed(1), folga: +folga.toFixed(2),
+        susto: +susto.current.toFixed(2), x: +g.position.x.toFixed(2),
+      }
+    }
+  })
+
+  if (!copia) return null
+  return <group ref={grupo}><primitive object={copia} /></group>
+}
+
 /** A pista, que é uma fileira contínua e por isso tem regra própria. */
 function Pista({
   molde, distancia,
@@ -808,7 +894,7 @@ function Garagem({
 
 export function Mundo({
   distancia, marcos, carro, tracado, sinal, garagem, faixa, pedestreLiberado,
-  onibus, onibusLiberado, onibusOnde, lateral,
+  onibus, onibusLiberado, onibusOnde, lateral, ciclista,
 }: {
   distancia: React.RefObject<number>
   marcos: Marco[]
@@ -838,6 +924,8 @@ export function Mundo({
    * dá exatamente a mesma imagem, com uma linha.
    */
   lateral?: React.RefObject<number>
+  /** Metro do ciclista. Ele tem componente próprio porque REAGE. */
+  ciclista?: number | null
 }) {
   const { scene } = useGLTF(MODELO, DRACO)
   const [asfaltoCor, asfaltoRelevo, terraCor, terraRelevo, gramaCor, gramaRelevo] =
@@ -1038,6 +1126,14 @@ export function Mundo({
           limite={POOL[nome]}
         />
       ))}
+      {ciclista != null && lateral && (
+        <Ciclista
+          molde={moldes.ciclista}
+          distancia={distancia}
+          metro={ciclista}
+          lateral={lateral}
+        />
+      )}
       <group ref={grupoCarro} visible={false}>
         {carroClone && <primitive object={carroClone} />}
       </group>

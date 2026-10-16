@@ -297,8 +297,12 @@ export default function Fase2Trajeto({
       // dois coincidiam, então não dava para ver que eram dois — até o
       // verdadeiro arrancar com as crianças e a cópia PARADA ficar na faixa
       // para sempre, para o jogador atravessar.
-      // o ciclista anda junto à borda direita
-      if (e.tipo === 'ciclista') base.push({ peca: 'ciclista', metro: e.metro, x: -1.3 })
+      // O CICLISTA NÃO ENTRA AQUI.
+      //
+      // Mesma razão do ônibus escolar: ele tem componente próprio em
+      // `Via.tsx` porque REAGE a quem passa colado, e cópia de fileira é
+      // estática. Deixá-lo nos dois lugares desenharia dois ciclistas no
+      // mesmo metro — um reagindo e outro impassível ao lado.
     }
     // O poste do DESTINO, na direita e bem na beira: é nele que o caminhão
     // encosta, e é ele que diz "é aqui" sem precisar de texto.
@@ -406,6 +410,7 @@ export default function Fase2Trajeto({
               liberada: garagemLiberada,
             }}
             lateral={lateral}
+            ciclista={evento('ciclista')?.metro ?? null}
           />
           <Motor
             distancia={distancia}

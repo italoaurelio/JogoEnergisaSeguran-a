@@ -290,7 +290,11 @@ export const POOL: Record<Marco['peca'], number> = {
   carro: 10,
   onibus: 10,
   // peças de evento: uma de cada no trajeto inteiro
-  placa: 10, lombada: 10, faixa_pedestre: 10, semaforo: 10, ciclista: 10,
+  placa: 10, lombada: 10, faixa_pedestre: 10, semaforo: 10,
+  // 1 e não 10: o ciclista saiu da fileira e ganhou componente próprio em
+  // `Via.tsx`, porque REAGE a quem passa colado. A entrada fica para o molde
+  // continuar sendo procurado por `FILEIRAS`; as cópias não são usadas.
+  ciclista: 1,
 }
 
 /** As fileiras que `Via.tsx` monta, na ordem. Fonte única com o POOL. */
