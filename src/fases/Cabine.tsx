@@ -75,7 +75,7 @@ export default function Fase2Cabine({
                 gl={{ toneMappingExposure: 1.0 }}>
           {/* mesmo motivo do vestiário: o HDRI é céu aberto e lava a cena
               se passar de ~0,15 */}
-          <Environment files="./hdri/ceu.hdr" environmentIntensity={0.12} />
+          <Environment files="./hdri/ceu.hdr" environmentIntensity={0.30} />
           <LuzCabine />
           <Garagem3D />
           <Cabine ligados={ligados} />

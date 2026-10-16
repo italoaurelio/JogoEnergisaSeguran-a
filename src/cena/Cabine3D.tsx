@@ -208,13 +208,25 @@ export function LuzCabine() {
       {/* interior de veículo é quase todo luz indireta: o que entra pelo vidro
           rebate no forro e no painel. Direcional sozinha deixa a cabine em
           silhueta, como aconteceu no render do Blender. */}
-      <hemisphereLight args={['#c9dcf5', '#3a3428', 1.05]} />
+      {/*
+        0,45 e não 1,05. Hemisférica não desenha FORMA — é ambiente com
+        gradiente vertical. Carregando esse peso, não existia um terminador
+        de luz em lugar nenhum da cabine: banco, coluna, painel, forro e
+        teto chegavam todos no mesmo cinza-azul médio. No item do freio de
+        estacionamento isso era total — pede-se para julgar a posição de uma
+        alavanca, e a alavanca, o banco e o console tinham o mesmo valor.
+      */}
+      <hemisphereLight args={['#c9dcf5', '#3a3428', 0.45]} />
+      {/* A direcional principal subiu para 2,9 e ganhou cor de SOL, não de
+          estúdio: é luz entrando pelo para-brisa. Com a hemisférica baixada,
+          é ela que passa a desenhar a forma. */}
       {/* castShadow fica ligado: o <Canvas> do trajeto não pede sombra, e
           então esta luz simplesmente não gera passe lá. Quem usa é a
           conferência da cabine, onde a sombra dá volume ao interior. */}
       <directionalLight
         position={[-2.2, 3.4, -2.6]}
-        intensity={2.0}
+        intensity={2.9}
+        color="#ffe2bc"
         castShadow
         /* Sem estes ajustes a luz usava o mapa padrão de 512 px num tronco
            padrão de 5 m para um interior de 2 m: a sombra vinha acneada e
@@ -231,7 +243,7 @@ export function LuzCabine() {
         shadow-bias={-0.0004}
         shadow-normalBias={0.012}
       />
-      <directionalLight position={[2.4, 1.6, 1.8]} intensity={0.45} color="#cfe0ff" />
+      <directionalLight position={[2.4, 1.6, 1.8]} intensity={0.30} color="#cfe0ff" />
       <pointLight position={[0, 1.25, 0.4]} intensity={0.5} distance={3} decay={2} />
     </>
   )

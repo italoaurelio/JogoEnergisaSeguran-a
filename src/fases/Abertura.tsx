@@ -68,11 +68,18 @@ export default function Abertura({
 
   return (
     <div className="abertura">
+      {/*
+        A CÂMERA FOI PARA MAIS PERTO E MAIS BAIXO. Do topo até um sexto da
+        tela era uma faixa de laje vazia, com uma emenda dura onde ela
+        atravessa o topo da parede — e o capacete do personagem ficava a 19%
+        da altura, com ar morto em cima e os pés cortados embaixo. Numa tela
+        de retrato, com a interface ocupando a direita, o retrato sobe.
+      */}
       <div className="abertura-palco" aria-hidden>
         <Canvas
           dpr={[1, 1.5]}
           shadows
-          camera={{ position: [0.46, 1.46, 4.35], fov: 32 }}
+          camera={{ position: [0.46, 1.30, 3.55], fov: 32 }}
           gl={{ antialias: true }}
         >
           <Suspense fallback={null}>
@@ -88,7 +95,7 @@ export default function Abertura({
               vestindo={EPI_VITRINE}
               giro={-0.42}
             />
-            <MiraFixa para={[0, 0.98, 0]} />
+            <MiraFixa para={[0, 1.18, 0]} />
             <Acabamento raio={0.9} />
             <PalcoPronto />
           </Suspense>
