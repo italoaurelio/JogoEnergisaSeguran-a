@@ -213,6 +213,25 @@ body {
 
 /* -------------------------------------------------------------- relatório */
 .lista { list-style: none; display: grid; gap: 12px; }
+/*
+  DUAS COLUNAS EM TELA LARGA. O relatório é uma coluna de 820 px centrada em
+  1280, com dois vazios enormes nas laterais — num totem isso lê como página
+  que não carregou. Mas alargar o TEXTO seria pior: linha de 1100 px passa
+  dos 75 caracteres que se lê confortavelmente.
+
+  A solução é usar a largura para mostrar MAIS ITENS de uma vez, não linhas
+  mais longas. `break-inside` é obrigatório: sem ele um cartão se parte no
+  meio entre as duas colunas.
+*/
+@media (min-width: 1180px) {
+  .cartao-tela.largo { width: min(1100px, 100%); }
+  .cartao-tela.largo .lista {
+    display: block; columns: 2; column-gap: 14px;
+  }
+  .cartao-tela.largo .lista li {
+    break-inside: avoid; margin-bottom: 12px;
+  }
+}
 .lista li {
   background: var(--painel-claro); border-radius: 11px; padding: 15px 18px;
   border-left: 4px solid var(--borda); display: grid; gap: 5px;
@@ -652,13 +671,18 @@ body {
   position: relative; display: grid; align-items: center;
   grid-template-columns: 1fr auto; gap: 12px;
   padding: 11px 14px; border-radius: 10px;
-  background: var(--painel-claro); overflow: hidden;
+  /* trilho ESCURO, e não o painel claro: a barra é desenhada por cima e
+     precisa de um fundo contra o qual se destacar. Com os dois claros, a
+     diferença de valor era quase zero e o gráfico não informava nada que o
+     número ao lado já não dissesse. */
+  background: #0d141c; overflow: hidden;
 }
 .placar li > * { position: relative; z-index: 1; }
 /* a barra é o fundo: fica atrás do texto e não disputa espaço com ele */
 .placar i {
   position: absolute; inset: 0 auto 0 0; z-index: 0;
-  border-radius: 10px 0 0 10px; opacity: 0.30;
+  /* 0,55 e não 0,30: a 30% sobre um fundo claro a barra sumia. */
+  border-radius: 10px 0 0 10px; opacity: 0.55;
   transition: width 0.5s ease-out;
 }
 .placar li.ok i { background: var(--verde); }
