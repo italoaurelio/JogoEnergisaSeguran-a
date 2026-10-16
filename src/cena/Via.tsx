@@ -955,6 +955,22 @@ export function Mundo({
       for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
         dobrarMaterial(mat, dobra)
         const material = mat as THREE.MeshStandardMaterial
+        /*
+          AS COPAS ERAM O PONTO MAIS ESCURO DE CADA QUADRO.
+
+          `via_copa` nasce em (0,030 · 0,052 · 0,022) no Blender — albedo de
+          0,05, praticamente preto. Numa paleta onde nada mais desce abaixo
+          de 0,10, a árvore virava o ponto mais forte da imagem e puxava o
+          olho; no trecho do ciclista, as cinco copas da esquerda venciam o
+          ciclista, que é justamente o que o jogador precisa achar.
+
+          Aqui e não no Blender pelo mesmo motivo do cadarço: dá para ver
+          sem pagar um rebake.
+        */
+        if (material.name.startsWith('via_copa')) {
+          material.color.multiplyScalar(1.6)
+          material.needsUpdate = true
+        }
         if (material.map) continue
         const anis = Math.min(8, anisotropia)
         if (material.name === 'via_asfalto') {
@@ -967,6 +983,30 @@ export function Mundo({
         } else if (material.name === 'via_terra') {
           vestir(material, { cor: terraCor, relevo: terraRelevo }, anis, 0.5,
                  undefined, [0.46, 0.41, 0.36])    // tira o vermelho sem apagar o grão
+        } else if (/^via_(escola_parede|concreto|parede|muro|calcada)/.test(material.name)) {
+          /*
+            A SUPERFÍCIE CONSTRUÍDA TAMBÉM GANHA GRÃO.
+
+            O ramo de textura só conhecia asfalto, terra e mato. Todo o
+            resto do mundo construído — muro de pátio, parede de casa,
+            escola, calçada — continuava cor lisa. E o muro da escola é a
+            MAIOR superfície vertical do trajeto: em `10-trajeto-escola` ele
+            toma a lateral esquerda inteira, sem um grão, uma emenda, uma
+            mancha. A 30% do quadro, era ele que definia a impressão da cena.
+
+            O grão vem do ASFALTO, e não da terra. Tentei a terra primeiro,
+            que era o reaproveitamento óbvio, e o muro da escola ficou
+            LARANJA: a textura de terra é avermelhada, e grão de terra numa
+            parede lê como terra, não como reboco. A do asfalto é cinza e de
+            grão fino, que é o que reboco é.
+
+            Ladrilho apertado (0,9 m, não 2,2): parede vista de perto pede
+            grão fino. A tinta escurece um pouco o creme da escola, que
+            estava em 0,300 — mesma faixa de valor do asfalto texturizado e
+            do céu com névoa, três massas grandes sem hierarquia nenhuma.
+          */
+          vestir(material, { cor: asfaltoCor, relevo: asfaltoRelevo }, anis, 0.60,
+                 0.9, [0.70, 0.69, 0.66])
         } else if (material.name === 'via_mato') {
           // A grama é gerada em arte/gerar_grama.py: não havia nenhuma em
           // arte/tex, e é a maior superfície do trajeto — chapada, era ela

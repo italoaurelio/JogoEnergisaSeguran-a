@@ -40,13 +40,23 @@ export function Acabamento(
         denoiseRadius={12}
         color="#0d1526"
       />
+      {/*
+        LIMIAR EM 0,58, e não 0,72. O AgX do tom comprime justamente os
+        altos, então quase nada atravessava o limiar antigo: o bloom estava
+        sendo pago e não fazia trabalho nenhum, exceto acender os dois pontos
+        especulares do volante — que, sozinhos numa cena sem nenhum outro
+        brilho, liam como erro e não como reflexo. A 0,58 o sol e a lâmpada
+        do semáforo ganham halo, e os do volante deixam de ser os únicos.
+      */}
       <Bloom
         intensity={0.5}
-        luminanceThreshold={0.72}
+        luminanceThreshold={0.58}
         luminanceSmoothing={0.25}
         mipmapBlur
       />
-      <Vignette offset={0.28} darkness={0.42} eskil={false} />
+      {/* Mais suave: somada ao painel escuro do trajeto, a vinheta antiga
+          (0,28 / 0,42) levava os dois cantos de baixo a preto puro. */}
+      <Vignette offset={0.34} darkness={0.30} eskil={false} />
       <ToneMapping mode={ToneMappingMode.AGX} />
       <SMAA />
     </EffectComposer>
