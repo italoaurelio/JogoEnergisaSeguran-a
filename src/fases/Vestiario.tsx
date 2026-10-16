@@ -82,13 +82,42 @@ export default function Vestiario({
     registros: Registro[], fisico: Fisico, maximo: number, vestindo: string[],
   ) => void
 }) {
-  const [ato, setAto] = useState<Ato>('fisico')
+  /*
+    `?conferencia=1` cai direto na conferência com o EPI vestido — uma peça
+    certa, uma incompleta e uma errada, para os três tons do veredito
+    aparecerem na mesma tela.
+
+    Existe porque conferir esta tela exigia vestir sete vagas a três cliques
+    cada, e um roteiro de captura que erra um clique no meio não chega lá.
+    Só em desenvolvimento.
+  */
+  const atalho = import.meta.env.DEV
+    && new URLSearchParams(window.location.search).has('conferencia')
+  const [ato, setAto] = useState<Ato>(atalho ? 'conferencia' : 'fisico')
   const [altura, setAltura] = useState(FISICO_INICIAL.altura)
   const [tom, setTom] = useState(FISICO_INICIAL.tom)
   const [cabelo, setCabelo] = useState(FISICO_INICIAL.cabelo)
   const [passoFisico, setPassoFisico] = useState(0)
-  const [escolhas, setEscolhas] = useState<Escolhas>({})
+  const [escolhas, setEscolhas] = useState<Escolhas>(atalho ? {
+    cabeca: 'capacete_b',               // certa
+    face: 'oculos_incolor',             // vale pouco
+    corpo: 'vestimenta_fr',             // certa
+    maos: 'luva_isolante_so',           // incompleta
+    cintura: 'paraquedista_talabarte',  // certa
+    pes: 'botina_biqueira',             // errada
+    adorno: 'nada_no_corpo',            // certa
+  } : {})
   const [vaga, setVaga] = useState<Vaga>('cabeca')
+  /*
+    QUANTAS PEÇAS JÁ FORAM REVELADAS na conferência.
+
+    Mora aqui, e não dentro do painel, porque o BONECO precisa saber: a
+    conferência é o pagamento da fase e acontecia inteira na coluna da
+    direita, em cartões de texto, enquanto o personagem ficava parado à
+    esquerda sem participar da própria avaliação. O ritmo estava certo —
+    650 ms por peça, com som — e o destino do olho, errado.
+  */
+  const [reveladas, setReveladas] = useState(0)
   const [inspecionando, setInspecionando] = useState<string | null>(null)
   const [giro, setGiro] = useState(0)
   const arrasto = useRef<{ x: number; giro: number } | null>(null)
@@ -184,6 +213,14 @@ export default function Vestiario({
           <LuzVestiario />
           <Vestiario3D />
           <Personagem fisico={fisico} vestindo={vestindo} giro={giro} />
+          {ato === 'conferencia' && (
+            <MarcasVeredito
+              escala={escala}
+              giro={giro}
+              escolhas={escolhas}
+              reveladas={reveladas}
+            />
+          )}
           {ato === 'equipar' && (
             <Marcas
               escala={escala}
@@ -234,7 +271,9 @@ export default function Vestiario({
         {ato === 'conferencia' && (
           <AtoConferencia
             escolhas={escolhas}
-            refazer={() => setAto('equipar')}
+            reveladas={reveladas}
+            setReveladas={setReveladas}
+            refazer={() => { setReveladas(0); setAto('equipar') }}
             sair={concluir}
           />
         )}
@@ -289,6 +328,48 @@ function OlharVestiario({ ato, passo }: { ato: Ato; passo: number }) {
  * decimado e a oclusão pisca na borda). Em vez disso a marca atrás fica com
  * opacidade baixa, o que também diz ao jogador que aquele lado está de costas.
  */
+/**
+ * O VEREDITO ACENDENDO NO CORPO, parte por parte.
+ *
+ * A mesma cadência do painel — 650 ms por peça, de cima para baixo — mas no
+ * boneco. Verde para a peça certa, âmbar para a certa-mas-incompleta,
+ * vermelho para a errada. Antes a conferência acontecia inteira numa coluna
+ * de texto e o personagem assistia; agora é ele que é avaliado, na frente de
+ * quem jogou.
+ *
+ * Reaproveita as posições de `MARCAS`, que são as mesmas sete vagas do ato de
+ * equipar — a parte do corpo que acende é literalmente a que foi clicada.
+ */
+function MarcasVeredito({
+  escala, giro, escolhas, reveladas,
+}: {
+  escala: number
+  giro: number
+  escolhas: Escolhas
+  reveladas: number
+}) {
+  return (
+    <group rotation={[0, giro, 0]} scale={escala}>
+      {ORDEM_VAGAS.slice(0, reveladas).map((v) => {
+        const p = MARCAS[v]
+        const frente = Math.cos(giro) * p[2] - Math.sin(giro) * p[0]
+        const atras = frente < -0.05 || Math.abs(Math.sin(giro)) > 0.75
+        const peca = PECAS.find((x) => x.id === escolhas[v])
+        const tom = peca?.veredito ?? 'incorreta'
+        return (
+          <Html key={v} position={p} center zIndexRange={[12, 2]}>
+            <span
+              className={`marca-veredito v-${tom}`}
+              style={{ opacity: atras ? 0.22 : 1 }}
+              title={VAGAS[v].nome}
+            />
+          </Html>
+        )
+      })}
+    </group>
+  )
+}
+
 function Marcas({
   escala, giro, escolhas, vaga, abrir,
 }: {
@@ -593,16 +674,20 @@ function Bancada({
  * conjunto com que ele efetivamente saiu.
  */
 function AtoConferencia({
-  escolhas, refazer, sair,
-}: { escolhas: Escolhas; refazer: () => void; sair: () => void }) {
+  escolhas, reveladas, setReveladas, refazer, sair,
+}: {
+  escolhas: Escolhas
+  reveladas: number
+  setReveladas: React.Dispatch<React.SetStateAction<number>>
+  refazer: () => void
+  sair: () => void
+}) {
   const linhas = useMemo(
     () => ORDEM_VAGAS.map((v) => ({
       vaga: v, peca: PECAS.find((p) => p.id === escolhas[v]),
     })),
     [escolhas],
   )
-  const [reveladas, setReveladas] = useState(0)
-
   useEffect(() => {
     if (reveladas >= linhas.length) return
     const t = setTimeout(() => {
