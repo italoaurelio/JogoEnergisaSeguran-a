@@ -155,6 +155,39 @@ def lombada(m, nome="via_lombada"):
                          (x, -1.8, 0.104), rot=(math.radians(0), 0, 0))
         C.aplicar(listra, m["tinta"])
         pecas.append(listra)
+
+    """
+    A PLACA A-18, que faltava.
+
+    "Quebra-mola sem placa? isso nem pode no Brasil" — e nao pode mesmo: o
+    CTB exige sinalizacao de advertencia antes do dispositivo, e sem ela a
+    lombada nao e legal nem justa. Num jogo que cobra conducao defensiva,
+    uma lombada que aparece sem aviso ensina a decorar o trajeto em vez de
+    ler a via.
+
+    Losango amarelo em pe no acostamento direito, 30 m ANTES (y positivo e
+    de onde o motorista vem), na altura em que placa de advertencia fica.
+    """
+    amarelo = C.mat_simples("via_placa_adv", (0.52, 0.34, 0.020),
+                            rugosidade=0.55)
+    poste_p = C.cilindro(f"{nome}_placa_poste", 0.035, 2.0,
+                         (BORDA_DIR + 0.75, 30.0, 1.0), segmentos=8)
+    C.aplicar(poste_p, m["metal"])
+    pecas.append(poste_p)
+    # losango: uma caixa girada 45 graus no proprio plano
+    losango = C.caixa(f"{nome}_placa_face", (0.52, 0.05, 0.52),
+                      (BORDA_DIR + 0.75, 29.97, 2.05),
+                      rot=(0, math.radians(45), 0))
+    C.chanfrar(losango, largura=0.015, segmentos=2)
+    C.aplicar(losango, amarelo)
+    pecas.append(losango)
+    # o relevo preto do desenho: duas barras, que a 40 m leem como lombada
+    for dz in (-0.07, 0.07):
+        marca = C.caixa(f"{nome}_placa_marca_{dz:+.2f}", (0.26, 0.02, 0.05),
+                        (BORDA_DIR + 0.75, 29.93, 2.05 + dz))
+        C.aplicar(marca, C.mat_simples("via_placa_tinta", (0.020, 0.020, 0.022),
+                                       rugosidade=0.6))
+        pecas.append(marca)
     return C.juntar(pecas, nome)
 
 
@@ -927,17 +960,95 @@ def escola(m, nome="via_escola", modulo=10.0):
     C.aplicar(plat, creme)
     pecas.append(plat)
 
-    # fita de janela corrida nos dois pavimentos, so na face de quem passa
-    y_face = -recuo + 0.02
-    for z in (1.70, 3.10):
-        vao = C.caixa(f"{nome}_janela_{int(z * 10)}", (modulo - 1.1, 0.10, 0.95),
+    """
+    JANELA PARA FORA, e a de baixo acima do muro.
+
+    Duas coisas erradas, e a segunda e pior:
+
+     - a fita ficava com o centro em `-recuo + 0,02`, ou seja praticamente
+       NO plano da parede: 7 cm de vidro saindo de uma parede de 9 m. Da rua
+       lia como desenho na parede, nao como esquadria. Agora ela avanca 9 cm
+       e ganha moldura, que e o que faz a sombra.
+     - a fita de baixo estava em z 1,70 e o MURO tem 2,35 m. Ela nunca foi
+       vista por ninguem: o motorista via parede cega de muro ate 2,35 e
+       parede cega de predio de 2,35 a 3,10. "Vai ver parede o dia todo?"
+    """
+    y_face = -recuo + 0.09
+    for z in (2.72, 3.86):
+        vao = C.caixa(f"{nome}_janela_{int(z * 10)}", (modulo - 1.1, 0.12, 0.92),
                       (0, y_face, z))
         C.aplicar(vao, vidro)
         pecas.append(vao)
+        # moldura em volta: sem ela o vidro e uma mancha escura flutuando
+        moldura = C.caixa(f"{nome}_moldura_{int(z * 10)}",
+                          (modulo - 0.88, 0.07, 1.10), (0, y_face - 0.04, z))
+        C.aplicar(moldura, creme)
+        pecas.append(moldura)
         peitoril = C.caixa(f"{nome}_peitoril_{int(z * 10)}",
-                           (modulo - 1.0, 0.22, 0.12), (0, y_face, z - 0.53))
+                           (modulo - 0.8, 0.26, 0.12), (0, y_face, z - 0.60))
         C.aplicar(peitoril, faixa_cor)
         pecas.append(peitoril)
+
+    alvo = C.juntar(pecas, nome)
+    alvo.name = nome
+    return alvo
+
+
+def escola_portao(m, nome="via_escola_portao", modulo=10.0):
+    """O MODULO DA ENTRADA: portao, guarita e a placa da escola.
+
+    A escola inteira era o mesmo modulo de 10 m repetido — "sem porta, e
+    todos do mesmo tamanho?". Ele esta certo: ninguem constroi uma escola
+    sem entrada, e a entrada e justamente o lugar por onde a crianca sai
+    para a faixa que o jogador tem de respeitar. Sem ela, o trecho escolar
+    nao tem por que existir.
+
+    Entra UMA VEZ na quadra, no meio — nao ladrilha.
+    """
+    pecas = []
+    creme = C.mat_simples("via_escola_parede", (0.300, 0.285, 0.245),
+                          rugosidade=0.90)
+    faixa_cor = C.mat_simples("via_escola_faixa", (0.030, 0.105, 0.230),
+                              rugosidade=0.86)
+    grade = C.mat_simples("via_escola_grade", (0.045, 0.048, 0.052),
+                          rugosidade=0.45, metalico=0.85)
+
+    # pilares do portao
+    for lado in (-1, 1):
+        pil = C.caixa(f"{nome}_pilar_{lado}", (0.45, 0.45, 2.95),
+                      (lado * 2.3, 0, 1.475))
+        C.chanfrar(pil, largura=0.02, segmentos=2)
+        C.aplicar(pil, creme)
+        pecas.append(pil)
+    # muro nos dois lados do portao, ate fechar o modulo
+    for lado in (-1, 1):
+        resto = (modulo / 2 - 2.52)
+        mu = C.caixa(f"{nome}_muro_{lado}", (resto, 0.18, 2.35),
+                     (lado * (2.52 + resto / 2), 0, 1.175))
+        C.aplicar(mu, creme)
+        pecas.append(mu)
+        fa = C.caixa(f"{nome}_faixa_{lado}", (resto, 0.21, 0.42),
+                     (lado * (2.52 + resto / 2), 0, 1.85))
+        C.aplicar(fa, faixa_cor)
+        pecas.append(fa)
+
+    # grade do portao: barras verticais, que e o que se ve de uma escola
+    for i in range(13):
+        x = -2.05 + i * 0.342
+        b = C.caixa(f"{nome}_barra_{i}", (0.055, 0.055, 2.30), (x, 0, 1.15))
+        C.aplicar(b, grade)
+        pecas.append(b)
+    for z in (0.22, 2.22):
+        trav = C.caixa(f"{nome}_trav_{int(z * 10)}", (4.30, 0.07, 0.10),
+                       (0, 0, z))
+        C.aplicar(trav, grade)
+        pecas.append(trav)
+
+    # placa sobre o portao
+    placa = C.caixa(f"{nome}_placa", (3.40, 0.10, 0.62), (0, -0.10, 3.20))
+    C.chanfrar(placa, largura=0.02, segmentos=2)
+    C.aplicar(placa, faixa_cor)
+    pecas.append(placa)
 
     alvo = C.juntar(pecas, nome)
     alvo.name = nome
@@ -1155,12 +1266,26 @@ def moto(m, nome="via_moto"):
                          rugosidade=0.72)
 
     # rodas: cilindro deitado no eixo X, que e o eixo do raio da roda
+    metal_m = C.mat_simples("via_moto_metal", (0.42, 0.43, 0.45),
+                            rugosidade=0.32, metalico=0.9)
     for y, r in ((-0.62, 0.30), (0.60, 0.30)):
-        roda = C.cilindro(f"{nome}_roda_{'d' if y < 0 else 't'}", r, 0.11,
+        lado_n = 'd' if y < 0 else 't'
+        roda = C.cilindro(f"{nome}_roda_{lado_n}", r, 0.11,
                           (0, y, r), segmentos=18,
                           rot=(0, math.pi / 2, 0))
         C.aplicar(roda, pneu)
         pecas.append(roda)
+        # ARO e CUBO: sem eles a roda e um disco preto, e disco preto a 30 m
+        # nao gira nem parece roda. O aro e o unico ponto claro do conjunto
+        # embaixo, e e ele que marca o movimento.
+        aro = C.cilindro(f"{nome}_aro_{lado_n}", r * 0.62, 0.125,
+                         (0, y, r), segmentos=16, rot=(0, math.pi / 2, 0))
+        C.aplicar(aro, metal_m)
+        pecas.append(aro)
+        cubo = C.cilindro(f"{nome}_cubo_{lado_n}", 0.055, 0.17,
+                          (0, y, r), segmentos=10, rot=(0, math.pi / 2, 0))
+        C.aplicar(cubo, preto)
+        pecas.append(cubo)
 
     # quadro e tanque: uma cunha entre as rodas, estreita
     quadro = C.caixa(f"{nome}_quadro", (0.22, 1.10, 0.26), (0, 0.02, 0.62))
@@ -1189,6 +1314,42 @@ def moto(m, nome="via_moto"):
     C.aplicar(guidao, preto)
     pecas.append(guidao)
 
+    # RETROVISORES: dois pontos claros acima do guidao. Sao o que separa a
+    # silhueta de uma moto da de uma bicicleta a 40 m.
+    for lado in (-1, 1):
+        haste = C.cilindro(f"{nome}_retro_haste_{lado}", 0.010, 0.16,
+                           (lado * 0.30, -0.45, 1.14), segmentos=6)
+        C.aplicar(haste, preto)
+        pecas.append(haste)
+        esp = C.caixa(f"{nome}_retro_{lado}", (0.10, 0.03, 0.07),
+                      (lado * 0.32, -0.45, 1.22))
+        C.chanfrar(esp, largura=0.012, segmentos=2)
+        C.aplicar(esp, metal_m)
+        pecas.append(esp)
+
+    # GARFO dianteiro: a moto nascia com a roda da frente solta no ar
+    for lado in (-1, 1):
+        garfo = C.cilindro(f"{nome}_garfo_{lado}", 0.022, 0.72,
+                           (lado * 0.085, -0.56, 0.62), segmentos=8,
+                           rot=(math.radians(14), 0, 0))
+        C.aplicar(garfo, metal_m)
+        pecas.append(garfo)
+
+    # paralama traseiro e lanterna
+    paralama = C.caixa(f"{nome}_paralama", (0.20, 0.42, 0.07), (0, 0.66, 0.84))
+    C.chanfrar(paralama, largura=0.03, segmentos=2)
+    C.aplicar(paralama, pintura)
+    pecas.append(paralama)
+    lant = C.caixa(f"{nome}_lanterna", (0.12, 0.05, 0.07), (0, 0.86, 0.86))
+    C.aplicar(lant, _mat_luz("via_moto_lanterna", (0.75, 0.06, 0.04), forca=1.4))
+    pecas.append(lant)
+
+    # escapamento: o cilindro baixo do lado direito
+    escape = C.cilindro(f"{nome}_escape", 0.045, 0.72, (0.17, 0.30, 0.40),
+                        segmentos=10, rot=(math.radians(96), 0, 0))
+    C.aplicar(escape, metal_m)
+    pecas.append(escape)
+
     # PILOTO. De frente, ele e a peca que se ve — por isso leva mais
     # poligono que a moto inteira.
     # mesmo tratamento do pedestre e do ciclista (07/10): o tronco era uma
@@ -1213,11 +1374,38 @@ def moto(m, nome="via_moto"):
                    (lado * 0.215, -0.320, 1.165, 0.042, 0.042),
                    (lado * 0.220, -0.430, 1.075, 0.036, 0.036)], segmentos=8)
         _fechar_bm(bm, f"{nome}_antebraco_{lado}", pele, pecas)
-        perna = C.caixa(f"{nome}_perna_{lado}", (0.16, 0.40, 0.18),
-                        (lado * 0.17, 0.02, 0.74))
-        C.chanfrar(perna, largura=0.05, segmentos=2)
-        C.aplicar(perna, preto)
-        pecas.append(perna)
+        """
+        A PERNA DO PILOTO DOBRA NO JOELHO.
+
+        Era uma caixa de 16 x 40 x 18 cm pendurada no quadril: de perfil, uma
+        tabua. Quem pilota fica com a coxa quase horizontal e a canela quase
+        vertical, e e esse ZIGUE-ZAGUE que diz "montado" — sem ele o piloto
+        parece sentado numa cadeira que por acaso tem rodas.
+
+        Coxa e canela se sobrepoem no joelho, como na perna do pedestre: o
+        volume fecha a junta e nao sobra costura.
+        """
+        bm = bmesh.new()
+        _loft(bm, [(lado * 0.165, 0.185, 0.885, 0.085, 0.080),   # quadril
+                   (lado * 0.185, 0.020, 0.830, 0.072, 0.070),
+                   (lado * 0.200, -0.150, 0.790, 0.062, 0.060)], segmentos=8)
+        _fechar_bm(bm, f"{nome}_coxa_{lado}", preto, pecas)
+        bm = bmesh.new()
+        _loft(bm, [(lado * 0.200, -0.120, 0.810, 0.060, 0.058),  # joelho
+                   (lado * 0.205, -0.090, 0.600, 0.054, 0.052),
+                   (lado * 0.205, -0.060, 0.400, 0.048, 0.046)], segmentos=8)
+        _fechar_bm(bm, f"{nome}_canela_{lado}", preto, pecas)
+        pe = C.caixa(f"{nome}_pe_{lado}", (0.10, 0.24, 0.07),
+                     (lado * 0.205, -0.090, 0.355))
+        C.chanfrar(pe, largura=0.02, segmentos=2)
+        C.aplicar(pe, preto)
+        pecas.append(pe)
+        # pedaleira: a barrinha em que o pe pousa
+        ped = C.cilindro(f"{nome}_pedaleira_{lado}", 0.018, 0.12,
+                         (lado * 0.145, -0.090, 0.330), segmentos=8,
+                         rot=(0, math.pi / 2, 0))
+        C.aplicar(ped, metal_m)
+        pecas.append(ped)
 
     pescoco = C.cilindro(f"{nome}_pescoco", 0.065, 0.10, (0, 0.03, 1.50),
                          segmentos=10)
@@ -1394,6 +1582,7 @@ def muro_patio(m, nome="via_muro_patio", modulo=10.0):
 # gira aqui, e o jogo le essa altura da propria caixa da peca, entao a
 # crianca de 1,25 m funciona sem numero a mais.
 OMBRO_Z = 1.23      # altura do ombro, pivo do braco
+JOELHO_Z = 0.52     # altura do joelho, pivo da canela
 QUADRIL_Z = 0.90
 
 
@@ -1516,24 +1705,51 @@ def pedestre(m, nome="via_pedestre", altura=1.72, roupa=(0.30, 0.10, 0.09)):
     # chao na vertical, ele nunca atravessa. Joelho custaria dois lofts por
     # perna e nao se le a 30 m, que e a distancia em que o jogador decide.
     pernas = []
+    canelas = []
     bracos = []
     for lado in (-1, 1):
         dy = lado * 0.072
-        soltas = []
+        """
+        A PERNA TEM JOELHO.
+
+        Era uma peca so, girando no quadril: perna rigida, do quadril ao
+        sapato, varrendo um arco. "Nunca vi alguem andar com a perna reta,
+        nao parecem pessoas, parecem massinha" — e e exatamente isso. O que
+        o olho reconhece como caminhada humana nao e a perna indo e voltando,
+        e o JOELHO dobrando na volta: a perna de tras recolhe o pe para poder
+        passar sem raspar o chao.
+
+        Duas pecas, entao: coxa com origem no quadril e canela com origem no
+        joelho. O sapato vai na canela, porque e nela que ele anda.
+
+        AS DUAS SE SOBREPOEM 6 cm no joelho, de proposito. Peca encostando
+        em peca por fora deixa costura a vista, e com a junta dobrando 45
+        graus deixaria um VAO. Com a coxa descendo ate 0,46 e a canela
+        comecando em 0,58, a dobra acontece dentro do volume e nao abre.
+        """
+        coxa_sol = []
         bm = bmesh.new()
         _loft(bm, [(0.00, dy, 0.90, 0.088, 0.086),
                    (0.00, dy, 0.72, 0.078, 0.076),
                    (0.00, dy, 0.52, 0.062, 0.062),   # joelho
+                   (0.00, dy, 0.46, 0.060, 0.060)], segmentos=8)
+        _fechar_bm(bm, f"{nome}_coxa_malha_{lado}", calca, coxa_sol)
+        pernas.append((C.juntar(coxa_sol, f"{nome}_coxa_{'e' if lado < 0 else 'd'}"),
+                       dy))
+
+        canela_sol = []
+        bm = bmesh.new()
+        _loft(bm, [(0.00, dy, 0.58, 0.061, 0.061),
                    (0.00, dy, 0.30, 0.056, 0.054),
                    (0.00, dy, 0.09, 0.048, 0.046)], segmentos=8)
-        _fechar_bm(bm, f"{nome}_perna_malha_{lado}", calca, soltas)
+        _fechar_bm(bm, f"{nome}_canela_malha_{lado}", calca, canela_sol)
         o = C.caixa(f"{nome}_pe_{lado}", (0.25, 0.105, 0.07),
                     (0.045, dy, 0.042))
         C.chanfrar(o, largura=0.02, segmentos=2)
         C.aplicar(o, sapato)
-        soltas.append(o)
-        pernas.append((C.juntar(soltas, f"{nome}_perna_{'e' if lado < 0 else 'd'}"),
-                       dy))
+        canela_sol.append(o)
+        canelas.append((C.juntar(canela_sol, f"{nome}_canela_{'e' if lado < 0 else 'd'}"),
+                        dy))
 
         # BRACO QUE BALANCA, pelo mesmo caminho da perna.
         #
@@ -1575,6 +1791,13 @@ def pedestre(m, nome="via_pedestre", altura=1.72, roupa=(0.30, 0.10, 0.09)):
         perna.location = quadril
         perna.parent = alvo
         perna.matrix_parent_inverse.identity()
+    for canela, dy in canelas:
+        joelho = Vector((0.0, dy * k, JOELHO_Z * k))
+        for v in canela.data.vertices:
+            v.co = v.co * k - joelho
+        canela.location = joelho
+        canela.parent = alvo
+        canela.matrix_parent_inverse.identity()
     for braco, dy in bracos:
         ombro = Vector((0.0, dy * k, OMBRO_Z * k))
         for v in braco.data.vertices:

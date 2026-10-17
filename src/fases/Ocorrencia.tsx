@@ -19,7 +19,8 @@ import { Acabamento } from '../cena/Acabamento'
 import { Environment } from '@react-three/drei'
 import {
   AlvosDoPoste, Aterramento, Bloqueio, CameraDaCena, CenaOcorrencia,
-  CidadeAoRedor, Cobertura, Eletricista, LuzOcorrencia, PortaFusivel,
+  CidadeAoRedor, Cobertura, Eletricista, LuzOcorrencia, MarcadorDoServico,
+  PortaFusivel,
   miraDoCesto,
   type Colocada, type PoseEletricista, type Vista,
 } from '../cena/Ocorrencia3D'
@@ -527,6 +528,15 @@ export default function Fase3Ocorrencia({
           <LuzOcorrencia />
           <CenaOcorrencia colocadas={colocadas} />
           <CidadeAoRedor />
+          {/*
+            O marcador de missão só existe ENQUANTO ele chega. Depois de
+            parar o caminhão ele já sabe onde é, e um cilindro verde em
+            volta do poste durante o reparo atrapalharia justamente a parte
+            em que se olha para o poste.
+          */}
+          {(etapa === 'briefing' || etapa === 'chegada') && (
+            <MarcadorDoServico em={[0, 1.3, 0]} />
+          )}
           {etapa === 'reparo' && (
             <>
               <AlvosDoPoste

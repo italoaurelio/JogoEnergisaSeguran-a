@@ -38,6 +38,8 @@ export type Fisico = {
   tom: [number, number, number]
   /** Cor absoluta do material `cabelo`. Opcional: o motorista não escolhe. */
   cabelo?: [number, number, number]
+  /** Qual dos três cortes. Geometria, não cor: são três peças no `.glb`. */
+  corte?: 'curto' | 'medio' | 'raspado'
 }
 
 type Props = {
@@ -142,7 +144,39 @@ export default function Personagem({ fisico, vestindo, giro, animo = 'ok' }: Pro
       if (mostrar && !no.visible) entrando.current.set(no, 1)
       no.visible = mostrar
     }
-  }, [scene, vestidos])
+
+    /*
+      O CABELO SOB O CAPACETE É OUTRA PEÇA.
+
+      A documentação de `humano.cabelo` prometia desde sempre que "o cabelo
+      some junto quando entra o capacete", e isso nunca foi ligado: com o
+      volume de 2,7 cm do corte médio, o cabelo atravessava o casco — foi a
+      foto que o cliente mandou.
+
+      Sumir inteiro também está errado: capacete não deixa a pessoa careca,
+      deixa à mostra a nuca e a costeleta. Por isso a troca é por
+      `cabelo_capacete`, que é o mesmo recorte cortado abaixo da linha do
+      casco.
+    */
+    /*
+      O TÊNIS SAI QUANDO A BOTINA ENTRA.
+
+      Ele chega ao vestiário calçado — andava descalço a fase 1 inteira, e o
+      cliente apontou. Mas não dá para estar de tênis e de botina ao mesmo
+      tempo, então o nó próprio existe justamente para poder sumir.
+    */
+    const comBotina = [...vestidos].some((id) => id.startsWith('botina'))
+    const tenis = scene.getObjectByName('base_tenis')
+    if (tenis) tenis.visible = !comBotina
+
+    const comCapacete = [...vestidos].some((id) => id.startsWith('capacete'))
+    const alvoCabelo = comCapacete
+      ? 'cabelo_capacete'
+      : `cabelo_${fisico.corte ?? 'medio'}`
+    for (const no of scene.children) {
+      if (no.name.startsWith('cabelo')) no.visible = no.name === alvoCabelo
+    }
+  }, [scene, vestidos, fisico.corte])
 
   useFrame((_, dt) => {
     if (!entrando.current.size) return

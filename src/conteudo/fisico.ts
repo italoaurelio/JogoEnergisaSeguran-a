@@ -73,8 +73,24 @@ export const CABELOS: OpcaoCabelo[] = [
   { id: 'c5', nome: 'Grisalho', cor: [0.115, 0.112, 0.108], amostra: '#6e6b67' },
 ]
 
+/**
+ * Os cortes de cabelo. Três peças separadas no `.glb` — o jogo mostra uma.
+ *
+ * Não dá para variar corte por material como se faz com a cor: corte é
+ * GEOMETRIA. Por isso são três recortes diferentes da mesma cabeça, com a
+ * linha do cabelo mais alta ou mais baixa e o volume maior ou menor.
+ */
+export const CORTES = [
+  { id: 'curto', nome: 'Curto' },
+  { id: 'medio', nome: 'Médio' },
+  { id: 'raspado', nome: 'Raspado' },
+] as const
+
+export type CorteId = (typeof CORTES)[number]['id']
+
 export const FISICO_INICIAL = {
   altura: ALTURAS[2].metros,
   tom: TONS[4].tom,
   cabelo: CABELOS[0].cor,
+  corte: 'medio' as CorteId,
 }

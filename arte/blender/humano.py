@@ -642,8 +642,51 @@ def _grupo_desbotado(corpo, origem, nome=None, voltas=26):
     return nome
 
 
+#: Os tres cortes. `limiar` e onde a rampa da orla e cortada (quanto menor,
+#: mais baixa a linha do cabelo); `espessura` e o volume no alto da cabeca.
+CORTES = (
+    dict(id="curto",   limiar=0.52, espessura=0.011),
+    dict(id="medio",   limiar=0.45, espessura=0.027),
+    dict(id="raspado", limiar=0.36, espessura=0.004),
+)
+
+
+def _peca_de_cabelo(corpo, pesos, nome, limiar, espessura, teto_z=None,
+                    cor=(0.016, 0.011, 0.008)):
+    """Uma casca de cabelo recortada da rampa da orla.
+
+    `teto_z` corta tudo acima de uma altura: e como nasce a FAIXA que fica
+    aparecendo por baixo do capacete.
+    """
+    def teste(indice, co):
+        if pesos.get(indice, 0.0) < limiar:
+            return False
+        if teto_z is not None and co.z > teto_z:
+            return False
+        return True
+
+    peca = recortar(corpo, teste, nome, deslocar=0.0012, espessura=espessura,
+                    so_corpo=True)
+    if not peca:
+        return None
+    # a mesma serrilha do decote: o recorte vai de face em face, e no cabelo
+    # ela saia como degrau quadrado na costeleta
+    import epi as E
+    E.alisar_bordas(peca)
+    # ESPESSURA QUE AFINA ATE A BORDA — casca de espessura constante termina
+    # num degrau chanfrado, e degrau em volta da cabeca le como capacete
+    grupo = _afinar_pelas_bordas(peca, f"{nome}_afina")
+    for mod in peca.modifiers:
+        if mod.type == "SOLIDIFY" and grupo:
+            mod.vertex_group = grupo
+            mod.thickness_clamp = 0.0
+            mod.offset = 1.0
+    C.aplicar(peca, mat_pelo("cabelo", cor=cor, rugosidade=0.82))
+    return peca
+
+
 def cabelo(corpo, cor=(0.016, 0.011, 0.008), comprimento=0.026, peso_min=0.12):
-    """Corte raspado: calota recortada pelo grupo `scalp` da propria malha.
+    """Os cortes de cabelo, como pecas separadas, mais a faixa de capacete.
 
     Duas tentativas anteriores nao servem e ficam registradas para nao voltarem:
 
@@ -654,61 +697,57 @@ def cabelo(corpo, cor=(0.016, 0.011, 0.008), comprimento=0.026, peso_min=0.12):
       o preto reflete a luz de preenchimento como se fosse uma careca lustrosa.
       Cabelo precisa de rugosidade propria, entao precisa de material proprio.
 
-    Malha separada ainda resolve o jogo: o cabelo some junto quando entra o
-    capacete, sem tocar no material da pele.
+    O CORTE SAI DA ORLA, e nao do `scalp` cru. O `scalp` do MakeHuman e
+    binario (376 vertices em peso 1,0 e nada entre): cortado nele, o cabelo
+    termina na linha que o MakeHuman desenhou — alta, igual dos dois lados e
+    reta na nuca. E uma touca. Borrando os pesos para fora nasce uma rampa, e
+    cortar a rampa num limiar abaixo de 0,5 desce a linha e a desce
+    IRREGULAR, acompanhando a topologia.
+
+    A FAIXA DE CAPACETE (`cabelo_capacete`) existe porque o volume de 2,7 cm
+    do corte medio atravessava o casco — o cliente mandou a foto. Capacete
+    nao faz o cabelo sumir: faz sumir o que esta EMBAIXO dele. A faixa e o
+    mesmo recorte cortado acima da linha do casco, entao sobra a nuca e a
+    costeleta, que e o que se ve de verdade em quem usa capacete.
     """
     if "scalp" not in corpo.vertex_groups:
         return None
-    """
-    O CORTE SAI DA ORLA, e nao do `scalp` cru.
-
-    O `scalp` do MakeHuman e binario: 376 vertices em peso 1,0 e nada entre.
-    Cortado nele, o cabelo termina exatamente na linha que o MakeHuman
-    desenhou — alta, igual dos dois lados e reta na nuca. E uma touca.
-
-    Borrando os pesos para fora nasce uma rampa, e cortar a rampa num limiar
-    um pouco abaixo de 0,5 desce a linha do cabelo um ou dois centimetros e,
-    melhor, a desce de forma IRREGULAR: a rampa segue a topologia da cabeca,
-    entao a borda deixa de ser uma curva lisa desenhada a compasso.
-    """
     orla = _grupo_desbotado(corpo, "scalp", nome="scalp_corte", voltas=18)
-    peca = recortar_grupo(corpo, orla or "scalp", "cabelo",
-                          peso_min=0.45 if orla else peso_min,
-                          deslocar=0.0012, espessura=comprimento)
-    if peca:
-        # a mesma serrilha do decote: o recorte vai de face em face, e no
-        # cabelo ela saia como degrau quadrado na costeleta
-        import epi as E
-        E.alisar_bordas(peca)
-        # ESPESSURA QUE AFINA ATE A BORDA. 2,6 cm no alto e volume de cabelo
-        # curto de verdade; os 4 mm de antes eram uma pelicula, e pelicula
-        # com rebordo chanfrado e exatamente o que le como touca.
-        grupo = _afinar_pelas_bordas(peca, "cabelo_afina")
-        for mod in peca.modifiers:
-            if mod.type == "SOLIDIFY" and grupo:
-                mod.vertex_group = grupo
-                # sem o clamp, onde o peso e quase zero o Solidify ainda
-                # empurra o minimo e o rebordo volta
-                mod.thickness_clamp = 0.0
-                mod.offset = 1.0
-        C.aplicar(peca, mat_pelo("cabelo", cor=cor, rugosidade=0.82))
+    idx = corpo.vertex_groups[orla or "scalp"].index
+    pesos = {}
+    for v in corpo.data.vertices:
+        for g in v.groups:
+            if g.group == idx:
+                pesos[v.index] = g.weight
+
+    ref = referencias(corpo)
+    # abaixo da linha do casco: medido, a cabeca vai de ~1,60 a 1,79 e o
+    # capacete assenta por volta de 1,68
+    teto = ref["head"].z + 0.045 if "head" in ref else None
+
+    pecas = []
+    for corte in CORTES:
+        p = _peca_de_cabelo(corpo, pesos, f"cabelo_{corte['id']}",
+                            corte["limiar"], corte["espessura"], cor=cor)
+        if p:
+            pecas.append(p)
+    faixa = _peca_de_cabelo(corpo, pesos, "cabelo_capacete",
+                            0.36, 0.009, teto_z=teto, cor=cor)
+    if faixa:
+        pecas.append(faixa)
 
     """
     A PELE ESCURECE EM VOLTA DA CALOTA, e nao so debaixo dela.
 
-    O corte raspado e uma casca com espessura: por mais lisa que esteja a
-    borda, ela termina em degrau, e um degrau preto pousado em pele clara le
-    como touca de natacao. Com a pele escurecendo para fora da borda, o
-    degrau vira densidade caindo.
-
-    E so pintura — a tentativa de fazer o cabelo INTEIRO assim esta registrada
-    acima e nao funciona, porque a pele mantem o brilho dela. As duas juntas e
-    que servem: malha para o volume, pintura para a linha do cabelo.
+    O corte e uma casca com espessura: por mais lisa que esteja a borda, ela
+    termina em degrau, e um degrau preto pousado em pele clara le como touca
+    de natacao. Com a pele escurecendo para fora da borda, o degrau vira
+    densidade caindo.
     """
     desbotado = _grupo_desbotado(corpo, "scalp")
     if desbotado:
         pintar_regioes(corpo, [("grupo", desbotado, None, 0.42)], cor=cor)
-    return peca
+    return pecas
 
 
 def vestir_pelo(corpo, olhos, cor=(0.014, 0.009, 0.005)):

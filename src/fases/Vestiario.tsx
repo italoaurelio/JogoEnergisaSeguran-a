@@ -29,7 +29,9 @@ import { Environment, Html } from '@react-three/drei'
 import { Acabamento } from '../cena/Acabamento'
 import Personagem, { ALTURA_BASE, type Fisico } from '../cena/Personagem'
 import Vestiario3D, { LuzVestiario } from '../cena/Vestiario3D'
-import { ALTURAS, CABELOS, TONS, FISICO_INICIAL } from '../conteudo/fisico'
+import {
+  ALTURAS, CABELOS, CORTES, TONS, FISICO_INICIAL, type CorteId,
+} from '../conteudo/fisico'
 import {
   ETIQUETAS, PECAS, VAGAS, dataDoEnsaio, pecasDaVaga, type Peca, type Vaga,
 } from '../conteudo/epi'
@@ -97,6 +99,7 @@ export default function Vestiario({
   const [altura, setAltura] = useState(FISICO_INICIAL.altura)
   const [tom, setTom] = useState(FISICO_INICIAL.tom)
   const [cabelo, setCabelo] = useState(FISICO_INICIAL.cabelo)
+  const [corte, setCorte] = useState(FISICO_INICIAL.corte)
   const [passoFisico, setPassoFisico] = useState(0)
   const [escolhas, setEscolhas] = useState<Escolhas>(atalho ? {
     cabeca: 'capacete_b',               // certa
@@ -123,7 +126,7 @@ export default function Vestiario({
   const arrasto = useRef<{ x: number; giro: number } | null>(null)
 
   const fisico: Fisico = useMemo(
-    () => ({ altura, tom, cabelo }), [altura, tom, cabelo],
+    () => ({ altura, tom, cabelo, corte }), [altura, tom, cabelo, corte],
   )
   const escala = altura / ALTURA_BASE
 
@@ -246,6 +249,7 @@ export default function Vestiario({
             altura={altura} setAltura={setAltura}
             tom={tom} setTom={setTom}
             cabelo={cabelo} setCabelo={setCabelo}
+            corte={corte} setCorte={setCorte}
             voltar={() => setPassoFisico((n) => n - 1)}
             avancar={() => (passoFisico < 2
               ? setPassoFisico((n) => n + 1)
@@ -418,12 +422,14 @@ function Marcas({
 /* ------------------------------------------------------------ ato físico */
 
 function AtoFisico({
-  passo, altura, setAltura, tom, setTom, cabelo, setCabelo, voltar, avancar,
+  passo, altura, setAltura, tom, setTom, cabelo, setCabelo, corte, setCorte,
+  voltar, avancar,
 }: {
   passo: number
   altura: number; setAltura: (v: number) => void
   tom: [number, number, number]; setTom: (v: [number, number, number]) => void
   cabelo: [number, number, number]; setCabelo: (v: [number, number, number]) => void
+  corte: CorteId; setCorte: (v: CorteId) => void
   voltar: () => void
   avancar: () => void
 }) {
@@ -481,6 +487,23 @@ function AtoFisico({
         </div>
       ),
     },
+    {
+      titulo: 'Corte',
+      nota: 'Debaixo do capacete os três ficam iguais — o corte aparece no vestiário e no fim do turno.',
+      corpo: (
+        <div className="opcoes">
+          {CORTES.map((c) => (
+            <button
+              key={c.id}
+              className={`opcao ${corte === c.id ? 'ativa' : ''}`}
+              onClick={() => setCorte(c.id)}
+            >
+              {c.nome}
+            </button>
+          ))}
+        </div>
+      ),
+    },
   ]
   const atual = etapas[Math.max(0, Math.min(etapas.length - 1, passo))]
   const ultimo = passo >= etapas.length - 1
@@ -488,7 +511,7 @@ function AtoFisico({
   return (
     <>
       <header className="painel-topo">
-        <p className="sobretitulo">Fase 1 · Vestiário · {passo + 1} de 3</p>
+        <p className="sobretitulo">Fase 1 · Vestiário · {passo + 1} de {etapas.length}</p>
         <h2>{atual.titulo}</h2>
         <p className="painel-texto">{atual.nota}</p>
         <ol className="trilha" aria-label="Progresso da montagem">

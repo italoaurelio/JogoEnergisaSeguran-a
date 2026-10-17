@@ -43,7 +43,13 @@ def montar():
     arm = H.adicionar_rig(corpo)
     H.pose_descanso(arm)
     olhos = H.criar_olhos(corpo)
-    H.cabelo(corpo)
+    # a prova mostra UM corte: as quatro pecas sobrepostas viram um borrao.
+    # `?-- corte=raspado` troca; sem argumento, o medio.
+    cortes = H.cabelo(corpo) or []
+    escolhido = os.environ.get("CORTE", "medio")
+    for p in cortes:
+        if p.name != f"cabelo_{escolhido}" and p.name in bpy.data.objects:
+            bpy.data.objects.remove(p, do_unlink=True)
     H.sobrancelhas(corpo, olhos)
     # a roupa base entra: a gola da camiseta e o que se quer julgar aqui
     import epi as E

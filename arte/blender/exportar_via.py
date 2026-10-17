@@ -38,6 +38,8 @@ def processar():
         "casa_b": V.casa_b(m),
         "casa_c": V.casa_c(m),
         "escola": V.escola(m),
+        # a ENTRADA da escola: entra uma vez na quadra, nao ladrilha
+        "escola_portao": V.escola_portao(m),
         # Quatro carros, pelo mesmo motivo das tres casas: o jogo clona a
         # malha e clone de three.js divide o material, entao variacao de
         # FORMA so existe como peca separada no catalogo.

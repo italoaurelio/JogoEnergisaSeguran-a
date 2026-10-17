@@ -82,6 +82,9 @@ def montar():
     ref = H.referencias(corpo)
     pecas = E.vestir(corpo, ref, list(E.MONTAGEM))
     pecas["base_roupa"] = E.roupa_base(corpo, ref)
+    # o tenis com que ele chega: no proprio, para o jogo esconder quando
+    # o jogador calca a botina
+    pecas["base_tenis"] = E.tenis_base(corpo, ref)
     return corpo, arm, olhos, cabelo, ref, pecas
 
 
@@ -231,11 +234,15 @@ def processar():
         exportaveis.append(alvo)
         catalogo[ident] = alvo.name
 
+    # QUATRO pecas de cabelo, e nao uma: tres cortes mais a faixa que fica
+    # sob o capacete. O jogo mostra uma de cada vez, como ja faz com o EPI.
     if cabelo:
-        limpar_pais([cabelo])
-        cabelo = X.preparar(cabelo)
-        cabelo.name = "cabelo"
-        exportaveis.append(cabelo)
+        limpar_pais(cabelo)
+        for p in cabelo:
+            nome = p.name
+            pronto = X.preparar(p)
+            pronto.name = nome
+            exportaveis.append(pronto)
 
     ol = assar_olhos(olhos)
     if ol:

@@ -496,6 +496,60 @@ const ABERTURA_CHAVE = -2.0
  * Peça do .glb seria mais um nó para ligar e desligar, com um ciclo de export
  * por ajuste de traçado.
  */
+/**
+ * O marcador do local do serviço — o cilindro de missão.
+ *
+ * "Na hora de chegar no local do reparo, deve ter um ícone, como se fosse
+ * uma missão do GTA." É um pedido de ORIENTAÇÃO, não de enfeite: a fase 3
+ * abre com o caminhão a 40 m do poste e três opções de onde parar, e até
+ * aqui nada na cena dizia QUAL poste é o da ordem de serviço. A rua tem
+ * cinco.
+ *
+ * Cilindro translúcido, sem tampa, pulsando devagar. Não entrega resposta
+ * nenhuma — diz onde é o serviço, que é justamente o que o jogador já
+ * saberia se estivesse lá.
+ */
+export function MarcadorDoServico({
+  em, cor = '#2fd18c', raio = 1.9,
+}: {
+  em: [number, number, number]
+  cor?: string
+  raio?: number
+}) {
+  const grupo = useRef<THREE.Group>(null)
+  useFrame((estado) => {
+    const g = grupo.current
+    if (!g) return
+    const t = estado.clock.elapsedTime
+    // respira entre 1,0 e 1,12 e gira devagar: parado ele vira decalque
+    const e = 1 + Math.sin(t * 1.9) * 0.06
+    g.scale.set(e, 1, e)
+    g.rotation.y = t * 0.35
+    g.position.y = em[1] + Math.sin(t * 1.9) * 0.05
+  })
+
+  return (
+    <group ref={grupo} position={em}>
+      {/* a coluna: aberta em cima e embaixo, vista dos dois lados */}
+      <mesh>
+        <cylinderGeometry args={[raio, raio, 2.6, 28, 1, true]} />
+        <meshBasicMaterial
+          color={cor} transparent opacity={0.3}
+          side={THREE.DoubleSide} depthWrite={false}
+        />
+      </mesh>
+      {/* o anel no chão, que é o que dá o PONTO exato */}
+      <mesh position={[0, -1.28, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[raio * 0.72, raio, 36]} />
+        <meshBasicMaterial
+          color={cor} transparent opacity={0.55}
+          side={THREE.DoubleSide} depthWrite={false}
+        />
+      </mesh>
+    </group>
+  )
+}
+
 export function Aterramento({ posto }: { posto: boolean }) {
   const grupo = useRef<THREE.Group>(null)
   /*

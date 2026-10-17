@@ -97,11 +97,18 @@ def processar():
         exportaveis.append(alvo)
         catalogo[ident] = alvo.name
 
-    if cabelo:
-        XP.limpar_pais([cabelo])
-        cabelo = X.preparar(cabelo)
-        cabelo.name = "mot_cabelo"
-        exportaveis.append(cabelo)
+    # O MOTORISTA USA CAPACETE SEMPRE, entao dele so interessa a FAIXA —
+    # nuca e costeleta. Era o corte inteiro, e o volume do alto atravessava o
+    # casco: e o cabelo saindo por cima do capacete na foto do cliente.
+    faixa = next((p for p in (cabelo or []) if p.name == "cabelo_capacete"), None)
+    for p in (cabelo or []):
+        if p is not faixa and p.name in bpy.data.objects:
+            bpy.data.objects.remove(p, do_unlink=True)
+    if faixa:
+        XP.limpar_pais([faixa])
+        faixa = X.preparar(faixa)
+        faixa.name = "mot_cabelo"
+        exportaveis.append(faixa)
 
     ol = XP.assar_olhos(olhos)
     if ol:

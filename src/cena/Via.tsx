@@ -555,8 +555,10 @@ function pernasDe(obj: THREE.Object3D | null) {
   if (!obj) return null
   const achadas: Record<string, THREE.Object3D> = {}
   obj.traverse((o) => {
-    if (o.name.endsWith('_perna_e')) achadas.e = o
-    if (o.name.endsWith('_perna_d')) achadas.d = o
+    if (o.name.endsWith('_coxa_e')) achadas.e = o
+    if (o.name.endsWith('_coxa_d')) achadas.d = o
+    if (o.name.endsWith('_canela_e')) achadas.ke = o
+    if (o.name.endsWith('_canela_d')) achadas.kd = o
     if (o.name.endsWith('_braco_e')) achadas.be = o
     if (o.name.endsWith('_braco_d')) achadas.bd = o
   })
@@ -567,12 +569,15 @@ function pernasDe(obj: THREE.Object3D | null) {
     e: achadas.e, d: achadas.d, quadril: achadas.e.position.y,
     // os bracos podem faltar em peca antiga: o passo segue sem eles
     be: achadas.be ?? null, bd: achadas.bd ?? null,
+    ke: achadas.ke ?? null, kd: achadas.kd ?? null,
   }
 }
 
 const BALANCO = THREE.MathUtils.degToRad(24)
 /** O braço abre menos que a perna — 0,62 da passada é o que se vê andando. */
 const BALANCO_BRACO = BALANCO * 0.62
+/** Quanto o joelho dobra no pico do recolhimento. */
+const JOELHO = THREE.MathUtils.degToRad(52)
 
 function andar(
   pernas: ReturnType<typeof pernasDe>,
@@ -597,6 +602,23 @@ function andar(
   */
   if (pernas.be) pernas.be.rotation.z = -Math.sin(fase) * BALANCO_BRACO
   if (pernas.bd) pernas.bd.rotation.z = Math.sin(fase) * BALANCO_BRACO
+
+  /*
+    O JOELHO.
+
+    O que o olho reconhece como caminhada não é a perna indo e voltando — é
+    o joelho dobrando na VOLTA, para o pé passar sem raspar o chão. Sem ele
+    a figura varre um arco com a perna esticada, que é o que o cliente
+    chamou de massinha.
+
+    Dobra só para um lado (joelho não dobra para a frente), e só na metade
+    do ciclo em que a perna recolhe: `max(0, …)` zera a outra metade. O
+    atraso de 0,9 rad é o que põe o pico da dobra no meio do balanço, e não
+    no momento em que o pé toca o chão.
+  */
+  const flexao = (f: number) => Math.max(0, Math.sin(f - 0.9)) * JOELHO
+  if (pernas.ke) pernas.ke.rotation.z = -flexao(fase)
+  if (pernas.kd) pernas.kd.rotation.z = -flexao(fase + Math.PI)
 
   // O quadril AFUNDA conforme a perna abre — perna rigida de comprimento L
   // sustenta o corpo a L*cos(ang). Sem isso o pe flutua nos extremos da
@@ -1348,11 +1370,28 @@ export function Mundo({
       // reexportei, conferi o nome no `.glb` — estava lá — e no jogo não
       // havia braço nenhum: a remontagem aqui só conhecia as pernas, e o
       // membro novo entrou no arquivo e nunca entrou em cena.
-      for (const membro of ['perna', 'braco']) {
+      for (const membro of ['coxa', 'braco']) {
         for (const lado of ['e', 'd']) {
           const p = scene.getObjectByName(`via_${n}_${membro}_${lado}`)
           if (p) g.add(p.clone(true))
         }
+      }
+      /*
+        A CANELA ENTRA COMO FILHA DA COXA.
+
+        O `optimize` achata a hierarquia: os dois nós chegam com a posição
+        absoluta, soltos. Para o joelho funcionar a canela precisa herdar o
+        giro da coxa, então aqui ela é reparentada e a posição vira a
+        DIFERENÇA entre joelho e quadril — senão ela saltaria para a altura
+        do quadril ao virar filha.
+      */
+      for (const lado of ['e', 'd']) {
+        const coxa = g.getObjectByName(`via_${n}_coxa_${lado}`)
+        const canela = scene.getObjectByName(`via_${n}_canela_${lado}`)
+        if (!coxa || !canela) continue
+        const c = canela.clone(true)
+        c.position.sub(coxa.position)
+        coxa.add(c)
       }
       mapa[n] = g
     }

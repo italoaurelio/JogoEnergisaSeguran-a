@@ -70,7 +70,7 @@ export type Marco = {
   peca: 'poste' | 'cabos' | 'arvore' | 'arbusto' | 'casa'
     | 'casa_b' | 'casa_c' | 'placa'
     | 'carro' | 'lombada' | 'faixa_pedestre' | 'semaforo' | 'onibus'
-    | 'ciclista' | 'escola' | 'muro_patio'
+    | 'ciclista' | 'escola' | 'escola_portao' | 'muro_patio'
   /** Distância absoluta ao longo do trajeto, em metros. */
   metro: number
   x: number
@@ -212,7 +212,24 @@ export function paisagem(distanciaTotal: number): Marco[] {
     if (zona === 'escola') {
       // o muro corre pela esquerda inteira; a frontaria de casa fica só na
       // direita, senão as duas somam objeto demais no mesmo trecho
-      saida.push({ peca: 'escola', metro: m, x: BORDA_ESQ + 7.6 })
+      /*
+        UM módulo de ENTRADA no meio da quadra, e o resto de muro.
+
+        "Sem porta, e todos do mesmo tamanho?" — a escola era o mesmo módulo
+        de 10 m repetido do começo ao fim. Ninguém constrói escola sem
+        entrada, e a entrada é justamente por onde a criança sai para a
+        faixa que o jogador tem de respeitar: sem ela o trecho escolar não
+        tem por que existir.
+
+        O portão cai no módulo mais próximo do meio da zona, para ficar em
+        quadro enquanto o jogador atravessa o trecho.
+      */
+      const meioDaEscola = (ZONA_ESCOLA.de + ZONA_ESCOLA.ate) / 2
+      const noPortao = Math.abs(m - meioDaEscola) < 5
+      saida.push({
+        peca: noPortao ? 'escola_portao' : 'escola',
+        metro: m, x: BORDA_ESQ + 7.6,
+      })
       if (casaAqui) {
         saida.push({ peca: casaVar(r), metro: m + 4, x: CASA_DIR - r * 1.6 })
       }
@@ -282,6 +299,8 @@ export const POOL: Record<Marco['peca'], number> = {
   poste: 12, cabos: 12,
   casa: 24, casa_b: 18, casa_c: 15,
   escola: 33,
+  // uma por trajeto: e a entrada, nao o muro
+  escola_portao: 2,
   // duas fileiras, uma a cada 10 m, nos dois lados do pátio
   muro_patio: 30,
   arvore: 31,

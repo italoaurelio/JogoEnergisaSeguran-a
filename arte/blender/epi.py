@@ -565,6 +565,19 @@ def capacete(corpo, ref, classe="B", cor=(0.62, 0.27, 0.02), jugular=True,
     return saida
 
 
+def tenis_base(corpo, ref, nome="base_tenis"):
+    """O calcado com que ele CHEGA ao vestiario.
+
+    Ele aparecia descalco em toda a fase 1 — montando o fisico, escolhendo o
+    tom de pele e ate no fim do turno. O tipo `tenis` de `botinas` ja existia
+    no catalogo de EPI e nunca tinha sido usado fora dele.
+
+    No proprio para o jogo poder escondê-lo quando o jogador calca a botina:
+    nao da para estar de tenis e de botina ao mesmo tempo.
+    """
+    return botinas(corpo, ref, tipo="tenis", nome=nome)
+
+
 def bone(corpo, ref, cor=(0.05, 0.18, 0.32)):
     """Bone da empresa. Nao e EPI - esta na arara porque alguem vai tentar."""
     rx = ref["cabeca_raio"] + 0.006
@@ -972,8 +985,14 @@ def roupa_base(corpo, ref, nome="base_roupa"):
     Fica SEMPRE visivel. Nao e enfeite: a etapa de montar o fisico mostra o
     corpo inteiro, e um boneco nu num treinamento de empresa e um problema.
     """
-    malha = mat_tecido("malha_base", (0.048, 0.055, 0.068), aspereza=0.86,
+    # DUAS PECAS, e nao uma cor so. Camiseta e bermuda dividiam o mesmo
+    # material cinza e o conjunto lia como macacao de presidio — "essas
+    # cinzas sao muito esquisitas". Camiseta num azul lavado, bermuda num
+    # jeans escuro: e a roupa com que alguem chega ao trabalho.
+    malha = mat_tecido("malha_base", (0.082, 0.105, 0.135), aspereza=0.86,
                        brilho_fio=0.25)
+    jeans = mat_tecido("jeans_base", (0.032, 0.040, 0.062), aspereza=0.90,
+                       brilho_fio=0.18)
     saida = []
 
     # mesma correcao da camisa: a caixa e as referencias tem de estar as duas
@@ -1007,7 +1026,7 @@ def roupa_base(corpo, ref, nome="base_roupa"):
                    espessura=0.003, subdividir=1, reduzir=0.40, repouso=True)
     if b:
         alisar_bordas(b)
-        C.aplicar(b, malha)
+        C.aplicar(b, jeans)
         saida.append(b)
 
     for p in saida:
