@@ -218,3 +218,13 @@ Mesma regra: só sai daqui com data e com o que foi olhado.
       igualdade contra `cabelo.003`), então a etapa de cor não fazia nada.
       Com ela ligada, cada corte ganhou claridade própria — raspado 0,053,
       curto 0,025, médio 0,014
+
+---
+
+# Rodada 17/10 (terceira leva)
+
+Os dois que eu mesmo declarei como não resolvidos.
+
+- [ ] A frente do capô continua vazia na vista de quem dirige
+- [ ] O acostamento da cena de chegada continua vazio
+- [ ] A camisa ainda é mais justa do que roupa de trabalho de verdade
