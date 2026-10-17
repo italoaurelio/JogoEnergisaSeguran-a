@@ -46,8 +46,30 @@ const CONTRA_X = 3.5
 const SETA_SEMPRE_ACESA = import.meta.env.DEV
   && new URLSearchParams(window.location.search).has('setaacesa')
 
+/**
+ * `?freioaceso=1` trava a lanterna do carro da frente acesa.
+ *
+ * Mesmo motivo da seta, e o mesmo erro cometido de novo: a lanterna acende
+ * quando o carro da frente desacelera, e ele desacelera por uns segundos a
+ * cada volta das duas senoides que governam a velocidade dele. Entre ler o
+ * estado e capturar a tela passa mais do que isso, então a captura ou pega
+ * a lanterna apagada ou não prova nada. Com a trava dá para OLHAR.
+ */
+const FREIO_SEMPRE_ACESO = import.meta.env.DEV
+  && new URLSearchParams(window.location.search).has('freioaceso')
+
 /** Laranja de lanterna, em HDR: ver a nota no material da seta do ônibus. */
 const LARANJA_SETA = new THREE.Color(7.0, 2.6, 0.35)
+/**
+ * Vermelho de freio, também em HDR — e pelo mesmo motivo.
+ *
+ * A lanterna acendia com emissivo 0,9: abaixo de 1, portanto fora do alcance
+ * do bloom. Medido com `?freioaceso=1`: o material ficava em 0,9 certinho e
+ * na tela o carro era a MESMA mancha marrom de antes, porque a 70 m a
+ * lanterna tem dois pixels e dois pixels só existem se estourarem.
+ * `LARANJA_SETA` já tinha aprendido isso; o freio não.
+ */
+const VERMELHO_FREIO = new THREE.Color(8.0, 0.45, 0.22)
 /** Velocidade de quem vem de frente, em m/s (≈ 50 km/h). */
 const VELOCIDADE_CONTRA = 14
 /** Distância entre um veículo e o seguinte na fila contrária. */
@@ -1527,28 +1549,20 @@ export function Mundo({
     `clone()` compartilha material, então acender a luz deste carro acenderia
     a de todos os carros da via ao mesmo tempo. Clonar o material uma vez
     resolve — e é o mesmo cuidado que a pintura do contrafluxo já exige.
+
+    MAS NÃO DÁ PARA GUARDAR ESSE CLONE NUM `useMemo` (17/10). Era o que
+    estava escrito aqui, e medido na tela o material que o memo devolvia NÃO
+    era o que estava nas malhas desenhadas: `window.__lanterna.emissive.r`
+    marcava 0,9 e o `via_carro_corpo_3` da cena marcava 0 no mesmo quadro.
+    Dois objetos com o mesmo nome e histórias diferentes — o React monta o
+    componente duas vezes em desenvolvimento e o `<primitive>` ficou com o
+    clone de uma montagem enquanto o memo guardou o da outra.
+
+    Então o clone é feito a partir do que ESTÁ PENDURADO no grupo, no
+    primeiro quadro em que o grupo tem filho, e guardado num ref. O que se
+    acende passa a ser, por construção, o que está na tela.
   */
-  const lanterna = useMemo<THREE.MeshStandardMaterial | null>(() => {
-    if (!carroClone) return null
-    // UM clone para as DUAS lanternas, e não um por malha.
-    //
-    // O carro tem duas lâmpadas traseiras, cada uma na sua malha. Clonando
-    // dentro do laço nasciam dois materiais e só o último ficava guardado:
-    // o jogo acenderia uma lanterna e deixaria a outra apagada.
-    let novo: THREE.MeshStandardMaterial | null = null
-    carroClone.traverse((o) => {
-      const malha = o as THREE.Mesh
-      const m = malha.material as THREE.MeshStandardMaterial
-      if (!m || Array.isArray(malha.material) || m.name !== 'via_lanterna') return
-      if (!novo) {
-        novo = m.clone()
-        novo.userData = { ...novo.userData, dobrado: false }
-        dobrarMaterial(novo, dobra)
-      }
-      malha.material = novo
-    })
-    return novo
-  }, [carroClone, dobra])
+  const lanterna = useRef<THREE.MeshStandardMaterial | null>(null)
 
   const grupoCarro = useRef<THREE.Group>(null)
   useFrame(() => {
@@ -1557,11 +1571,30 @@ export function Mundo({
     const pos = carro.current
     if (pos == null) { g.visible = false; return }
     g.visible = true
-    if (lanterna) {
+    if (!lanterna.current && g.children.length) {
+      // UM clone para as DUAS lanternas, e não um por malha: o carro tem
+      // duas lâmpadas traseiras, cada uma na sua malha, e clonando dentro
+      // do laço nasciam dois materiais — o jogo acendia uma e deixava a
+      // outra apagada.
+      let novo: THREE.MeshStandardMaterial | null = null
+      g.traverse((o) => {
+        const malha = o as THREE.Mesh
+        const m = malha.material as THREE.MeshStandardMaterial
+        if (!m || Array.isArray(malha.material) || m.name !== 'via_lanterna') return
+        if (!novo) {
+          novo = m.clone()
+          novo.userData = { ...novo.userData, dobrado: false }
+          dobrarMaterial(novo, dobra)
+        }
+        malha.material = novo
+      })
+      lanterna.current = novo
+    }
+    if (lanterna.current) {
       // freada acende; solto fica no vermelho apagado da própria lanterna
-      const f = freioCarro?.current ?? 0
-      lanterna.emissive.setRGB(0.9 * f, 0.055 * f, 0.03 * f)
-      lanterna.emissiveIntensity = 1
+      const f = FREIO_SEMPRE_ACESO ? 1 : (freioCarro?.current ?? 0)
+      lanterna.current.emissive.copy(VERMELHO_FREIO).multiplyScalar(f)
+      lanterna.current.emissiveIntensity = 1
     }
     g.position.set(0, 0, pos - (distancia.current ?? 0))
   })

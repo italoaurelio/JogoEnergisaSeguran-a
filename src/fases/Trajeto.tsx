@@ -695,7 +695,13 @@ function Motor({
         de verdade nao esta correndo de ninguem: anda no proprio ritmo e,
         se o de tras some, quem fica para tras e so o de tras.
       */
-      carro.current = Math.min(carro.current, d + 95)
+      // O CARRO DA FRENTE NAO PASSA DE 70 m, que e onde ele comeca.
+      //
+      // Era 95, e com 95 ele vivia grudado no teto: andando mais rapido que
+      // o jogador, batia no limite e ficava la. A 95 m a lanterna de freio
+      // dele tem dois pixels — a decisao da fase e "o carro da frente
+      // freou, afaste-se", e ela nao cabe em dois pixels.
+      carro.current = Math.min(carro.current, d + 70)
       const vao = carro.current - d
       const seguro = Math.max(8, v * CONDUTA.segundosDeSeguimento)
       if (vao < seguro) contar(faltas, 'seguimento', dt)
@@ -1014,6 +1020,9 @@ function Motor({
         pedestreLiberado: pedestreLiberado.current,
         lateral: +lateral.current.toFixed(2), seta: seta.current,
         excesso: +excesso.current.toFixed(2),
+        // quanto o carro da frente está freando AGORA. Ver `?freioaceso=1`
+        // em Via.tsx: conferir a lanterna por captura de tela é loteria.
+        freio: +freioCarro.current.toFixed(2),
       }
     }
 

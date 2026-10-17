@@ -83,7 +83,18 @@ Enquanto estiver `[ ]`, está em aberto, mesmo que eu ache que resolvi.
 
 ## Jogo
 - [x] Ícone de missão — 17/10: cilindro no poste do serviço, só na chegada
-- [ ] Lanterna de freio do carro da frente (não confirmada na tela)
+- [x] Lanterna de freio do carro da frente — 17/10, CONFIRMADA na tela.
+      Três defeitos empilhados, e nenhum aparecia por exit code:
+      (1) o material que o `useMemo` devolvia não era o das malhas
+      desenhadas — medido no mesmo quadro: o memo em 0,9 e o
+      `via_carro_corpo_3` da cena em 0. Agora o clone é feito a partir do
+      grupo que renderiza, no primeiro quadro em que ele tem filho;
+      (2) emissivo 0,9 fica abaixo de 1 e não entra no bloom — a 70 m a
+      lanterna tem dois pixels, e dois pixels só existem se estourarem.
+      Virou HDR (8,0; 0,45; 0,22), como o pisca do ônibus já era;
+      (3) o carro vivia a 95 m, grudado no teto do `Math.min`. Teto em 70.
+      Conferido com `?freioaceso=1` (novo, igual ao `?setaacesa=1`): as duas
+      lanternas acesas na traseira, visíveis na captura
 
 ## Transversal
 - [ ] Modelos destoantes: personagem detalhado, resto porco.
