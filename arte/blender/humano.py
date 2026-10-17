@@ -547,6 +547,48 @@ def recortar(corpo, teste, nome, deslocar=0.0015, espessura=0.003, suave=50,
     return obj
 
 
+def _afinar_pelas_bordas(obj, nome="afina", voltas=16):
+    """Peso 0 na BORDA livre e 1 no miolo, para afinar o SOLIDIFY ali.
+
+    Cabelo de espessura constante tem rebordo: a casca termina num degrau
+    limpo e chanfrado, e um degrau limpo em volta da cabeca le como capacete
+    de plastico. Foi o "refaz o cabelo" do cliente.
+
+    Cabelo de verdade tem VOLUME no alto e acaba em nada na linha do rosto.
+    O Solidify aceita um grupo de vertices como fator de espessura, entao
+    basta um campo que valha 1 longe da borda e 0 nela — que e este.
+    """
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    borda = {v.index for e in bm.edges if len(e.link_faces) < 2 for v in e.verts}
+    vizinhos = {}
+    for e in bm.edges:
+        a, b = e.verts
+        vizinhos.setdefault(a.index, []).append(b.index)
+        vizinhos.setdefault(b.index, []).append(a.index)
+    bm.free()
+    if not borda:
+        return None
+    peso = {v.index: (0.0 if v.index in borda else 1.0)
+            for v in obj.data.vertices}
+    for _ in range(voltas):
+        passo = {}
+        for i, atual in peso.items():
+            ns = vizinhos.get(i)
+            # a borda fica PRESA em zero: sem isso a suavizacao a levanta e a
+            # casca volta a ter rebordo, so que mais fino
+            if i in borda or not ns:
+                passo[i] = atual
+            else:
+                passo[i] = (atual + sum(peso[n] for n in ns)) / (1 + len(ns))
+        peso = passo
+    g = obj.vertex_groups.new(name=nome)
+    for i, v in peso.items():
+        g.add([i], max(0.0, min(1.0, v)), "REPLACE")
+    return nome
+
+
 def _grupo_desbotado(corpo, origem, nome=None, voltas=26):
     """Copia um grupo de vertices e borra os pesos, criando uma orla.
 
@@ -600,7 +642,7 @@ def _grupo_desbotado(corpo, origem, nome=None, voltas=26):
     return nome
 
 
-def cabelo(corpo, cor=(0.016, 0.011, 0.008), comprimento=0.004, peso_min=0.12):
+def cabelo(corpo, cor=(0.016, 0.011, 0.008), comprimento=0.026, peso_min=0.12):
     """Corte raspado: calota recortada pelo grupo `scalp` da propria malha.
 
     Duas tentativas anteriores nao servem e ficam registradas para nao voltarem:
@@ -617,13 +659,38 @@ def cabelo(corpo, cor=(0.016, 0.011, 0.008), comprimento=0.004, peso_min=0.12):
     """
     if "scalp" not in corpo.vertex_groups:
         return None
-    peca = recortar_grupo(corpo, "scalp", "cabelo", peso_min=peso_min,
+    """
+    O CORTE SAI DA ORLA, e nao do `scalp` cru.
+
+    O `scalp` do MakeHuman e binario: 376 vertices em peso 1,0 e nada entre.
+    Cortado nele, o cabelo termina exatamente na linha que o MakeHuman
+    desenhou — alta, igual dos dois lados e reta na nuca. E uma touca.
+
+    Borrando os pesos para fora nasce uma rampa, e cortar a rampa num limiar
+    um pouco abaixo de 0,5 desce a linha do cabelo um ou dois centimetros e,
+    melhor, a desce de forma IRREGULAR: a rampa segue a topologia da cabeca,
+    entao a borda deixa de ser uma curva lisa desenhada a compasso.
+    """
+    orla = _grupo_desbotado(corpo, "scalp", nome="scalp_corte", voltas=18)
+    peca = recortar_grupo(corpo, orla or "scalp", "cabelo",
+                          peso_min=0.45 if orla else peso_min,
                           deslocar=0.0012, espessura=comprimento)
     if peca:
         # a mesma serrilha do decote: o recorte vai de face em face, e no
         # cabelo ela saia como degrau quadrado na costeleta
         import epi as E
         E.alisar_bordas(peca)
+        # ESPESSURA QUE AFINA ATE A BORDA. 2,6 cm no alto e volume de cabelo
+        # curto de verdade; os 4 mm de antes eram uma pelicula, e pelicula
+        # com rebordo chanfrado e exatamente o que le como touca.
+        grupo = _afinar_pelas_bordas(peca, "cabelo_afina")
+        for mod in peca.modifiers:
+            if mod.type == "SOLIDIFY" and grupo:
+                mod.vertex_group = grupo
+                # sem o clamp, onde o peso e quase zero o Solidify ainda
+                # empurra o minimo e o rebordo volta
+                mod.thickness_clamp = 0.0
+                mod.offset = 1.0
         C.aplicar(peca, mat_pelo("cabelo", cor=cor, rugosidade=0.82))
 
     """

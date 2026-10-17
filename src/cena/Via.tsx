@@ -1087,13 +1087,16 @@ function Garagem({
 }
 
 export function Mundo({
-  distancia, marcos, carro, tracado, sinal, garagem, faixa, pedestreLiberado,
+  distancia, marcos, carro, freioCarro, tracado, sinal, garagem, faixa,
+  pedestreLiberado,
   onibus, onibusLiberado, onibusOnde, lateral, ciclista,
 }: {
   distancia: React.RefObject<number>
   marcos: Marco[]
   /** Posição do veículo à frente, em metros de trajeto. Null quando não há. */
   carro: React.RefObject<number | null>
+  /** 0 a 1: o quanto o carro da frente está aliviando agora. Acende a luz. */
+  freioCarro?: React.RefObject<number>
   /** Onde a via dobra e onde sobe. Vazio = reta. */
   tracado: NoTracado[]
   /** Lâmpada acesa do semáforo: 0 verde, 1 amarelo, 2 vermelho. */
@@ -1371,6 +1374,35 @@ export function Mundo({
     () => moldes.carro?.clone(true) ?? null, [moldes.carro],
   )
 
+  /*
+    A LANTERNA DO CARRO DA FRENTE É DELE, e não do catálogo.
+
+    `clone()` compartilha material, então acender a luz deste carro acenderia
+    a de todos os carros da via ao mesmo tempo. Clonar o material uma vez
+    resolve — e é o mesmo cuidado que a pintura do contrafluxo já exige.
+  */
+  const lanterna = useMemo<THREE.MeshStandardMaterial | null>(() => {
+    if (!carroClone) return null
+    // UM clone para as DUAS lanternas, e não um por malha.
+    //
+    // O carro tem duas lâmpadas traseiras, cada uma na sua malha. Clonando
+    // dentro do laço nasciam dois materiais e só o último ficava guardado:
+    // o jogo acenderia uma lanterna e deixaria a outra apagada.
+    let novo: THREE.MeshStandardMaterial | null = null
+    carroClone.traverse((o) => {
+      const malha = o as THREE.Mesh
+      const m = malha.material as THREE.MeshStandardMaterial
+      if (!m || Array.isArray(malha.material) || m.name !== 'via_lanterna') return
+      if (!novo) {
+        novo = m.clone()
+        novo.userData = { ...novo.userData, dobrado: false }
+        dobrarMaterial(novo, dobra)
+      }
+      malha.material = novo
+    })
+    return novo
+  }, [carroClone, dobra])
+
   const grupoCarro = useRef<THREE.Group>(null)
   useFrame(() => {
     const g = grupoCarro.current
@@ -1378,6 +1410,12 @@ export function Mundo({
     const pos = carro.current
     if (pos == null) { g.visible = false; return }
     g.visible = true
+    if (lanterna) {
+      // freada acende; solto fica no vermelho apagado da própria lanterna
+      const f = freioCarro?.current ?? 0
+      lanterna.emissive.setRGB(0.9 * f, 0.055 * f, 0.03 * f)
+      lanterna.emissiveIntensity = 1
+    }
     g.position.set(0, 0, pos - (distancia.current ?? 0))
   })
 

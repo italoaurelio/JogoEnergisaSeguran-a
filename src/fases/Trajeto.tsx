@@ -216,6 +216,8 @@ export default function Fase2Trajeto({
       : 0,
   )
   const velocidade = useRef(0)
+  /** O quanto o carro da frente está freando (0 a 1). Acende a lanterna. */
+  const freioCarro = useRef(0)
   // o motor vive no useFrame do Mundo; quem o desliga é a saída da fase
   useEffect(() => {
     som.ambiente(true)
@@ -411,6 +413,7 @@ export default function Fase2Trajeto({
             distancia={distancia}
             marcos={marcos}
             carro={carro}
+            freioCarro={freioCarro}
             tracado={TRACADO}
             sinal={sinal}
             faixa={evento('faixa')?.metro ?? null}
@@ -430,6 +433,7 @@ export default function Fase2Trajeto({
             velocidade={velocidade}
             pedal={pedal}
             carro={carro}
+            freioCarro={freioCarro}
             faltas={faltas}
             pedestreLiberado={pedestreLiberado}
             onibusLiberado={onibusLiberado}
@@ -573,7 +577,7 @@ function CameraFixa({
 function Motor({
   distancia, velocidade, pedal, carro, faltas, pedestreLiberado, onibusLiberado,
   onibusOnde, garagemLiberada, sinal, celular, painel, lateral, seta, excesso,
-  solavanco, aoChegar, mostrarFone, dizer, marcarErro,
+  solavanco, aoChegar, mostrarFone, dizer, marcarErro, freioCarro,
 }: {
   distancia: React.RefObject<number>
   velocidade: React.RefObject<number>
@@ -596,7 +600,15 @@ function Motor({
   dizer: (texto: string | null) => void
   /** Acende o selo vermelho por cima da tela. */
   marcarErro: () => void
+  /** Saída: o quanto o carro da frente alivia agora. */
+  freioCarro: React.RefObject<number>
 }) {
+  /*
+    Relógio e velocidade anterior do carro da frente. Locais: só este laço
+    os usa, e o componente de cima não tem o que fazer com eles.
+  */
+  const relogioCarro = useRef(0)
+  const velCarroAnt = useRef(0)
   const desdeAtualizacao = useRef(0)
   const paradoDesde = useRef(0)
   const amareloDesde = useRef<number | null>(null)
@@ -642,7 +654,27 @@ function Motor({
     const evCarro = EVENTOS.find((e) => e.tipo === 'carro')
     if (evCarro && d > evCarro.metro - 70) {
       if (carro.current == null) carro.current = d + 70
-      const alvo = (evCarro as { velocidade: number }).velocidade / 3.6
+      /*
+        ELE NÃO ANDA MAIS EM VELOCIDADE CONSTANTE.
+
+        Andava, e é justamente este o veículo que o jogador encara durante
+        todo o trecho de distância de seguimento — o mais parado de todos os
+        comportamentos estava no carro que mais se olha. Com velocidade
+        fixa, manter distância é uma conta feita uma vez; com velocidade que
+        varia, é o que manter distância é de verdade.
+
+        Dois senos incomensuráveis (7,3 s e 3,1 s), como a respiração do
+        personagem: o olho não acha o compasso e não sente o truque.
+      */
+      relogioCarro.current += dt
+      const tc = relogioCarro.current
+      const base = (evCarro as { velocidade: number }).velocidade / 3.6
+      const alvo = base * (1 + Math.sin(tc / 7.3) * 0.20 + Math.sin(tc / 3.1) * 0.10)
+      // o quanto ele está ALIVIANDO agora, de 0 a 1 — é o que acende a
+      // lanterna de freio lá no `Mundo`
+      const aceleracao = (alvo - (velCarroAnt.current || alvo)) / Math.max(dt, 1e-4)
+      velCarroAnt.current = alvo
+      freioCarro.current = Math.max(0, Math.min(1, -aceleracao / 1.2))
       carro.current += alvo * dt
       const vao = carro.current - d
       const seguro = Math.max(8, v * CONDUTA.segundosDeSeguimento)
