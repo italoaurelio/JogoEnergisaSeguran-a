@@ -908,6 +908,64 @@ def colete(corpo, ref, nome="epi_colete"):
     return saida
 
 
+def alisar_bordas(obj, voltas=8, nivelar=None, alcance=0.045):
+    """Tira o serrilhado das bordas livres de uma peca recortada do corpo.
+
+    `recortar` aprova a face quando o CENTRO dela cai na regiao, entao a borda
+    que sobra e o contorno bruto dos quads do corpo: dentes de um centimetro.
+    No decote da camiseta isso virava uma serra debaixo do queixo, que era o
+    pior defeito do rosto de perto.
+
+    O conserto e na propria linha da borda, e nao por cima dela: tres
+    tentativas de esconder o estrago com um anel de ribana falharam porque o
+    anel e um cilindro e a borda nao e.
+
+    Suavizacao de TAUBIN — uma volta que encolhe, outra que devolve — e nao
+    Laplaciano puro: o decote e um laco fechado, e o Laplaciano puro o aperta
+    no pescoco mais a cada volta ate virar coleira.
+
+    `nivelar` assenta a borda de cima numa altura so. Taubin converge e para:
+    o que sobra depois dela nao e serrilhado, e a ONDA LARGA de a linha do
+    corte passar em alturas diferentes em volta do corpo — e era ela que
+    abria as duas falhas escuras entre o ombro e o pescoco. Esse corte e um
+    plano horizontal, entao a borda dele pode ser plana tambem.
+    """
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    vizinhos = {}
+    for e in bm.edges:
+        if len(e.link_faces) >= 2:
+            continue
+        va, vb = e.verts
+        vizinhos.setdefault(va.index, []).append(vb.index)
+        vizinhos.setdefault(vb.index, []).append(va.index)
+    # so vertice com exatamente dois vizinhos de borda: numa bifurcacao nao da
+    # para dizer qual e a linha, e mexer ali rasga a peca
+    linha = {i: v for i, v in vizinhos.items() if len(v) == 2}
+    if not linha:
+        bm.free()
+        return obj
+    bm.verts.ensure_lookup_table()
+    for volta in range(voltas * 2):
+        fator = 0.55 if volta % 2 == 0 else -0.58
+        novo = {}
+        for i, (u, w) in linha.items():
+            co = bm.verts[i].co
+            meio = (bm.verts[u].co + bm.verts[w].co) / 2
+            novo[i] = co + (meio - co) * fator
+        for i, co in novo.items():
+            bm.verts[i].co = co
+    if nivelar is not None:
+        for i in linha:
+            v = bm.verts[i]
+            if v.co.z > nivelar - alcance:
+                v.co.z = nivelar
+
+    bm.to_mesh(obj.data)
+    bm.free()
+    return obj
+
 def roupa_base(corpo, ref, nome="base_roupa"):
     """Camiseta e bermuda que o personagem usa por baixo de tudo.
 
@@ -921,9 +979,11 @@ def roupa_base(corpo, ref, nome="base_roupa"):
     # mesma correcao da camisa: a caixa e as referencias tem de estar as duas
     # no corpo em DESCANSO, senao o recorte segue a pose e corta na diagonal
     rep = H.referencias(corpo, repouso=True)
-    z_gola = rep["neck"].z - 0.004
+    eixo = rep["neck"]
     z_barra = rep["pelvis"].z + 0.060
     x_manga = abs(rep["l-shoulder"].x) + 0.085
+
+    z_gola = eixo.z - 0.004
 
     def camiseta(_, co):
         return z_barra <= co.z <= z_gola and abs(co.x) <= x_manga
@@ -931,6 +991,7 @@ def roupa_base(corpo, ref, nome="base_roupa"):
     c = H.recortar(corpo, camiseta, nome + "_camiseta", deslocar=0.009,
                    espessura=0.003, subdividir=1, reduzir=0.40, repouso=True)
     if c:
+        alisar_bordas(c, nivelar=z_gola)
         C.aplicar(c, malha)
         saida.append(c)
 
@@ -945,6 +1006,7 @@ def roupa_base(corpo, ref, nome="base_roupa"):
     b = H.recortar(corpo, bermuda, nome + "_bermuda", deslocar=0.011,
                    espessura=0.003, subdividir=1, reduzir=0.40, repouso=True)
     if b:
+        alisar_bordas(b)
         C.aplicar(b, malha)
         saida.append(b)
 
