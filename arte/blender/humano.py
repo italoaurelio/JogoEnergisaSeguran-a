@@ -40,7 +40,49 @@ def criar_corpo(macro_dict=None, nome="corpo", tom=(0.40, 0.22, 0.14)):
     mat = MaterialService.create_v2_skin_material("pele_" + nome, corpo)
     MaterialService.create_and_assign_material_slots(corpo)
     definir_tom(corpo, tom)
+    ajustar_pele(corpo)
     return corpo
+
+
+# Quanto cada entrada do shader de pele do MPFB sai do padrao. Os numeros
+# chegam ao jogo: o exportador assa ROUGHNESS e NORMAL em textura, junto com o
+# DIFFUSE — entao mexer aqui nao e so enfeite de render.
+PELE = {
+    # 0,35 e brilho de cera: a bochecha inteira vira um reflexo largo e o
+    # rosto le como manequim. Pele de verdade espalha, nao reflete em bloco.
+    "Roughness": 0.55,
+    # o relevo e o que quebra esse reflexo em mil pedacos. No padrao o mapa de
+    # normal sai quase liso, e sem ele aumentar a aspereza so deixa o rosto
+    # fosco — fosco e liso continua plastico.
+    "DermalBumpStrength": 0.24,
+    "UnevennessBumpStrength": 0.17,
+}
+
+
+def ajustar_pele(corpo, valores=None):
+    """Tira o aspecto de cera da pele do MPFB.
+
+    Vale para toda secao que use o shader de pele (MpfbBody, MpfbFace,
+    MpfbEars...): o nome da entrada e o mesmo nas tres, e deixar uma de fora
+    desencontra a bochecha da orelha.
+    """
+    valores = valores or PELE
+    vistos = set()
+    for slot in corpo.material_slots:
+        mat = slot.material
+        if not mat or not mat.node_tree:
+            continue
+        for no in mat.node_tree.nodes:
+            if no.type != "GROUP" or not no.node_tree:
+                continue
+            if not no.node_tree.name.startswith("Mpfb"):
+                continue
+            for nome, valor in valores.items():
+                entrada = no.inputs.get(nome)
+                if entrada is not None and not entrada.is_linked:
+                    entrada.default_value = valor
+                    vistos.add(f"{no.node_tree.name}.{nome}")
+    return sorted(vistos)
 
 
 def definir_tom(corpo, cor):
