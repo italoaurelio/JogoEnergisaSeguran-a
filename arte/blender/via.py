@@ -397,13 +397,23 @@ def vao_de_cabos(m, nome="via_cabos", comprimento=TRECHO, altura=9.0,
     passos = 10
     lados = 4
     raio = 0.018
+    # NO PLANO DOS ISOLADORES, e nao ao lado deles.
+    #
+    # Os isoladores de pino ficam em y = 0,12 (a cruzeta esta deslocada da
+    # linha do poste), e o cabo corria em y = 0: media 12 cm passando ao
+    # LADO do isolador, sem encostar. Visto da cabine o fio passava reto
+    # pela cruzeta, que e o "nem estao conectados" do cliente.
+    #
+    # O z tambem sobe de altura-0,175 para altura-0,145: ali e o colarinho
+    # do isolador, que e onde um condutor de verdade amarra.
+    y_isolador = 0.12
     bm = bmesh.new()
     for dx in (-1.05, 0.0, 1.05):
         aneis = []
         for i in range(passos + 1):
             t = i / passos
-            y = -comprimento * t
-            z = altura - 0.24 + 0.065 - flecha * math.sin(math.pi * t)
+            y = y_isolador - comprimento * t
+            z = altura - 0.145 - flecha * math.sin(math.pi * t)
             # anel no plano XZ: o cabo corre em Y, entao e essa a secao. A
             # pequena torcao do caimento nao aparece num fio tao fino.
             anel = []
