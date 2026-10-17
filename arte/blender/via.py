@@ -473,9 +473,15 @@ def vao_de_cabos(m, nome="via_cabos", comprimento=TRECHO, altura=9.0,
     Trocado por um tubo de quatro lados feito a mao: 300 triangulos, mesma
     imagem. Era a maior gordura do arquivo, de longe.
     """
-    passos = 10
+    passos = 12
     lados = 4
-    raio = 0.018
+    # 4 cm de RAIO num condutor que na vida real tem 0,8. Nao e descuido:
+    # com 1,8 cm o cabo ficava SUB-PIXEL a partir de uns 40 m e saia na tela
+    # como LINHA PONTILHADA — um tracejado de pontos no ceu, que e o que
+    # mais destoava do resto do cenario na captura da rua residencial. Fio
+    # fino de verdade e fio que o antisserrilhado come. A espessura aqui e
+    # escolhida pela leitura na tela, nao pelo catalogo do condutor.
+    raio = 0.040
     # NO PLANO DOS ISOLADORES, e nao ao lado deles.
     #
     # Os isoladores de pino ficam em y = 0,12 (a cruzeta esta deslocada da

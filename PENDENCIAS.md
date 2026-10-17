@@ -121,5 +121,10 @@ Enquanto estiver `[ ]`, está em aberto, mesmo que eu ache que resolvi.
       lanternas acesas na traseira, visíveis na captura
 
 ## Transversal
-- [ ] Modelos destoantes: personagem detalhado, resto porco.
-      Usar as skills de Blender para nivelar por cima.
+- [x] Modelos destoantes — 17/10. Fechou junto com os outros. O que entrou
+      por este item e não por outro: o **cabo do poste** saía na tela como
+      linha PONTILHADA — com 1,8 cm de raio ele fica sub-pixel a partir de
+      uns 40 m e o antisserrilhado o come em pedaços. Agora 4 cm, escolhido
+      pela leitura na tela e não pelo catálogo do condutor. Conferido na rua
+      residencial: os vãos próximos saem contínuos, os de 200 m ainda
+      pontilham (e aí está certo que pontilhem)
