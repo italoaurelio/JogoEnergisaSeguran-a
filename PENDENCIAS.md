@@ -201,11 +201,20 @@ Mesma regra: só sai daqui com data e com o que foi olhado.
       esmaecer. Agora é desaceleração constante de 1,4 m/s² (7,6 s) e ele
       ENCOSTA NO MEIO-FIO nos últimos 30 m. O marcador de serviço aparece na
       aproximação, a 110 m — existia só dentro da fase 3, onde já se chegou
-- [ ] A tela de chegada inteira está lendo como protótipo
+- [x] Tela de chegada — 17/10: fios terminando em poste (eram dois vãos
+      soltos), fundo fechado atrás das casas de cá (telhado + mata em z −18
+      e −24) e o marcador de serviço agora já vem da estrada. A frenagem
+      leva 6 s e o caminhão encosta no meio-fio. Conferido na tela
 
 ## Em andamento (código pronto, falta exportar e conferir na tela)
-- [ ] Roupa base virou camisa de manga longa + calça (reusa `_camisa`/`_calca`
-      do uniforme, numa camada abaixo). Falta exportar e olhar
-- [ ] Os 3 cortes de cabelo eram indistinguíveis na tela (22,2 / 24,9 /
-      22,6 cm de caixa). `limiar` e `espessura` agora andam juntos em
-      direções opostas. Falta exportar e olhar
+- [x] Roupa base vira camisa e calça — 17/10: exportada e conferida no
+      render de perfil (`sentado_perfil.png`) e no vestiário. Com folga de
+      10/13 mm saía macacão de mergulho; com 22/26 mais SMOOTH, cinto na
+      cintura e calça cinza-chumbo, lê como duas peças
+- [x] Os 3 cortes — 17/10. Exportados e medidos no jogo: profundidade
+      20,4 / 21,5 / 25,7 cm e linha do cabelo 1,564 / 1,583 / 1,572, ou seja
+      2 cm de diferença de testa entre raspado e curto. E achei o que
+      importava mais: a COR do cabelo nunca era aplicada (comparação por
+      igualdade contra `cabelo.003`), então a etapa de cor não fazia nada.
+      Com ela ligada, cada corte ganhou claridade própria — raspado 0,053,
+      curto 0,025, médio 0,014

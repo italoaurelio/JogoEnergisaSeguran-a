@@ -61,8 +61,15 @@ const CHEGADA_M = 42
 const V_CHEGADA = 11
 /** Nos últimos tantos metros o caminhão vai encostando no meio-fio. */
 const ENCOSTA_M = 30
-/** Onde ele para, em metros à direita do eixo da faixa. */
-const LATERAL_CALCADA = 1.45
+/**
+ * Onde ele para, no eixo lateral do jogo.
+ *
+ * NEGATIVO, e isso foi medido e não deduzido: `lateral` positivo é o desvio
+ * do ciclista, que joga o caminhão para a CONTRAMÃO. A calçada do lado do
+ * motorista é `BORDA_DIR`, que vale −1,75 — o sinal de "direita" no nome das
+ * constantes da paisagem é o da pista, não o do eixo X.
+ */
+const LATERAL_CALCADA = -1.25
 
 /** Fim de escala do velocímetro. O trecho mais rápido é 60 km/h. */
 const ESCALA_VELOCIMETRO = 80
@@ -532,8 +539,13 @@ const ONDE_CELULAR: [number, number, number] = [-0.10, 0.91 + ALTURA_CABINE, 0.4
  * JÁ CHEGOU. Chegar ao lugar sem nada marcando o lugar é o que fazia a
  * chegada parecer que o jogo tinha simplesmente acabado a estrada.
  *
- * Aparece a 110 m, que é onde um motorista enxergaria o poste da ordem, e
- * fica no meio-fio da direita, que é onde o caminhão vai encostar.
+ * Aparece a 110 m, que é onde um motorista enxergaria o poste da ordem.
+ *
+ * Em `BORDA_DIR − 1,9`, e não `+ 0,9`: medido na cena, com `+0,9` o cilindro
+ * nascia em x −0,85, que é DENTRO do asfalto (ele vai de −1,75 a 5,25) — um
+ * marcador plantado na pista. Agora fica no canteiro, e os 1,9 m também
+ * garantem que a câmera não entre dentro do cilindro quando o caminhão
+ * encosta: no fim da manobra sobram 2,40 m entre os dois, contra 1,9 de raio.
  */
 function MarcaDoServico({ distancia }: { distancia: React.RefObject<number> }) {
   const g = useRef<THREE.Group>(null)
@@ -545,7 +557,7 @@ function MarcaDoServico({ distancia }: { distancia: React.RefObject<number> }) {
     no.visible = z < 110 && z > -14
   })
   return (
-    <group ref={g} position={[BORDA_DIR + 0.9, 0, 0]} visible={false}>
+    <group ref={g} position={[BORDA_DIR - 1.9, 0, 0]} visible={false}>
       <MarcadorDoServico em={[0, 1.5, 0]} raio={1.7} />
     </group>
   )
@@ -845,7 +857,17 @@ function Motor({
       pedal. Mostrá-la é o que ensina que a manobra tem um aviso, mesmo sem
       ter um volante para girar.
     */
-    const evCiclista = evento('ciclista')
+    /*
+      QUEM MANDA NO `lateral` NA CHEGADA É A CHEGADA.
+
+      Esta linha roda todo quadro e puxa `lateral` para `desviar` (0 fora do
+      trecho do ciclista). O encosto no meio-fio escreve no mesmo ref 200
+      linhas abaixo — e as duas puxavam para lados opostos a cada quadro, de
+      modo que o caminhão nunca chegava perto da calçada. Cabo de guerra não
+      aparece no código de nenhum dos dois lados; só medindo na tela.
+    */
+    const encostando = DISTANCIA_TOTAL - d < CHEGADA_M
+    const evCiclista = encostando ? null : evento('ciclista')
     let desviar = 0
     if (evCiclista) {
       const falta = evCiclista.metro - d
@@ -854,7 +876,9 @@ function Motor({
     }
     // 1,1 e não um salto: a 30 km/h a manobra leva uns dois segundos, que é
     // o tempo de um caminhão mudar de faixa sem jogar a carga para o lado.
-    lateral.current += (desviar - lateral.current) * Math.min(1, dt * 1.1)
+    if (!encostando) {
+      lateral.current += (desviar - lateral.current) * Math.min(1, dt * 1.1)
+    }
     seta.current = desviar > 0 && lateral.current < desviar - 0.05 ? 'esquerda'
       : desviar === 0 && lateral.current > 0.08 ? 'direita'
       : null

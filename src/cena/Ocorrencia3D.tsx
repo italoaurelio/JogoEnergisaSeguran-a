@@ -735,6 +735,33 @@ const CIDADE: Posta[] = (() => {
     })
   }
 
+  /*
+    O FUNDO ATRÁS DAS CASAS DE CÁ.
+
+    "Espaço vazio atrás das casas." A fileira de cá está em z −9 e atrás
+    dela não havia nada: telhado, e céu. Uma rua vista de fora tem o fundo
+    do quarteirão — o telhado da casa da rua de trás, mato, mangueira.
+
+    Entra onde não custa nada: z −18 e −24 estão atrás do poste, portanto
+    atrás de tudo que qualquer câmera desta fase mira, e são as peças que o
+    `via.glb` já traz.
+  */
+  for (let i = 0; i < 9; i++) {
+    const x = -34 + i * 8.4 + sorte(i * 29) * 2.0
+    saida.push({
+      peca: ['casa_b', 'casa_c', 'casa'][Math.floor(sorte(i * 31) * 3)],
+      pos: [x, 0, -18.5 - sorte(i * 37) * 1.8],
+      giro: Math.PI / 2,
+    })
+  }
+  for (let i = 0; i < 12; i++) {
+    const x = -38 + i * 6.6 + sorte(i * 41) * 2.4
+    saida.push({
+      peca: 'arvore', pos: [x, 0, -24 - sorte(i * 43) * 2.5],
+      giro: sorte(i * 47) * 6.28, escala: 0.95 + sorte(i * 53) * 0.45,
+    })
+  }
+
   // ÁRVORES: as de cá ficam atrás do poste; as de lá, atrás das câmeras
   for (let i = 0; i < 14; i++) {
     const x = -36 + i * 5.4 + sorte(i * 11) * 2.2
