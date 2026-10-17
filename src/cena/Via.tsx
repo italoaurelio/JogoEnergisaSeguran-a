@@ -552,52 +552,57 @@ function Contrafluxo({
       d0 != null && d >= d0 - 85 && d <= d0 + 18
 
     /*
-      O ciclista NÃO usa o caminho do `parando`.
+      NINGUÉM USA MAIS O CAMINHO DO `parando` — ele não existe (17/10).
 
-      Aquele caminho crava `p[i] = linha` de uma vez, e isso só não aparece
-      na faixa de pedestre porque lá a linha está sempre longe. Aqui a linha
-      cai a 140 m do jogador, dentro do alcance de 320 — um carro saltando
-      para trás no meio da tela seria pior que o defeito original.
+      Era assim: enquanto o pedestre atravessava, todo veículo do contrafluxo
+      andava à velocidade CHEIA e, ao cruzar a linha, levava `p[i] = linha`.
+      Dois defeitos numa linha só. O carro não freia, ele corre e congela —
+      e o jogador, que está parado esperando o pedestre, vê exatamente o que
+      reclamou: "eu paro e os outros não". E como todos recebem o mesmo
+      valor, eles se EMPILHAM no mesmo ponto.
 
-      Em vez disso a linha entra na PERSEGUIÇÃO como se fosse um veículo
-      parado: quem chega nela desacelera sozinho e encosta a 8 m, e quem vem
-      atrás enfileira atrás dele pela mesma regra. Nada teleporta.
+      O comentário que estava aqui já sabia disso: dizia que cravar a posição
+      "só não aparece na faixa de pedestre porque lá a linha está sempre
+      longe". Não está — o jogador para em cima dela.
+
+      Agora a linha da faixa entra na PERSEGUIÇÃO como entra a do ciclista:
+      um veículo parado à frente. Quem chega desacelera sozinho, encosta a
+      8 m, e quem vem atrás enfileira atrás dele. Nada teleporta, nada
+      empilha, e quando o pedestre chega na calçada a fila arranca.
     */
-    const parando = naFaixa
     const linha = (faixa ?? 0) + 4
     const linhaCiclista = esperandoCiclista ? (d0 ?? 0) + 55 : null
+    const linhaFaixa = naFaixa ? linha : null
 
     for (let i = 0; i < copias.length; i++) {
-      if (!parando) {
-        /*
-          PERSEGUIÇÃO SIMPLES. Esta fila anda do metro alto para o baixo,
-          então quem está À FRENTE é quem tem o menor `p` acima do meu.
-          O(n²) com onze veículos é nada, e evita manter uma lista ordenada
-          que teria de ser refeita a cada reciclagem.
-        */
-        let folga = Infinity
-        let vFrente = vq[i]
-        for (let j = 0; j < p.length; j++) {
-          if (j === i) continue
-          const gap = p[i] - p[j]
-          if (gap > 0 && gap < folga) { folga = gap; vFrente = va[j] }
-        }
-        // a linha do ciclista conta como um veículo parado à frente
-        if (linhaCiclista != null) {
-          const gap = p[i] - linhaCiclista
-          if (gap > 0 && gap < folga) { folga = gap; vFrente = 0 }
-        }
-        let alvo = vq[i]
-        // 26 m é onde se começa a aliviar; 8 m é onde se para de verdade
-        if (folga < 26) {
-          alvo = Math.min(alvo, vFrente * Math.max(0, (folga - 8) / 18))
-        }
-        // acelera devagar e alivia rápido, que é o que um pé faz
-        const ritmo = Math.min(1, dt * (alvo < va[i] ? 3.2 : 1.1))
-        va[i] += (alvo - va[i]) * ritmo
+      /*
+        PERSEGUIÇÃO SIMPLES. Esta fila anda do metro alto para o baixo,
+        então quem está À FRENTE é quem tem o menor `p` acima do meu.
+        O(n²) com onze veículos é nada, e evita manter uma lista ordenada
+        que teria de ser refeita a cada reciclagem.
+      */
+      let folga = Infinity
+      let vFrente = vq[i]
+      for (let j = 0; j < p.length; j++) {
+        if (j === i) continue
+        const gap = p[i] - p[j]
+        if (gap > 0 && gap < folga) { folga = gap; vFrente = va[j] }
       }
-      p[i] -= (parando ? velocidade : va[i]) * dt
-      if (parando && p[i] < linha && p[i] > linha - 120) p[i] = linha
+      // as duas linhas de parada contam como veículo parado à frente
+      for (const alvoParado of [linhaCiclista, linhaFaixa]) {
+        if (alvoParado == null) continue
+        const gap = p[i] - alvoParado
+        if (gap > 0 && gap < folga) { folga = gap; vFrente = 0 }
+      }
+      let alvo = vq[i]
+      // 26 m é onde se começa a aliviar; 8 m é onde se para de verdade
+      if (folga < 26) {
+        alvo = Math.min(alvo, vFrente * Math.max(0, (folga - 8) / 18))
+      }
+      // acelera devagar e alivia rápido, que é o que um pé faz
+      const ritmo = Math.min(1, dt * (alvo < va[i] ? 3.2 : 1.1))
+      va[i] += (alvo - va[i]) * ritmo
+      p[i] -= va[i] * dt
       // passou do jogador: volta para o fim da fila, lá na frente. O resto da
       // divisão por 5 (e não por 3) evita que os reciclados voltem sempre nas
       // mesmas três distâncias e formem comboio visível.
@@ -631,20 +636,12 @@ function Contrafluxo({
       copias[i].visible = z > -25 && z < ALCANCE
     }
 
-    // Enfileira quem parou. Sem este passe os onze veículos encostavam
-    // TODOS na mesma linha e viravam um bloco de carros sobrepostos —
-    // pior que não parar. Com 7,5 m de vão mínimo eles formam a fila que
-    // qualquer um já viu numa faixa de pedestre.
-    if (parando) {
-      const ordem = p.map((_, i) => i).sort((a, b) => p[a] - p[b])
-      for (let k = 1; k < ordem.length; k++) {
-        const atras = ordem[k], frente = ordem[k - 1]
-        if (p[atras] < p[frente] + 7.5) p[atras] = p[frente] + 7.5
-        const z = p[atras] - d
-        copias[atras].position.z = z
-        copias[atras].visible = z > -25 && z < ALCANCE
-      }
-    }
+    // O passe de "enfileira quem parou" saiu daqui (17/10). Ele existia para
+    // remendar o `p[i] = linha`: como todo mundo recebia a MESMA posição,
+    // virava um bloco de carros sobrepostos, e este laço os empurrava de
+    // 7,5 em 7,5 m — ou seja, teleportava uma segunda vez para desfazer o
+    // teleporte da primeira. Com a linha entrando na perseguição a fila se
+    // forma sozinha, com o espaçamento saindo da desaceleração de cada um.
   })
 
   return <group ref={grupo} />
@@ -1120,12 +1117,28 @@ function OnibusEscolar({
 // conta é que não dizia. Agora os limites saem da medida: no extremo do
 // vaivém a silhueta para a 10 cm da beira do asfalto, e do outro lado a 10 cm
 // do veículo estacionado.
+//
+// E ELES ANDAVAM NO EIXO ERRADO, DEVAGAR DEMAIS E VIRAVAM NUM QUADRO SÓ.
+// -------------------------------------------------------------------------
+// O vaivém era em X, de 1,2 m, com ω 0,42 — velocidade máxima de 0,25 m/s.
+// Uma pessoa a 0,25 m/s dá um passo de 72 cm a cada três segundos: as pernas
+// e o corpo estão em acordo (a fase do passo vem da distância andada), mas o
+// conjunto inteiro acontece em câmera lenta, e câmera lenta lê como DESLIZAR.
+// Pior: a virada era `giro + (paraFrente ? 0 : π)`, um flip de 180 graus
+// entre dois quadros, toda vez que o seno trocava de sinal. Isso é o
+// TELEPORTE — e acontecia de 7 em 7 segundos, cinco vezes no pátio.
+//
+// Agora o vaivém é em Z, PARALELO à pista: dá para andar 4,4 m sem chegar
+// perto do asfalto, e com ω 0,50 isso dá 1,10 m/s, que é passo de gente. O
+// X fica fixo, no valor medido que mantém a silhueta a 10 cm da beira.
+// A virada virou uma curva contínua (ver `tanh` no laço), que acontece
+// justamente onde a pessoa está mais devagar — que é onde alguém pivota.
 const NO_PATIO: { metro: number; x: number; ida: number; giro: number }[] = [
-  { metro: 16, x: -3.0, ida: 0.6, giro: 0 },
-  { metro: 33, x: 6.5, ida: -0.6, giro: Math.PI },
-  { metro: 52, x: -3.05, ida: 0.6, giro: 0 },
-  { metro: 68, x: 6.6, ida: -0.6, giro: Math.PI },
-  { metro: 88, x: -2.95, ida: 0.6, giro: 0 },
+  { metro: 16, x: -3.0, ida: 2.2, giro: 0 },
+  { metro: 33, x: 6.5, ida: -2.2, giro: Math.PI },
+  { metro: 52, x: -3.05, ida: 2.2, giro: 0 },
+  { metro: 68, x: 6.6, ida: -2.2, giro: Math.PI },
+  { metro: 88, x: -2.95, ida: 2.2, giro: 0 },
 ]
 
 function PessoasDoPatio({
@@ -1162,14 +1175,22 @@ function PessoasDoPatio({
     for (let i = 0; i < copias.length; i++) {
       const p = NO_PATIO[i]
       const z = p.metro - d
-      // vai e volta entre as vagas: seno, não sorteio, para ser igual sempre
-      const fase = t * 0.42 + i * 1.7
+      // vai e volta ao longo do meio-fio: seno, não sorteio, para ser igual
+      // sempre. ω 0,50 com 2,2 m de amplitude dá 1,10 m/s de pico.
+      const fase = t * 0.50 + i * 1.7
       const anda = Math.sin(fase) * p.ida
-      copias[i].position.set(p.x + anda, 0, z)
-      // vira para onde anda: perna andando para tras com o corpo de frente e
-      // moonwalk, e um colega moonwalking no patio custa a cena inteira
-      const paraFrente = Math.cos(fase) * p.ida >= 0
-      copias[i].rotation.y = p.giro + (paraFrente ? 0 : Math.PI)
+      copias[i].position.set(p.x, 0, z + anda)
+      /*
+        A VIRADA É CONTÍNUA.
+
+        Era um `if` que somava π de um quadro para o outro — a pessoa dava
+        meia-volta instantânea, o que na tela é a figura piscando de costas.
+        `tanh(8·cos)` vale ~+1 em quase todo o percurso e cruza o zero junto
+        com a velocidade: a meia-volta leva ~0,5 s e cai exatamente no fim
+        do caminho, onde a pessoa está quase parada. É lá que alguém pivota.
+      */
+      const sentido = Math.tanh(Math.cos(fase) * (p.ida > 0 ? 8 : -8))
+      copias[i].rotation.y = p.giro + (Math.PI / 2) * (1 - sentido)
       andar(pernas[i], corpos[i], anda)
       copias[i].visible = z > -20 && z < ALCANCE
     }
@@ -1205,6 +1226,8 @@ function Garagem({
 }) {
   const grupo = useRef<THREE.Group>(null)
   const saindo = useRef(0)
+  /** Onde a frente do carro já chegou na fase 2, em metros percorridos. */
+  const rodado = useRef(0)
 
   const copia = useMemo(() => molde?.clone(true) ?? null, [molde])
 
@@ -1221,11 +1244,45 @@ function Garagem({
     // liberada: o jogador reduziu e esperou, então ele termina de sair
     if (liberada.current) saindo.current = Math.min(1, saindo.current + bruto * 0.5)
 
-    const lateral = -7.6 + (7.0 * avanco) + (6.5 * saindo.current)
-    g.position.set(lateral, 0, z + saindo.current * 14)
-    // entra de ré perpendicular à via e vai endireitando
-    g.rotation.y = -Math.PI / 2 + (Math.PI / 2) * (avanco * 0.75 + saindo.current * 0.25)
-    g.visible = z > -30 && z < 160 && avanco > 0.02
+    /*
+      MANOBRA EM DUAS FASES, e com o carro andando no PRÓPRIO EIXO.
+
+      Antes a posição era `x = -7,6 + 7·avanço + 6,5·saindo` e o ângulo era
+      outra reta independente. Ou seja: o carro escorregava 7 metros DE LADO
+      enquanto girava, as duas coisas sem relação uma com a outra, as duas em
+      velocidade constante do primeiro ao último centímetro. É literalmente
+      um objeto sendo arrastado — "desliza de forma sobrenatural".
+
+      Carro saindo de garagem faz duas coisas: SAI DE RÉ até o meio-fio,
+      para, e depois ARRANCA para a frente. As duas fases existem aqui, e em
+      cada uma a posição vem da direção para onde o carro aponta:
+
+      fase 1 (`avanco`): de ré, a traseira indo para a pista. O deslocamento
+        é quase todo em +x, que é a direção em que ele está apontado (de
+        costas). A suavização dá o freio no fim — é onde ele para à espera
+        de brecha, e é a deixa para o jogador decidir.
+      fase 2 (`saindo`): endireita e acelera. A posição INTEGRA a direção
+        apontada, então não existe quadro em que ele ande para um lado e
+        olhe para outro.
+    */
+    const e = avanco * avanco * (3 - 2 * avanco)       // entra e para macio
+    const rySaida = -Math.PI / 2 + 0.42 * e
+    const x1 = -7.6 + 7.0 * e
+    const z1 = 1.6 * e
+
+    let x = x1, dz = z1, ry = rySaida
+    if (saindo.current > 0) {
+      const s = saindo.current
+      ry = rySaida * (1 - s * s * (3 - 2 * s))         // endireita no eixo
+      // acelera de verdade: 0 no instante em que solta o freio, 12 m/s no fim
+      rodado.current += 12 * s * s * bruto
+      x = x1 + Math.sin(ry) * rodado.current
+      dz = z1 + Math.cos(ry) * rodado.current
+    }
+
+    g.position.set(x, 0, z + dz)
+    g.rotation.y = ry
+    g.visible = z + dz > -30 && z + dz < 160 && avanco > 0.02
   })
 
   if (metro == null) return null

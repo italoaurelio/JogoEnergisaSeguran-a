@@ -23,14 +23,21 @@ import humano as H
 # problema nao e cada numero e sim a ORDEM: faixa refletiva a 1 mm da camisa
 # briga por z-fighting e sai rasgada, e tirante por baixo da faixa atravessa.
 CAMADA = {
-    # A roupa de baixo e a PRIMEIRA camada, e os numeros dela sao apertados
-    # de proposito: a camisa do uniforme nasce em 0,019 e a calca em 0,024,
-    # e peca de baixo com superficie externa acima disso ATRAVESSA o uniforme
-    # em manchas (as duas saem da mesma superficie e a decimacao aproxima uma
-    # da outra). Com 0,010 + 3,5 mm de espessura a camisa de baixo fecha em
-    # 0,0135, e a calca em 0,0165 — folga de 5,5 e 7,5 mm para o uniforme.
-    "base_camisa": 0.010,
-    "base_calca": 0.013,
+    # A roupa de baixo e FOLGADA, e pode ser: `substituiBase` no catalogo faz
+    # o vestiario DESLIGAR `base_roupa` inteiro assim que entra uniforme, e o
+    # motorista usa a mesma regra. As duas roupas nunca aparecem juntas,
+    # entao a camada de baixo nao precisa caber embaixo da de cima.
+    #
+    # Isso foi medido depois de errar duas vezes na direcao oposta: com 10 e
+    # 13 mm (que era a conta de "caber embaixo do uniforme") a camisa e a
+    # calca sairam como MACACAO DE MERGULHO no render de perfil — uma peca
+    # azul continua do pescoco ao tornozelo, colada no corpo. Com 22 e 26 mm
+    # mais o SMOOTH, o tecido para de copiar peitoral e panturrilha.
+    #
+    # Teto: a mao em pose de descanso passa a 50 mm da pele da coxa (ver
+    # `pose_descanso` em humano.py). Calca em 26 + 5 de espessura deixa 19 mm.
+    "base_camisa": 0.022,
+    "base_calca": 0.026,
     "camisa": 0.019,
     "calca": 0.024,
     "acabamento": 0.030,   # gola, punho, carcela, bolso
@@ -1016,8 +1023,11 @@ def roupa_base(corpo, ref, nome="base_roupa"):
     # (razao R/B de 0,61) que sumia sob luz quente e continuava lendo cinza.
     brim = mat_tecido("malha_base", (0.055, 0.118, 0.205), aspereza=0.86,
                       brilho_fio=0.25)
-    grafite = mat_tecido("jeans_base", (0.034, 0.055, 0.112), aspereza=0.90,
-                         brilho_fio=0.18)
+    # cinza-chumbo, e nao outro azul: com camisa 0,055/0,118/0,205 e calca
+    # 0,034/0,055/0,112 as duas sao o MESMO tom com brilho diferente, e a
+    # 1,5 m o conjunto le como macacao.
+    grafite = mat_tecido("jeans_base", (0.030, 0.032, 0.038), aspereza=0.92,
+                         brilho_fio=0.14)
 
     # a caixa e as referencias tem de estar as duas no corpo em DESCANSO,
     # senao o recorte segue a pose e corta na diagonal
@@ -1025,8 +1035,14 @@ def roupa_base(corpo, ref, nome="base_roupa"):
     saida = []
 
     c = _camisa(corpo, rep, nome + "_camisa", folga=CAMADA["base_camisa"],
-                espessura=0.0035)
+                espessura=0.005)
     if c:
+        # o mesmo SMOOTH que `_calca` ja faz na perna, e pela mesma razao:
+        # deslocar a pele pela normal engorda o peitoral junto, e o que
+        # relaxa a anatomia de alta frequencia e a suavizacao, nao a folga
+        macio = c.modifiers.new("cair", "SMOOTH")
+        macio.factor = 1.0
+        macio.iterations = 10
         alisar_bordas(c)
         C.aplicar(c, brim)
         saida.append(c)
@@ -1035,11 +1051,28 @@ def roupa_base(corpo, ref, nome="base_roupa"):
     # bota, mas esta aparece no vestiario com TENIS, e ali 10 cm de canela
     # nua entre a barra e o tenis e justamente o que lia como bermuda.
     b = _calca(corpo, rep, nome + "_calca", folga=CAMADA["base_calca"],
-               espessura=0.0035, bainha=0.035)
+               espessura=0.005, bainha=0.035)
     if b:
         alisar_bordas(b)
         C.aplicar(b, grafite)
         saida.append(b)
+
+    # CINTO. Sem ele camisa e calca da MESMA familia de azul leem como uma
+    # roupa so — foi o que o render de perfil mostrou. A quebra na cintura e
+    # o que o olho usa para contar duas pecas, e nenhuma folga substitui.
+    z_cinto = rep["pelvis"].z + 0.030
+
+    def faixa(_, co):
+        return abs(co.z - z_cinto) <= 0.022 and abs(co.x) <= 0.33
+
+    cinto = H.recortar(corpo, faixa, nome + "_cinto",
+                       deslocar=CAMADA["base_calca"] + 0.006, espessura=0.006,
+                       subdividir=1, reduzir=0.40, repouso=True)
+    if cinto:
+        alisar_bordas(cinto)
+        C.aplicar(cinto, mat_tecido("cinto_base", (0.022, 0.018, 0.016),
+                                    aspereza=0.55, brilho_fio=0.30))
+        saida.append(cinto)
 
     for p in saida:
         p.parent = corpo

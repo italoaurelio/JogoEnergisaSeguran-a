@@ -74,13 +74,29 @@ def montar():
     # esta em coordenada de mundo. O corpo e montado centrado em x=0 e so vai
     # para o lugar do motorista no fim, entao o aro tambem entra em x=0.
     H.maos_no_alvo(arm, _pegada(1), _pegada(-1))
+    # E FECHA A MAO. Terceira vez que o cliente pede "o personagem nao esta
+    # segurando o volante", e as duas primeiras eu conferi no RENDER DA
+    # PROVA — que chama `fechar_mao` desde que ela existe. O exportador
+    # nunca chamou. A IK punha o punho no aro e os cinco dedos ficavam
+    # espalmados no ar, atravessando o aro: a mao estava no lugar certo e
+    # aberta, que le pior do que mao fora do lugar.
+    #
+    # E o mesmo erro que o docstring de `prova_rosto.montar` ja descreve
+    # para a sobrancelha: prova que faz um passo a mais que o exportador
+    # mede a prova, nao o produto.
+    for lado in ("l", "r"):
+        H.fechar_mao(arm, lado)
 
     olhos = H.criar_olhos(corpo)
     cabelo = H.cabelo(corpo)
     H.sobrancelhas(corpo, olhos)
 
     ref = H.referencias(corpo)
-    grupos = {"base_roupa": E.roupa_base(corpo, ref)}
+    # DESCALCO. O motorista tinha roupa de baixo e nenhum calcado: dentro da
+    # cabine aparecia o pe nu no pedal. O `base_tenis` ja existia no catalogo
+    # do personagem do vestiario e so faltava entrar aqui.
+    grupos = {"base_roupa": E.roupa_base(corpo, ref),
+              "base_tenis": E.botinas(corpo, ref, "tenis") or []}
     for ident in VARIANTES_CORPO + VARIANTES_CABECA:
         grupos[ident] = E.MONTAGEM[ident](corpo, ref) or []
     return corpo, arm, olhos, cabelo, grupos

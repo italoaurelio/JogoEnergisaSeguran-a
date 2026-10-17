@@ -280,6 +280,29 @@ export function paisagem(distanciaTotal: number): Marco[] {
     }
 
     /*
+      TERCEIRA LINHA: a MATA DE FUNDO, a 34 m do eixo.
+
+      A segunda fileira resolveu o vão entre as casas da frente. O que
+      sobrava era o HORIZONTE: acima e atrás dos telhados da segunda fileira
+      era grama até sumir na névoa, e é isso que o cliente viu na tela de
+      chegada — "espaço vazio atrás das casas".
+
+      Bairro de verdade tem o fundo fechado por alguma coisa: quintal com
+      mangueira, o fundo do lote do outro quarteirão, mato. Árvore é a peça
+      mais barata que já existe no catálogo e é a única que o olho aceita a
+      34 m sem exigir detalhe. Vai uma a cada 20 m, alternando o lado, com o
+      giro espalhado para não virar aleia.
+    */
+    if (passo % 2 === 0) {
+      saida.push({
+        peca: 'arvore',
+        metro: m + r * 12,
+        x: r < 0.5 ? CASA_ESQ + 24.0 : CASA_DIR - 24.0,
+        giro: r * 11,
+      })
+    }
+
+    /*
       CARRO ESTACIONADO no meio-fio. É o objeto que mais enche uma rua
       residencial, e a frota já existia em quatro modelos — estava sendo
       usada só no contrafluxo e no pátio.
@@ -343,7 +366,7 @@ export const POOL: Record<Marco['peca'], number> = {
   escola_portao: 2,
   // duas fileiras, uma a cada 10 m, nos dois lados do pátio
   muro_patio: 30,
-  arvore: 31,
+  arvore: 56,
   arbusto: 74,
   // frota parada do pátio
   carro: 14, carro_b: 8, carro_c: 8, carro_d: 8,

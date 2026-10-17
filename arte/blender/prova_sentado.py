@@ -59,7 +59,7 @@ def main():
     ref = H.referencias(corpo)
     E.roupa_base(corpo, ref)
 
-    # aro do volante, so para conferir: torus deitado 32 graus
+    # aro do volante, so para conferir: torus na inclinacao de veiculo.py
     bpy.ops.mesh.primitive_torus_add(
         major_radius=V.RAIO_VOLANTE, minor_radius=0.017,
         location=ARO, rotation=(math.pi / 2 - V.INCLINACAO_VOLANTE, 0, 0))

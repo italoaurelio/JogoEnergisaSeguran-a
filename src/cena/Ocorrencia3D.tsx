@@ -686,13 +686,33 @@ type Posta = {
 const CIDADE: Posta[] = (() => {
   const saida: Posta[] = []
 
-  // POSTES NAS PONTAS DA LINHA. Os condutores já iam até ±19 e não havia
-  // nada segurando eles — a linha nascia e morria no ar.
-  for (const z of [-19, 19, -39, 39]) {
+  /*
+    POSTES E VÃOS, com os dois medidos na cena e não supostos.
+
+    A versão anterior punha poste em ±19 e ±39 e `cabos` em ±39, com o
+    comentário "via_cabos tem 40 m, centrado na origem". Ele NÃO é centrado:
+    medido na cena, a peça posta em z −39 ocupava de −39,1 a +0,9 e a de
+    z +39 ocupava de 38,9 a 78,9. Ou seja, a peça corre 40 m para +Z a
+    partir da própria origem. Resultado:
+
+      - o vão de baixo atravessava o vão de serviço e MORRIA NO AR em z ≈ 1,
+        bem em cima da cena;
+      - o de cima ia até z 78,9 e o último poste estava em 39 — 40 metros de
+        cabo pendurado em nada.
+
+    É o "fios pairando no ar" da tela de chegada, e é o mesmo defeito que o
+    trajeto já tinha tido e corrigido (`recuo` em `Fileira`).
+
+    Agora o vão de serviço continua sendo ±19 (`oc_condutor`, que vem do
+    `poste.glb`), e de cada lado entra UM vão de 40 m que começa num poste e
+    termina noutro: −59 → −19 e +19 → +59.
+  */
+  for (const z of [-59, -19, 19, 59]) {
     saida.push({ peca: 'poste', pos: [0, 0, z], giro: 0 })
   }
-  // e a linha segue além deles: `via_cabos` tem 40 m, centrado na origem
-  for (const z of [-39, 39]) {
+  // a peça corre +40 m a partir da própria origem (medido), então ela nasce
+  // no poste de TRÁS de cada vão
+  for (const z of [-59, 19]) {
     saida.push({ peca: 'cabos', pos: [0, 0, z], giro: 0 })
   }
 

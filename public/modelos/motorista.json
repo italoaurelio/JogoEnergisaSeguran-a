@@ -6,6 +6,7 @@
   ],
   "variantes": {
     "base_roupa": "mot_base_roupa",
+    "base_tenis": "mot_base_tenis",
     "vestimenta_fr": "mot_vestimenta_fr",
     "camisa_algodao": "mot_camisa_algodao",
     "colete_refletivo": "mot_colete_refletivo",

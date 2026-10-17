@@ -23,6 +23,7 @@ import { BORDA_DIR, ZONA_ESCOLA } from '../cena/paisagem'
 import { Environment } from '@react-three/drei'
 import * as THREE from 'three'
 import { Mundo, paisagem, type Marco } from '../cena/Via'
+import { MarcadorDoServico } from '../cena/Ocorrencia3D'
 import { perfilEm, type NoTracado } from '../cena/curva'
 import { Cabine, LuzCabine } from '../cena/Cabine3D'
 import {
@@ -56,6 +57,12 @@ const PARAR_ATRAS_DO_ONIBUS = 9
  * julgada numa velocidade que o jogador não escolheu.
  */
 const CHEGADA_M = 42
+/** Velocidade no instante em que a frenagem de chegada começa (≈40 km/h). */
+const V_CHEGADA = 11
+/** Nos últimos tantos metros o caminhão vai encostando no meio-fio. */
+const ENCOSTA_M = 30
+/** Onde ele para, em metros à direita do eixo da faixa. */
+const LATERAL_CALCADA = 1.45
 
 /** Fim de escala do velocímetro. O trecho mais rápido é 60 km/h. */
 const ESCALA_VELOCIMETRO = 80
@@ -328,7 +335,28 @@ export default function Fase2Trajeto({
     // encosta, e é ele que diz "é aqui" sem precisar de texto.
     base.push({ peca: 'poste', metro: DISTANCIA_TOTAL + 4, x: BORDA_DIR - 0.9 })
     base.push({ peca: 'cabos', metro: DISTANCIA_TOTAL + 4, x: BORDA_DIR - 0.9 })
-    return base
+    /*
+      NADA DE CENÁRIO DENTRO DO CRUZAMENTO.
+
+      A paisagem põe um poste a cada 40 m, em `m + 6`, sem saber que existe
+      cruzamento. Quando a conta bate, o poste nasce NO MEIO DA PISTA
+      transversal — foi o "tem um poste no meio do cruzamento". Casa, muro e
+      arbusto caíam lá pelo mesmo motivo: ninguém constrói na esquina
+      porque a esquina é via.
+
+      ±11 m do eixo do cruzamento, que é a meia-largura da transversal mais
+      o recuo do meio-fio.
+    */
+    const cruzamentos = EVENTOS
+      .filter((e) => e.tipo === 'semaforo')
+      .map((e) => e.metro)
+    const naEsquina = (m: number) =>
+      cruzamentos.some((c) => Math.abs(m - c) < 11)
+    const filtrado = base.filter(
+      (mk) => mk.peca === 'cruzamento' || mk.peca === 'semaforo'
+        || !naEsquina(mk.metro),
+    )
+    return filtrado
   }, [])
 
   // teclado além dos botões: quem está num computador espera a seta
@@ -457,6 +485,7 @@ export default function Fase2Trajeto({
             dizer={setLegenda}
             marcarErro={() => setSelo('erro')}
           />
+          <MarcaDoServico distancia={distancia} />
           <CameraFixa distancia={distancia} celular={celular} excesso={excesso}
                       solavanco={solavanco} />
           {/*
@@ -494,6 +523,33 @@ export default function Fase2Trajeto({
  * (−0,10, −0,455, 0,910) vira jogo (x, z, −y) e sobe `ALTURA_CABINE`.
  */
 const ONDE_CELULAR: [number, number, number] = [-0.10, 0.91 + ALTURA_CABINE, 0.455]
+
+/**
+ * O marcador do serviço, na pista, aparecendo na aproximação.
+ *
+ * O cliente pediu "um ícone, como se fosse uma missão do GTA" para a chegada
+ * ao local do reparo. Ele existia — mas só dentro da fase 3, onde o jogador
+ * JÁ CHEGOU. Chegar ao lugar sem nada marcando o lugar é o que fazia a
+ * chegada parecer que o jogo tinha simplesmente acabado a estrada.
+ *
+ * Aparece a 110 m, que é onde um motorista enxergaria o poste da ordem, e
+ * fica no meio-fio da direita, que é onde o caminhão vai encostar.
+ */
+function MarcaDoServico({ distancia }: { distancia: React.RefObject<number> }) {
+  const g = useRef<THREE.Group>(null)
+  useFrame(() => {
+    const no = g.current
+    if (!no) return
+    const z = DISTANCIA_TOTAL - (distancia.current ?? 0)
+    no.position.z = z
+    no.visible = z < 110 && z > -14
+  })
+  return (
+    <group ref={g} position={[BORDA_DIR + 0.9, 0, 0]} visible={false}>
+      <MarcadorDoServico em={[0, 1.5, 0]} raio={1.7} />
+    </group>
+  )
+}
 
 function CameraFixa({
   distancia, celular, excesso, solavanco,
@@ -963,14 +1019,28 @@ function Motor({
       contar(faltas, 'lento', dt)
     }
 
-    // chegada: o veículo encosta sozinho nos últimos metros
+    /*
+      CHEGADA: ELE ENCOSTA NA CALÇADA E PARA. ANTES RASTEJAVA.
+
+      A rampa era `max(1,5; restante/4)` — decaimento exponencial com piso.
+      Com piso de 1,5 m/s o caminhão NUNCA para por conta dela: ele entra
+      nos últimos metros andando a 5,4 km/h e fica assim até o esmaecer
+      cortar a tela. Medido do gatilho até o fim: ~12 s de arrasto, mais a
+      aproximação do jogador — foi o "ele fica 20 segundos parando
+      lentamente".
+
+      Agora é uma frenagem de verdade: `v = V_CHEGADA·√(restante/CHEGADA_M)`
+      é o perfil de desaceleração CONSTANTE (1,4 m/s², que é freada
+      tranquila de caminhão), e ele chega a zero no ponto, não perto dele.
+      Dos 42 m até parar são 7,6 s.
+
+      E ele ENCOSTA: nos últimos 30 m a lateral vai para o meio-fio da
+      direita, como quem estaciona. Sem isso o caminhão para no meio da
+      faixa e a fase seguinte começa com ele plantado na pista.
+    */
     const restante = DISTANCIA_TOTAL - d
     if (restante < CHEGADA_M) {
-      // O piso de 1,5 m/s existe para não virar rastejo: `restante / 4` puro
-      // é decaimento exponencial, e os últimos 70 m levariam 21 s com o
-      // caminhão quase parado no fim. Com o piso ele encosta andando, e quem
-      // para o movimento é o esmaecer.
-      const freado = Math.max(1.5, restante / 4)
+      const freado = V_CHEGADA * Math.sqrt(Math.max(0, restante) / CHEGADA_M)
       // Guincho uma vez so, e so se a rampa estiver REDUZINDO de verdade.
       // Quem ja vinha devagar encosta sem freada — carro que chia parando a
       // 10 km/h soa errado, e e justamente quem obedeceu o limite.
@@ -979,6 +1049,12 @@ function Motor({
         som.freada(Math.min(1, (v - freado) / 12))
       }
       v = Math.min(v, freado)
+
+      // encosta no meio-fio: 0 a 30 m vira 0 a 1, suavizado nas duas pontas
+      const u = Math.min(1, Math.max(0, (ENCOSTA_M - restante) / ENCOSTA_M))
+      const alvoLateral = LATERAL_CALCADA * (u * u * (3 - 2 * u))
+      lateral.current += (alvoLateral - lateral.current)
+        * Math.min(1, dt * 1.6)
     }
 
     if (teto != null && d >= teto) {
@@ -1039,6 +1115,9 @@ function Motor({
     // Chegou: a tela esmaece ANTES de trocar de fase. O corte seco fazia
     // parecer troca de slide; o esmaecer dá o segundo que o olho precisa para
     // registrar que o caminhão parou ao lado do poste.
+    // chegou = PAROU, e não "passou da marca". Com a frenagem de verdade os
+    // dois acontecem quase junto, mas a condição certa é a parada: é ela que
+    // o jogador vê acontecer.
     if (distancia.current >= DISTANCIA_TOTAL - 0.4 && !chegou.current) {
       chegou.current = true
       aoChegar()

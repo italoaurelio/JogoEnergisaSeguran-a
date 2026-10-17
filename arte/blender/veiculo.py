@@ -53,7 +53,22 @@ OLHO = Vector((X_MOTORISTA, 0.20, 1.17))   # olho do motorista
 # volante dentro do capo e a prova mostrou na hora.
 VOLANTE = Vector((X_MOTORISTA, -0.37, 0.86))
 RAIO_VOLANTE = 0.235
-INCLINACAO_VOLANTE = math.radians(32)
+# 62 GRAUS, e nao 32 (17/10).
+#
+# Os 32 graus foram comprados para manter o aro em quadro na fase 2b, e a
+# nota inteira acima explica a conta. Essa conta MORREU: o olho da fase 2b
+# andou 28 cm para a frente e 10 cm para cima depois disso, e projetando o
+# aro na tela do jogo o ponto mais alto dele cai em px 1036 de 1038 — ou
+# seja, o volante ja nao aparece de jeito nenhum, deitado ou em pe.
+#
+# Entao sobrou so o preco: 32 graus da horizontal e volante de onibus, e de
+# dentro da cabine (fase 2a, que e onde o volante APARECE) ele lia como um
+# prato virado para baixo. O cliente disse "o volante ta pra baixo".
+#
+# 62 graus e coluna de caminhonete. Conferido depois da troca: o aro nao
+# toca a pala do painel (topo do aro em y -0,480 / z 1,068, pala em
+# y -0,468 / z 0,987) e deixa de tapar o mostrador, que vive em y -0,523.
+INCLINACAO_VOLANTE = math.radians(62)
 
 PAINEL_Y = -0.62        # face do painel voltada para o motorista
 PARABRISA_BASE = -0.80
@@ -807,10 +822,25 @@ def cinto(afivelado=True, lado=1):
             tuple(ancora_baixa),
         ]
     else:
+        '''
+        O CINTO SOLTO TEM DE SER VISTO, senao ele nao existe.
+
+        O caminho antigo ia de ancora a ancora rente ao pilar — x 0,75,
+        0,74, 0,73 — ou seja, uma fita colada na coluna, atras do ombro do
+        motorista e do encosto do banco. Da camera da fase 2a nao aparecia
+        um pixel dela: o cliente disse "o cinto de seguranca sumiu", e o
+        marcador apontava para um banco vazio.
+
+        Cinto solto de verdade nao fica colado na coluna: ele pende do
+        anel superior e CAI para dentro, encostando no ombro do banco. E
+        esse drapeado que se enxerga de dentro da cabine. Os dois pontos
+        do meio vem 13 cm para dentro e 8 cm para a frente.
+        '''
         caminho = [
             tuple(ancora_alta),
-            tuple(Vector((lado * (meia - 0.05), 0.40, 0.86))),
-            tuple(Vector((lado * (meia - 0.06), 0.36, ALTURA_ASSENTO + 0.10))),
+            tuple(Vector((lado * (meia - 0.17), 0.33, 0.98))),
+            tuple(Vector((lado * (meia - 0.19), 0.30, 0.78))),
+            tuple(Vector((lado * (meia - 0.12), 0.31, ALTURA_ASSENTO + 0.08))),
             tuple(ancora_baixa),
         ]
 

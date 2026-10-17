@@ -2008,6 +2008,53 @@ def cruzamento(m, nome="via_cruzamento", braco=46.0):
             C.aplicar(atravessa, m["concreto"])
             pecas.append(atravessa)
 
+    """
+    O MIOLO DO CRUZAMENTO NAO PODE SER ASFALTO LISO.
+
+    "sem uns artefatos no meio do cruzamento". Ele esta certo de novo: a
+    peca desenhava braco, linha e meio-fio e deixava o quadrado do meio em
+    branco. Cruzamento de verdade e o pedaco de rua mais REMENDADO que
+    existe — e por ali que passa toda a rede enterrada, e cada passagem
+    deixou um poco de visita e uma cicatriz de asfalto novo.
+
+    Quatro bocas de lobo (uma por esquina, que e onde a agua corre), dois
+    pocos de visita no miolo e dois remendos retangulares. Tudo rente ao
+    chao (1 a 2 cm), entao nada disso chacoalha o caminhao nem briga por
+    profundidade com a pista.
+    """
+    tampa = C.mat_simples("via_cruz_tampa", (0.055, 0.052, 0.050),
+                          rugosidade=0.72, metalico=0.35)
+    remendo_mat = C.mat_simples("via_cruz_remendo", (0.028, 0.028, 0.030),
+                                rugosidade=0.95)
+    boca = C.mat_simples("via_cruz_boca", (0.015, 0.015, 0.016), rugosidade=0.85)
+
+    # bocas de lobo nas quatro esquinas, encostadas no meio-fio
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            b = C.caixa(f"{nome}_boca_{sx}_{sy}", (0.80, 0.26, 0.05),
+                        (sx * (x_dir + 1.1) if sx > 0 else sx * (abs(x_esq) + 1.1),
+                         sy * (meia_cruz - 0.10), -0.015))
+            C.aplicar(b, boca)
+            pecas.append(b)
+
+    # pocos de visita no miolo
+    for i, (px, py) in enumerate(((-1.4, 1.2), (2.6, -1.6))):
+        poco = C.cilindro(f"{nome}_poco_{i}", 0.33, 0.028, (px, py, -0.004),
+                          segmentos=14)
+        C.aplicar(poco, tampa)
+        pecas.append(poco)
+        aro_poco = C.cilindro(f"{nome}_poco_aro_{i}", 0.40, 0.020,
+                              (px, py, -0.010), segmentos=14)
+        C.aplicar(aro_poco, remendo_mat)
+        pecas.append(aro_poco)
+
+    # cicatrizes de asfalto novo, do tamanho de uma vala de rede
+    for i, (rx, ry, rl, rc) in enumerate(((0.6, 0.0, 1.1, 6.6),
+                                          (3.4, 2.2, 3.2, 0.9))):
+        r = C.caixa(f"{nome}_remendo_{i}", (rl, rc, 0.022), (rx, ry, -0.006))
+        C.aplicar(r, remendo_mat)
+        pecas.append(r)
+
     return C.juntar(pecas, nome)
 
 
