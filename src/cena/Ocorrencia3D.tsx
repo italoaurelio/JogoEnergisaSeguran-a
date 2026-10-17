@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Html, useGLTF } from '@react-three/drei'
 import { som } from '../som'
-import { domarSheen } from './texturas'
+import { aquecerPele, domarSheen } from './texturas'
 import * as THREE from 'three'
 
 const MODELO = './modelos/ocorrencia.glb'
@@ -757,6 +757,7 @@ export function Eletricista({
     // parte que o cliente chama de mais importante — e era justamente a que
     // tinha ficado de fora da correção.
     domarSheen(scene)
+    aquecerPele(scene)
     if (import.meta.env.DEV) {
       ;(window as unknown as Record<string, unknown>).__eletricista = scene
     }

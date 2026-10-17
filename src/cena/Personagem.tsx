@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
-import { domarSheen } from './texturas'
+import { aquecerPele, domarSheen } from './texturas'
 
 const MODELO = './modelos/personagem.glb'
 // decodificador Draco local: o padrão do drei baixa de CDN, o que quebraria o
@@ -149,6 +149,9 @@ export default function Personagem({ fisico, vestindo, giro }: Props) {
   })
 
   useEffect(() => {
+    // o calor da pele anda junto com o tom: no tom 8 o multiplicador e' 0,40,
+    // e um vermelho fixo por baixo dele viraria brasa
+    aquecerPele(scene, fisico.tom)
     scene.traverse((o) => {
       const mat = (o as THREE.Mesh).material as THREE.MeshStandardMaterial
       if (mat?.name === 'pele_export') mat.color.setRGB(...fisico.tom)

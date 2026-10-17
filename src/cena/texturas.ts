@@ -178,6 +178,48 @@ export function vestir(
  * jeans, 0,2 ainda lava o braço, e sem sheen nenhum o tecido lê certo. Fica
  * um décimo, que devolve o fio sem devolver o problema.
  */
+/**
+ * O quanto a pele brilha de dentro, e com que cor.
+ *
+ * É uma representação pobre de subsuperfície, e de propósito: o `transmission`
+ * do three.js custa um redesenho da cena inteira por quadro, e já foi ele que
+ * derrubou o trajeto a 20 fps quando estava no para-brisa.
+ */
+export const CALOR_PELE: [number, number, number] = [0.42, 0.14, 0.07]
+
+/**
+ * Devolve calor à pele no lado da SOMBRA.
+ *
+ * Medido na tela "Tom de pele", que é o close do jogo: o lado iluminado do
+ * rosto sai em R138 G122 B105 — pele morena de verdade — e o lado de sombra
+ * em R74 G70 B67, que é cinza. Azul igual a verde não é pele, é estátua.
+ *
+ * A culpa não é da luz-chave: as três fontes que preenchem a sombra do
+ * vestiário são frias ou verdes de propósito (lâmpada quente, porta fria,
+ * rebatimento dos armários), e esfriar a sombra é o que elas devem fazer em
+ * tudo que é mineral. Pele não é mineral — a luz entra na carne e volta
+ * vermelha, então a sombra da pele esquenta enquanto a do metal esfria.
+ *
+ * Por isso o conserto é no material da pele e não na luz: assim vale para os
+ * três personagens e nas três cenas, sem mexer na direção de arte de nenhuma.
+ */
+export function aquecerPele(raiz: THREE.Object3D, tom?: [number, number, number]) {
+  raiz.traverse((o) => {
+    const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial
+    if (m?.name !== 'pele_export' || !m.map) return
+    // o mapa assado entra como emissivo também: o calor acompanha o desenho
+    // da pele em vez de pintar uma névoa vermelha por cima do rosto inteiro
+    m.emissiveMap = m.map
+    m.emissiveIntensity = 0.30
+    m.emissive.setRGB(
+      CALOR_PELE[0] * (tom?.[0] ?? 1),
+      CALOR_PELE[1] * (tom?.[1] ?? 1),
+      CALOR_PELE[2] * (tom?.[2] ?? 1),
+    )
+    m.needsUpdate = true
+  })
+}
+
 export function domarSheen(raiz: THREE.Object3D) {
   raiz.traverse((o) => {
     const m = (o as THREE.Mesh).material as THREE.MeshPhysicalMaterial
