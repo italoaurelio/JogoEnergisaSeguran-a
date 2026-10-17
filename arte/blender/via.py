@@ -1320,6 +1320,7 @@ def muro_patio(m, nome="via_muro_patio", modulo=10.0):
 # Altura do quadril do pedestre de 1,72 m. E o pivo da passada: a perna
 # gira aqui, e o jogo le essa altura da propria caixa da peca, entao a
 # crianca de 1,25 m funciona sem numero a mais.
+OMBRO_Z = 1.23      # altura do ombro, pivo do braco
 QUADRIL_Z = 0.90
 
 
@@ -1442,6 +1443,7 @@ def pedestre(m, nome="via_pedestre", altura=1.72, roupa=(0.30, 0.10, 0.09)):
     # chao na vertical, ele nunca atravessa. Joelho custaria dois lofts por
     # perna e nao se le a 30 m, que e a distancia em que o jogador decide.
     pernas = []
+    bracos = []
     for lado in (-1, 1):
         dy = lado * 0.072
         soltas = []
@@ -1460,16 +1462,26 @@ def pedestre(m, nome="via_pedestre", altura=1.72, roupa=(0.30, 0.10, 0.09)):
         pernas.append((C.juntar(soltas, f"{nome}_perna_{'e' if lado < 0 else 'd'}"),
                        dy))
 
-        # Bracos ficam no corpo, parados e caidos. Braco congelado no meio da
-        # balancada ao lado de perna que anda e pior que braco quieto; e e o
-        # V das pernas que diz "andando", nao o braco.
+        # BRACO QUE BALANCA, pelo mesmo caminho da perna.
+        #
+        # Antes ele era assado no corpo, parado e caido, com a justificativa
+        # de que "e o V das pernas que diz andando". A perna sozinha diz que
+        # ANDA; o que ela nao diz e que o corpo esta VIVO — e braco colado no
+        # tronco enquanto a perna abre 24 graus e exatamente o que o cliente
+        # chamou de "pedestre duro".
+        #
+        # Mesma receita da perna: peca propria, origem no OMBRO, sem osso. O
+        # three.js so gira.
+        soltas_b = []
         bm = bmesh.new()
         _loft(bm, [(0.00, lado * 0.200, 1.23, 0.049, 0.049),
                    (0.00, lado * 0.206, 1.07, 0.042, 0.042),
                    (0.00, lado * 0.210, 0.94, 0.036, 0.036),
                    (0.00, lado * 0.210, 0.87, 0.040, 0.034)],
               segmentos=8)
-        _fechar_bm(bm, f"{nome}_antebraco_{lado}", pele, pecas)
+        _fechar_bm(bm, f"{nome}_braco_malha_{lado}", pele, soltas_b)
+        bracos.append((C.juntar(soltas_b, f"{nome}_braco_{'e' if lado < 0 else 'd'}"),
+                       lado * 0.200))
 
     # a escala vem no fim: escalar vertice a vertice evita `obj.scale`, que o
     # exportador aplicaria no no e o jogo herdaria ao instanciar
@@ -1490,6 +1502,13 @@ def pedestre(m, nome="via_pedestre", altura=1.72, roupa=(0.30, 0.10, 0.09)):
         perna.location = quadril
         perna.parent = alvo
         perna.matrix_parent_inverse.identity()
+    for braco, dy in bracos:
+        ombro = Vector((0.0, dy * k, OMBRO_Z * k))
+        for v in braco.data.vertices:
+            v.co = v.co * k - ombro
+        braco.location = ombro
+        braco.parent = alvo
+        braco.matrix_parent_inverse.identity()
     return alvo
 
 

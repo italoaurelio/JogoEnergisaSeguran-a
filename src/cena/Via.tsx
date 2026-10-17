@@ -549,14 +549,22 @@ function pernasDe(obj: THREE.Object3D | null) {
   obj.traverse((o) => {
     if (o.name.endsWith('_perna_e')) achadas.e = o
     if (o.name.endsWith('_perna_d')) achadas.d = o
+    if (o.name.endsWith('_braco_e')) achadas.be = o
+    if (o.name.endsWith('_braco_d')) achadas.bd = o
   })
   if (!achadas.e || !achadas.d) return null
   // a altura do quadril vem da propria peca (o no ja nasce transladado ate
   // ele), entao a crianca de 1,25 m anda sem nenhum numero a mais
-  return { e: achadas.e, d: achadas.d, quadril: achadas.e.position.y }
+  return {
+    e: achadas.e, d: achadas.d, quadril: achadas.e.position.y,
+    // os bracos podem faltar em peca antiga: o passo segue sem eles
+    be: achadas.be ?? null, bd: achadas.bd ?? null,
+  }
 }
 
 const BALANCO = THREE.MathUtils.degToRad(24)
+/** O braço abre menos que a perna — 0,62 da passada é o que se vê andando. */
+const BALANCO_BRACO = BALANCO * 0.62
 
 function andar(
   pernas: ReturnType<typeof pernasDe>,
@@ -565,14 +573,42 @@ function andar(
 ) {
   if (!pernas || !corpo) return
   // uma passada por ~0,8 do quadril: 0,72 m no adulto, 0,52 m na crianca
-  const ang = Math.sin((metros / (pernas.quadril * 0.8)) * Math.PI) * BALANCO
+  const fase = (metros / (pernas.quadril * 0.8)) * Math.PI
+  const ang = Math.sin(fase) * BALANCO
   pernas.e.rotation.z = ang
   pernas.d.rotation.z = -ang
+
+  /*
+    O BRAÇO VAI AO CONTRÁRIO DA PERNA DO MESMO LADO.
+
+    É o que o corpo faz para não girar em torno do próprio eixo a cada
+    passo, e é o que faltava: com a perna abrindo 24° e o braço colado no
+    tronco, a figura lia como manequim empurrado — o "pedestre duro".
+
+    Braço esquerdo acompanha a perna DIREITA, por isso os sinais trocados.
+  */
+  if (pernas.be) pernas.be.rotation.z = -Math.sin(fase) * BALANCO_BRACO
+  if (pernas.bd) pernas.bd.rotation.z = Math.sin(fase) * BALANCO_BRACO
+
   // O quadril AFUNDA conforme a perna abre — perna rigida de comprimento L
   // sustenta o corpo a L*cos(ang). Sem isso o pe flutua nos extremos da
   // passada; com isso o pe fica no chao e sai de brinde o balanco vertical,
   // que e o que mais faz uma silhueta ler como "andando".
   corpo.position.y = pernas.quadril * (Math.cos(ang) - 1)
+
+  /*
+    E o tronco responde, com o peso trocando de pé: 1,4° de inclinação
+    LATERAL, no dobro da frequência do passo (o corpo sobe e desce duas
+    vezes por ciclo). Pouco de propósito — a 30 m, 3° já é o limite entre
+    "anda" e "cambaleia".
+
+    Só o eixo X. O gingado em torno do vertical seria o movimento mais
+    natural a somar aqui, e é justamente o que NÃO cabe: `rotation.y` é por
+    onde `PessoasDoPatio` vira cada pessoa para o lado em que ela anda
+    (`corpos === copias`, as duas são o mesmo objeto). Escrever nele daqui
+    apagaria a virada e devolveria o moonwalk que aquele código resolveu.
+  */
+  corpo.rotation.x = Math.cos(fase * 2) * 0.024
 }
 
 function Pedestre({
@@ -1297,9 +1333,15 @@ export function Mundo({
       const g = new THREE.Group()
       g.name = corpo.name
       g.add(corpo.clone(true))
-      for (const lado of ['e', 'd']) {
-        const perna = scene.getObjectByName(`via_${n}_perna_${lado}`)
-        if (perna) g.add(perna.clone(true))
+      // PERNA E BRAÇO, os dois. Quando o braço virou peça própria eu
+      // reexportei, conferi o nome no `.glb` — estava lá — e no jogo não
+      // havia braço nenhum: a remontagem aqui só conhecia as pernas, e o
+      // membro novo entrou no arquivo e nunca entrou em cena.
+      for (const membro of ['perna', 'braco']) {
+        for (const lado of ['e', 'd']) {
+          const p = scene.getObjectByName(`via_${n}_${membro}_${lado}`)
+          if (p) g.add(p.clone(true))
+        }
       }
       mapa[n] = g
     }
