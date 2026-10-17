@@ -1593,3 +1593,156 @@ body {
   .selo-disco, .selo-palavra, .selo-erro .selo-disco { animation: none }
   .selo-grande { animation: selo-sai 1.15s linear forwards }
 }
+
+/* ------------------------------------------------------------ fim de jogo */
+
+/*
+  100vh e 100vw, e quem rola é a LISTA.
+  O relatório antigo era uma folha única que rolava inteira: placar no alto,
+  três listas embaixo, e o jogador terminava oito minutos de jogo rolando um
+  formulário. Aqui a tela é fixa e só a caixa da lista tem rolagem.
+
+  `100dvh` e não `100vh`: no celular a barra do navegador come 60 px de
+  `100vh`, e o botão de refazer ficava embaixo dela.
+*/
+.fim {
+  position: fixed; inset: 0;
+  width: 100vw; height: 100dvh;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(400px, 42%);
+  background: var(--fundo);
+  overflow: hidden;
+}
+
+.fim-palco { position: relative; min-width: 0 }
+.fim-palco canvas { display: block }
+
+/* Um véu de cor por cima do palco, que muda com o resultado. É o que faz a
+   tela inteira "saber" a nota antes de o jogador ler o número. */
+.fim-palco::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(0deg, var(--veu) 0%, transparent 46%);
+}
+.fim-ok   { --veu: #0e3a2a7a; --acento: #2fd18c }
+.fim-ruim { --veu: #3a1a147a; --acento: #ff5d4a }
+
+/* ------------------------------------------------------------ o gestor */
+.fim-gestor {
+  position: absolute; left: clamp(16px, 3vw, 38px); right: clamp(16px, 3vw, 38px);
+  bottom: clamp(16px, 3vh, 34px);
+  display: flex; align-items: flex-end; gap: 14px;
+  animation: gestor-entra .5s cubic-bezier(.2,1.2,.4,1) .9s both;
+}
+.gestor-avatar {
+  width: 52px; height: 52px; flex: none; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 21px; font-weight: 650; color: #cfe0ff;
+  background: #2b3a4d; border: 1px solid #44566e;
+}
+.gestor-balao {
+  position: relative; max-width: 54ch;
+  padding: 14px 18px; border-radius: 16px 16px 16px 4px;
+  background: rgba(13, 19, 26, 0.9); border: 1px solid var(--borda);
+  backdrop-filter: blur(5px);
+}
+.gestor-quem {
+  font-size: 11px; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--texto-fraco); margin-bottom: 5px;
+}
+.gestor-fala { font-size: clamp(14px, 1.5vw, 17px); line-height: 1.45 }
+@keyframes gestor-entra {
+  from { opacity: 0; transform: translateY(14px) }
+  to   { opacity: 1; transform: none }
+}
+
+/* ------------------------------------------------------------ o painel */
+.fim-painel {
+  display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto;
+  background: var(--painel); border-left: 1px solid var(--borda);
+  min-height: 0;
+}
+.fim-topo { padding: clamp(18px, 2.6vh, 30px) var(--margem-hud) 14px }
+
+.fim-nota { display: flex; align-items: center; gap: 16px; margin: 10px 0 20px }
+.fim-nota strong {
+  font-size: clamp(54px, 7vw, 92px); font-weight: 760;
+  line-height: .9; letter-spacing: -0.045em;
+  color: var(--acento); font-variant-numeric: tabular-nums;
+}
+.fim-nota strong i { font-size: .42em; font-style: normal; margin-left: 2px }
+.fim-veredito {
+  font-size: clamp(19px, 2.3vw, 26px); font-weight: 700; color: var(--acento);
+}
+.fim-pontos { font-size: 13px; color: var(--texto-fraco); margin-top: 3px }
+
+.fim-placar { list-style: none; display: grid; gap: 9px }
+.fim-placar li {
+  display: grid; grid-template-columns: 1fr auto; align-items: center;
+  gap: 4px 10px; position: relative;
+  padding-bottom: 9px; border-bottom: 1px solid var(--borda);
+}
+/* Posição explícita: por colocação automática o número caía numa terceira
+   linha, embaixo da barra, em vez de ficar ao lado do nome. */
+.fim-placar b { grid-area: 1 / 1; font-size: 14px; font-weight: 600 }
+.fim-placar span {
+  grid-area: 1 / 2; justify-self: end;
+  font-size: 14px; font-variant-numeric: tabular-nums;
+}
+.fim-placar em { font-style: normal; color: var(--texto-fraco); font-size: 12px }
+.fim-placar i {
+  grid-area: 2 / 1 / 3 / -1; height: 5px; border-radius: 3px;
+  background: var(--acento); opacity: .85;
+  /* a barra CRESCE: `width` já vem no style, a animação só a revela */
+  transform-origin: left; animation: barra-cresce .6s ease-out both;
+}
+.fim-placar li.baixo i { background: #e2b24a }
+@keyframes barra-cresce { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+
+/* ------------------------------------------------------------ abas e lista */
+.fim-abas {
+  display: flex; gap: 8px; padding: 0 var(--margem-hud) 12px;
+  border-bottom: 1px solid var(--borda);
+}
+.fim-abas button {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 12px; border-radius: 10px; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 600;
+  background: transparent; border: 1px solid var(--borda); color: var(--texto-fraco);
+}
+.fim-abas button.ativa {
+  background: var(--painel-claro); color: var(--texto); border-color: #4a5a6e;
+}
+.fim-abas span {
+  font-size: 12px; padding: 1px 7px; border-radius: 999px;
+  background: #ffffff14; font-variant-numeric: tabular-nums;
+}
+
+.fim-lista {
+  list-style: none; min-height: 0; overflow-y: auto;
+  padding: 14px var(--margem-hud); display: grid; gap: 10px;
+  align-content: start;
+}
+.fim-lista li {
+  display: grid; gap: 4px; padding: 12px 14px; border-radius: 11px;
+  background: var(--painel-claro); border-left: 3px solid transparent;
+}
+.fim-lista li.perdido { border-left-color: #ff5d4a }
+.fim-lista li.parcial { border-left-color: #e2b24a }
+.fim-lista li.achado  { border-left-color: #2fd18c }
+.fim-lista b { font-size: 14.5px; font-weight: 600 }
+.fim-lista span { font-size: 13px; color: #aab6c4; line-height: 1.45 }
+.fim-lista .norma { font-size: 12px; color: var(--verde-claro); opacity: .85 }
+.fim-vazio { color: var(--texto-fraco); text-align: center; padding: 26px 0 }
+
+.fim-rodape { padding: 14px var(--margem-hud) 18px; border-top: 1px solid var(--borda) }
+
+/* Uma coluna: o palco vira uma faixa no alto e o painel ocupa o resto.
+   O personagem não some como na abertura — aqui ele É o retorno. */
+@media (max-width: 920px) {
+  .fim { grid-template-columns: 1fr; grid-template-rows: 34vh minmax(0, 1fr) }
+  .fim-painel { border-left: none; border-top: 1px solid var(--borda) }
+  .fim-gestor { left: 12px; right: 12px; bottom: 10px; gap: 10px }
+  .gestor-avatar { width: 40px; height: 40px; font-size: 17px }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fim-gestor, .fim-placar i { animation: none }
+}

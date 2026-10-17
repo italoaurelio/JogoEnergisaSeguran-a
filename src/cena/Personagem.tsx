@@ -46,9 +46,21 @@ type Props = {
   vestindo: string[]
   /** Giro em radianos; o vestiário deixa o jogador virar o personagem. */
   giro: number
+  /**
+   * COMO ELE ESTÁ. Muda só o jeito de ficar parado, e isso basta.
+   *
+   * O `.glb` sai do Blender sem esqueleto — o exportador apaga a armadura
+   * depois de aplicar a pose. Então não há como dobrar um braço em tempo de
+   * jogo, e prometer "animação de tristeza" seria prometer um round de
+   * Blender inteiro. O que dá para fazer sem rig é o que o corpo faz
+   * sozinho: respirar mais fundo e mais devagar, afundar os ombros, inclinar
+   * o tronco para a frente. Visto de dois metros, é o que separa alguém
+   * satisfeito de alguém levando bronca.
+   */
+  animo?: 'triste' | 'ok' | 'feliz'
 }
 
-export default function Personagem({ fisico, vestindo, giro }: Props) {
+export default function Personagem({ fisico, vestindo, giro, animo = 'ok' }: Props) {
   const { scene } = useGLTF(MODELO, DRACO)
   // mesmo uniforme, mesmo sheen branco vindo do forno
   useEffect(() => { domarSheen(scene) }, [scene])
@@ -177,14 +189,18 @@ export default function Personagem({ fisico, vestindo, giro }: Props) {
     // sem fazer nada antes da próxima. A senoide gasta o mesmo tempo nas
     // duas metades, e é isso que faz o boneco pulsar como um balão em vez de
     // respirar. Aqui o ciclo é dividido em três trechos de duração diferente.
-    const CICLO = 4.6
+    // peito arriado respira mais devagar; peito aberto, mais solto
+    const CICLO = animo === 'triste' ? 5.9 : animo === 'feliz' ? 3.9 : 4.6
     const f = (t % CICLO) / CICLO
     let ar: number
     if (f < 0.33) ar = suavizar(f / 0.33)              // inspira, rápido
     else if (f < 0.87) ar = 1 - suavizar((f - 0.33) / 0.54)  // solta, devagar
     else ar = 0                                         // pausa
-    g.position.y = ar * 0.007
-    const e = 1 + ar * 0.004
+    // o abatido AFUNDA: 2 cm de ombro para baixo é pouco no número e muito
+    // no olho, porque muda a silhueta inteira contra o fundo
+    const afunda = animo === 'triste' ? -0.021 : animo === 'feliz' ? 0.006 : 0
+    g.position.y = ar * 0.007 + afunda
+    const e = 1 + ar * (animo === 'triste' ? 0.006 : 0.004)
     g.scale.set(e, e, e)
 
     // PESO DE UM PÉ PARA O OUTRO.
@@ -194,13 +210,17 @@ export default function Personagem({ fisico, vestindo, giro }: Props) {
     // de propósito pouco, porque a 2 m de distância 1 cm já lê como passo.
     // Dois períodos incomensuráveis (11 s e 6,5 s) evitam que o olho ache o
     // compasso, que é o que denuncia a animação.
+    // quem está mal troca menos de pé; quem está bem, mais
+    const inquieto = animo === 'triste' ? 0.45 : animo === 'feliz' ? 1.4 : 1
     const peso = Math.sin(t / 11) * 0.7 + Math.sin(t / 6.5) * 0.3
-    g.position.x = peso * 0.009
-    g.rotation.z = peso * 0.009
+    g.position.x = peso * 0.009 * inquieto
+    g.rotation.z = peso * 0.009 * inquieto
 
     // e um giro de tronco lento por cima do giro que o jogador escolheu
     g.rotation.y = giroBase.current + Math.sin(t / 17) * 0.022
-    g.rotation.x = Math.sin(t / 13) * 0.006
+    // tronco para a frente quando é bronca, e um dedo para trás quando não é
+    const pende = animo === 'triste' ? 0.085 : animo === 'feliz' ? -0.022 : 0
+    g.rotation.x = Math.sin(t / 13) * 0.006 + pende
   })
 
   const escala = fisico.altura / ALTURA_BASE

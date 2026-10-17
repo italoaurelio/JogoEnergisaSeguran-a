@@ -14,6 +14,7 @@ import Fase2Trajeto from './fases/Trajeto'
 import Fase3Ocorrencia from './fases/Ocorrencia'
 import Relatorio from './fases/Relatorio'
 import type { Fisico } from './cena/Personagem'
+import { FISICO_INICIAL } from './conteudo/fisico'
 import type { Fase, Registro } from './conteudo/pontuacao'
 import {
   MAXIMO_EXEMPLO, MAXIMO_POR_FASE_EXEMPLO, REGISTROS_EXEMPLO,
@@ -69,7 +70,10 @@ export default function App() {
   const guardarMaximo = useCallback((fase: Fase, quanto: number) => {
     setMaximoPorFase((m) => ({ ...m, [fase]: (m[fase] ?? 0) + quanto }))
   }, [])
-  const [, setFisico] = useState<Fisico | null>(null)
+  /* O físico escolhido no vestiário. Era guardado e descartado
+     (`const [, setFisico]`): agora o fim de jogo mostra o personagem DO
+     JOGADOR reagindo à nota, e para isso precisa dele de volta. */
+  const [fisico, setFisico] = useState<Fisico | null>(null)
   const [epi, setEpi] = useState<string[]>(epiInicial)
 
   const concluirVestiario = useCallback(
@@ -138,6 +142,8 @@ export default function App() {
           maximo={maximo}
           maximoPorFase={maximoPorFase}
           refazer={reiniciar}
+          fisico={fisico ?? FISICO_INICIAL}
+          vestindo={epi}
         />
       )}
     </div>
