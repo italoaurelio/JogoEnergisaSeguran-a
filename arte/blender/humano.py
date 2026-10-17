@@ -193,14 +193,35 @@ def mat_olho(nome="olho", iris=(0.06, 0.035, 0.018)):
     raio.operation = "LENGTH"
     links.new(comb.outputs["Vector"], raio.inputs[0])
 
+    """
+    A IRIS TINHA METADE DO TAMANHO QUE DEVIA.
+
+    A coordenada gerada vai de 0 a 1, entao raio 0,5 e o raio do globo —
+    12 mm num olho adulto. Medindo o que estava escrito: a iris acabava em
+    0,155, ou seja 31% do raio do globo. No olho humano ela tem 6 mm de
+    raio contra 12 do globo: 50%.
+
+    Iris pequena em globo grande e O sinal de olhar de boneco. Sobra branco
+    em volta da cor dos dois lados, e o rosto fica com cara de susto
+    permanente — que e o "personagem muito esquisito" que o cliente repetiu
+    tres rodadas, e que eu vinha tratando como problema de cabelo e de pele.
+
+    Pelas medidas reais, com raio 0,5 = 12 mm:
+        pupila   2,0 mm -> 0,083
+        iris     5,9 mm -> 0,245
+        limbo    6,3 mm -> 0,262
+
+    E a esclera desce de 0,62 para 0,50: esclera nao e branca, e um branco
+    sujo de rosa, e a 0,62 ela era a coisa mais clara do rosto inteiro.
+    """
     rampa = nos.new("ShaderNodeValToRGB")
     r = rampa.color_ramp
     r.interpolation = "CONSTANT"
     r.elements[0].position = 0.0
     r.elements[0].color = (0.005, 0.005, 0.005, 1)          # pupila
-    e = r.elements.new(0.105); e.color = (*iris, 1)          # iris
-    e = r.elements.new(0.135); e.color = (0.02, 0.012, 0.008, 1)  # limbo
-    e = r.elements.new(0.155); e.color = (0.62, 0.60, 0.58, 1)    # esclera
+    e = r.elements.new(0.083); e.color = (*iris, 1)          # iris
+    e = r.elements.new(0.245); e.color = (0.02, 0.012, 0.008, 1)  # limbo
+    e = r.elements.new(0.262); e.color = (0.50, 0.475, 0.455, 1)  # esclera
     links.new(raio.outputs["Value"], rampa.inputs["Fac"])
     links.new(rampa.outputs["Color"], bsdf.inputs["Base Color"])
     return mat
@@ -410,8 +431,10 @@ def sobrancelhas(corpo, olhos, cor=(0.016, 0.010, 0.006)):
     for olho in olhos:
         cx, cy, cz = olho.location
         regioes.append(("elipsoide",
-                        (cx * 1.06, cy - 0.008, cz + 0.020),
-                        (0.032, 0.024, 0.0085), 0.55))
+                        (cx * 1.06, cy - 0.010, cz + 0.019),
+                        # era (0,032 · 0,024 · 0,0085): a 40 cm a sobrancelha
+                        # sumia e o rosto ficava sem a linha que o organiza
+                        (0.038, 0.028, 0.0115), 0.48))
     pintar_regioes(corpo, regioes, cor)
 
 
