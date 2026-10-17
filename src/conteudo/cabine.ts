@@ -170,6 +170,7 @@ export const ITENS_CABINE: ItemCabine[] = [
     // assoalho preto. A alavanca também clareou (albedo 0,024 → 0,105): com
     // preto sobre preto, a pergunta não tem resposta na imagem.
     camera: { de: [-0.52, 1.12, 0.36], para: [-0.09, 0.44, -0.10], lente: 30 },
+    no: { errado: 'freio_puxado', certo: 'freio_solto' },
   },
   {
     id: 'celular',

@@ -480,11 +480,16 @@ def console():
 
 
 def freio_de_mao(puxado=True):
-    """Freio de mao. Puxado ou solto — e um dos itens da conferencia."""
+    """Freio de mao. Puxado ou solto — e um dos itens da conferencia.
+
+    NOME POR ESTADO: os dois saem no mesmo `.glb` e o jogo liga um de cada
+    vez. Com o mesmo nome, o exportador junta os dois numa peca so e soltar
+    o freio nao muda nada na tela — que foi exatamente o que o cliente viu.
+    """
     ang = math.radians(-38 if puxado else -6)
     base = Vector((-0.09, 0.06, 0.30))
-    alavanca = C.caixa("cab_freio", (0.036, 0.30, 0.040),
-                       (0, 0, 0), rot=(ang, 0, 0))
+    alavanca = C.caixa("cab_freio_p" if puxado else "cab_freio_s",
+                       (0.036, 0.30, 0.040), (0, 0, 0), rot=(ang, 0, 0))
     bm = bmesh.new(); bm.from_mesh(alavanca.data)
     for v in bm.verts:
         v.co += base + Vector((0, -0.13 * math.cos(ang), -0.13 * math.sin(ang)))
@@ -816,7 +821,7 @@ def fixo():
     pecas += banco("cab_banco_pas", -X_MOTORISTA)
     pecas += apoio_cabeca("cab_apoio_pas", -X_MOTORISTA, altura=1.18)
     pecas += console()
-    pecas += freio_de_mao(True)
+    # o freio NAO entra aqui: ele tem par de estado, em `estados()`
     pecas += retrovisor_interno()
     pecas += extintor()
     pecas += detalhes()
@@ -842,6 +847,8 @@ def estados():
         "celular_guardado": celular(guardado=True),
         "checklist_branco": prancheta(preenchida=False),
         "checklist_feito": prancheta(preenchida=True),
+        "freio_puxado": freio_de_mao(puxado=True),
+        "freio_solto": freio_de_mao(puxado=False),
     }
 
 
