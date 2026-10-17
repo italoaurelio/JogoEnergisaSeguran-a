@@ -685,7 +685,8 @@ def oculos(corpo, ref, escuro=False, nome=None):
 
 # ------------------------------------------------------------------ corpo
 
-def _camisa(corpo, rep, nome, folga=CAMADA["camisa"], espessura=0.005):
+def _camisa(corpo, rep, nome, folga=CAMADA["camisa"], espessura=0.005,
+            barra=0.012):
     """Camisa de manga longa recortada do tronco e dos bracos.
 
     `rep` sao as referencias EM REPOUSO (`H.referencias(corpo, repouso=True)`),
@@ -699,7 +700,7 @@ def _camisa(corpo, rep, nome, folga=CAMADA["camisa"], espessura=0.005):
     azul. Agora a caixa e a malha estao no mesmo espaco e a pose nao importa.
     """
     z_gola = rep["neck"].z + 0.008
-    z_barra = rep["pelvis"].z + 0.012
+    z_barra = rep["pelvis"].z + barra
     # a manga termina por DISTANCIA NO EIXO DO ANTEBRACO, nao por |x|: um
     # limite em x nao separa o polegar, que aponta para dentro e fica com x
     # menor que o do punho. Sobrava uma lasca azul agarrada na mao — pequena,
@@ -757,6 +758,52 @@ def _calca(corpo, rep, nome, folga=CAMADA["calca"], espessura=0.005,
         macio.factor = 1.0
         macio.iterations = 12
     return peca
+
+
+def cair_do_corpo(obj, z_solto, z_colado, quanto, eixo_y=0.0, x_max=None):
+    """Afasta a malha do corpo CRESCENDO para baixo, para o pano cair solto.
+
+    Recorte da pele copia a pele: por mais folga constante que se de, a
+    camisa segue peitoral, serratil e linha alba, e a calca segue
+    panturrilha. Foi o "macacao de mergulho" do render de perfil, e nenhuma
+    folga uniforme resolve — folga uniforme so engorda a mesma anatomia.
+
+    O que uma camisa faz de verdade e TOCAR no ombro e no peito e SOBRAR da
+    cintura para baixo, onde o corpo afina e o pano nao. Entao o
+    afastamento aqui nao e constante: vale zero em `z_solto` (ombro/peito,
+    onde a roupa de fato encosta) e `quanto` em `z_colado` (barra), com uma
+    potencia de 1,3 para a passagem nao virar degrau.
+
+    O empurrao e RADIAL em XY a partir do eixo do corpo, entao manga e
+    perna ficam intactas: elas vivem acima de `z_solto` (manga) ou sao
+    empurradas junto com a coxa, que e o que se quer.
+
+    `x_max` limita o efeito ao TRONCO. Sem ele a manga vira quimono: na
+    pose de descanso o antebraco desce ate a altura do quadril, ou seja
+    para dentro da faixa do caimento, e ganha o mesmo afastamento que a
+    barra — no render a camisa saiu com punho de 12 cm de boca. O limite
+    sai do ombro, nao de um numero escrito a mao.
+
+    Roda sobre os vertices da base, antes dos modificadores — o SOLIDIFY
+    acompanha.
+    """
+    import mathutils
+    vao = z_solto - z_colado
+    if abs(vao) < 1e-6:
+        return
+    for v in obj.data.vertices:
+        t = (z_solto - v.co.z) / vao
+        t = min(1.0, max(0.0, t)) ** 1.3
+        if t <= 0.0:
+            continue
+        if x_max is not None and abs(v.co.x) > x_max:
+            continue
+        radial = mathutils.Vector((v.co.x, v.co.y - eixo_y, 0.0))
+        if radial.length < 1e-5:
+            continue
+        radial.normalize()
+        v.co.x += radial.x * quanto * t
+        v.co.y += radial.y * quanto * t
 
 
 def _acabamento(corpo, ref, nome, pano, sup=None):
@@ -1035,8 +1082,12 @@ def roupa_base(corpo, ref, nome="base_roupa"):
     saida = []
 
     c = _camisa(corpo, rep, nome + "_camisa", folga=CAMADA["base_camisa"],
-                espessura=0.005)
+                espessura=0.005, barra=-0.012)
     if c:
+        # encosta no peito, sobra na cintura: 3 cm na barra contra 0 na
+        # altura do peitoral. E o que separa camisa de camiseta de compressao
+        cair_do_corpo(c, rep["pelvis"].z + 0.30, rep["pelvis"].z - 0.012,
+                      0.030, x_max=abs(rep["l-shoulder"].x) + 0.055)
         # o mesmo SMOOTH que `_calca` ja faz na perna, e pela mesma razao:
         # deslocar a pele pela normal engorda o peitoral junto, e o que
         # relaxa a anatomia de alta frequencia e a suavizacao, nao a folga
@@ -1053,9 +1104,31 @@ def roupa_base(corpo, ref, nome="base_roupa"):
     b = _calca(corpo, rep, nome + "_calca", folga=CAMADA["base_calca"],
                espessura=0.005, bainha=0.035)
     if b:
+        # perna reta: a calca encosta no quadril e sobra na canela, que e
+        # onde a perna afina. Sem isto ela copia a panturrilha e vira malha
+        cair_do_corpo(b, rep["pelvis"].z - 0.02,
+                      rep["l-ankle"].z + 0.035, 0.022)
         alisar_bordas(b)
         C.aplicar(b, grafite)
         saida.append(b)
+
+    # GOLA. Sem ela o decote fica em barco e a peca le como blusa de moletom,
+    # nao como camisa — e gola e a primeira coisa que o olho usa para
+    # separar as duas. Uma tira de 5,5 cm em volta do pescoco, 6 mm mais
+    # afastada que a camisa, resolve sem custar um modelo de colarinho.
+    z_gola_base = rep["neck"].z + 0.004
+
+    def gola(_, co):
+        return (abs(co.z - z_gola_base) <= 0.028
+                and abs(co.x) <= abs(rep["l-shoulder"].x) * 0.62)
+
+    g = H.recortar(corpo, gola, nome + "_gola",
+                   deslocar=CAMADA["base_camisa"] + 0.006, espessura=0.005,
+                   subdividir=1, reduzir=0.40, repouso=True)
+    if g:
+        alisar_bordas(g)
+        C.aplicar(g, brim)
+        saida.append(g)
 
     # CINTO. Sem ele camisa e calca da MESMA familia de azul leem como uma
     # roupa so — foi o que o render de perfil mostrou. A quebra na cintura e

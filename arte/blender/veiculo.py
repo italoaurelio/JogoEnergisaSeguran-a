@@ -1026,6 +1026,69 @@ def detalhes():
                                       rugosidade=0.22))
         pecas.append(nerv)
 
+    """
+    A FRENTE DO CAPO, que era chapa lisa ate o horizonte.
+
+    As frestas e a nervura quebraram o MEIO do capo. A ponta dele continuou
+    vazia, e a ponta e o que faz fronteira com a via: medido projetando o
+    capo na tela, a borda da frente (y -2,4) cai em px 724 e o cocuruto
+    (y -0,9) em px 990, entao a faixa de y -1,1 a -2,4 e a que o jogador
+    enxerga o tempo todo. Tudo aqui mora nela.
+
+    Quatro coisas, e nenhuma e enfeite: a aba escura da frente (que e onde
+    o capo encontra a grade), as duas lanternas de posicao nas quinas —
+    EMISSIVAS, pela mesma licao da lanterna de freio: a 2 m da camera uma
+    luz que nao estoura nao le como luz —, as tomadas de ar e o emblema no
+    eixo. Juntas elas dao ao capo uma FRENTE, que e o que faltava para ele
+    parar de ser uma mesa azul.
+    """
+    escuro = C.mat_simples("cab_capo_grade", (0.016, 0.017, 0.021),
+                           rugosidade=0.80)
+    y_frente = PARABRISA_BASE - 1.58
+    z_frente = PAINEL_TOPO - 0.215 + math.tan(math.radians(7.0)) * (-0.78) + 0.045
+
+    aba = C.caixa("cab_capo_aba", (1.70, 0.16, 0.055),
+                  (0, y_frente, z_frente - 0.030),
+                  rot=(math.radians(7.0), 0, 0))
+    C.chanfrar(aba, largura=0.014, segmentos=2)
+    C.aplicar(aba, escuro)
+    pecas.append(aba)
+
+    for lado in (-1, 1):
+        luz = C.caixa(f"cab_capo_posicao_{lado}", (0.165, 0.13, 0.045),
+                      (lado * 0.72, y_frente + 0.02, z_frente + 0.010),
+                      rot=(math.radians(7.0), 0, 0))
+        C.chanfrar(luz, largura=0.010, segmentos=2)
+        C.aplicar(luz, C.mat_luminoso(f"cab_posicao_{lado}",
+                                      (0.78, 0.40, 0.085), 1.5))
+        pecas.append(luz)
+
+        # tomada de ar: moldura rasa com tres palhetas, no meio da faixa
+        y_ar = PARABRISA_BASE - 1.00
+        z_ar = PAINEL_TOPO - 0.215 + math.tan(math.radians(7.0)) * (-0.20) + 0.047
+        moldura = C.caixa(f"cab_capo_ar_{lado}", (0.34, 0.26, 0.030),
+                          (lado * 0.44, y_ar, z_ar),
+                          rot=(math.radians(7.0), 0, 0))
+        C.chanfrar(moldura, largura=0.012, segmentos=2)
+        C.aplicar(moldura, C.mat_simples("cab_capo_ar_moldura",
+                                         (0.026, 0.028, 0.034), rugosidade=0.55))
+        pecas.append(moldura)
+        for i, dy in enumerate((-0.072, 0.0, 0.072)):
+            pal = C.caixa(f"cab_capo_ar_pal_{lado}_{i}", (0.30, 0.040, 0.022),
+                          (lado * 0.44, y_ar + dy, z_ar + 0.012),
+                          rot=(math.radians(7.0 - 16), 0, 0))
+            C.aplicar(pal, escuro)
+            pecas.append(pal)
+
+    emblema = C.cilindro("cab_capo_emblema", 0.075, 0.016,
+                         (0, PARABRISA_BASE - 1.42,
+                          PAINEL_TOPO - 0.215
+                          + math.tan(math.radians(7.0)) * (-0.62) + 0.052),
+                         segmentos=14, rot=(math.radians(7.0), 0, 0))
+    C.aplicar(emblema, C.mat_simples("cab_capo_emblema", (0.52, 0.53, 0.55),
+                                     rugosidade=0.22, metalico=1.0))
+    pecas.append(emblema)
+
     # lombo central: a elevacao que todo capo de caminhonete tem no eixo
     lombo = C.caixa("cab_capo_lombo", (0.62, 1.44, 0.040),
                     (0, PARABRISA_BASE - 0.82, PAINEL_TOPO - 0.196),

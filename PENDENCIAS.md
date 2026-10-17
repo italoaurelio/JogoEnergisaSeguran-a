@@ -225,6 +225,22 @@ Mesma regra: só sai daqui com data e com o que foi olhado.
 
 Os dois que eu mesmo declarei como não resolvidos.
 
-- [ ] A frente do capô continua vazia na vista de quem dirige
-- [ ] O acostamento da cena de chegada continua vazio
-- [ ] A camisa ainda é mais justa do que roupa de trabalho de verdade
+- [x] Frente do capô — 17/10: a faixa que cabe no quadro é y −1,1 a −2,4
+      (medido projetando o capô na tela: px 910 a 724). Entrou tudo nela —
+      aba escura da frente, duas lanternas de posição nas quinas (emissivas,
+      pela lição da lanterna de freio), duas tomadas de ar com palheta e o
+      emblema no eixo. Conferido na tela
+- [x] Acostamento da chegada — 17/10. A causa: a rua da ocorrência tinha
+      meio-fio e calçada de UM LADO só. Do lado da câmera o asfalto acabava
+      em y −10,1 e virava terra batida até o horizonte — a câmera do
+      briefing fica em y −12, ou seja, em pé no barro. Entrou o segundo
+      meio-fio e a segunda calçada, mais poço de visita, boca de lobo nos
+      dois meios-fios e remendos de asfalto. Conferido na tela
+- [x] Camisa justa — 17/10. Folga uniforme não resolvia: só engorda a
+      mesma anatomia. `cair_do_corpo` (nova) afasta CRESCENDO para baixo —
+      zero no peito, 3 cm na barra —, que é o que uma camisa faz de verdade.
+      Mesma coisa na calça (2,2 cm na canela). Duas armadilhas: sem limite
+      em X a manga virou quimono, porque na pose de descanso o antebraço cai
+      para dentro da faixa do caimento; e faltava gola, sem a qual o decote
+      em barco lê como moletom. Prova nova `prova_roupa.py` — não havia
+      nenhuma do corpo inteiro vestido, e era por isso que isso passava

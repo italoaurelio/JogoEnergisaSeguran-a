@@ -455,14 +455,63 @@ def prancheta(m):
 
 # ------------------------------------------------------------------ via e quadra
 def via(m):
+    """A rua da ocorrencia: asfalto, os DOIS meios-fios e as duas calcadas.
+
+    Tinha meio-fio e calcada de um lado so — o lado do poste. Do outro, o
+    asfalto simplesmente acabava em y -10,1 e virava terra batida ate o
+    horizonte. E justamente o lado de CA: a camera do briefing fica em
+    y -12, ou seja, em pe no barro, olhando por cima de uma rua que termina
+    sem acabamento. Era o "acostamento vazio" da tela de chegada.
+
+    Rua tem dois meios-fios. O de ca fica em y -10,18 (o asfalto vai de
+    -10,1 a -1,1) e a calcada atras dele, que e onde a camera pousa.
+    """
     C.aplicar(C.caixa("via_asfalto", (80, 9.0, 0.16), (0, -5.6, -0.08)),
               m["asfalto"])
-    C.aplicar(C.chanfrar(C.caixa("via_meiofio", (80, 0.18, 0.34),
-                                 (0, -1.02, 0.02)), largura=0.02, segmentos=2),
-              m["calcada"])
+    for nome, y in (("", -1.02), ("_ca", -10.18)):
+        C.aplicar(C.chanfrar(C.caixa(f"via_meiofio{nome}", (80, 0.18, 0.34),
+                                     (0, y, 0.02)), largura=0.02, segmentos=2),
+                  m["calcada"])
     C.aplicar(C.caixa("via_calcada", (80, 2.5, 0.20), (0, 0.30, 0.0)),
               m["calcada"])
+    C.aplicar(C.caixa("via_calcada_ca", (80, 2.8, 0.20), (0, -11.60, 0.0)),
+              m["calcada"])
     C.aplicar(C.caixa("via_terra", (140, 90, 0.14), (0, 20, -0.09)), m["terra"])
+
+    """
+    E O CHAO DA RUA NAO E LISO.
+
+    Mesmo com as duas calcadas, o asfalto era um retangulo de 80 x 9 m sem
+    uma marca — e ele ocupa a faixa de baixo da tela do briefing inteira.
+    Poco de visita, boca de lobo e remendo sao o que toda rua tem e sao
+    rasteiros (2 a 5 cm), entao cabem dentro do corredor de visada que esta
+    documentado em `Ocorrencia3D` sem tapar nada.
+    """
+    tampa = C.mat_simples("via_tampa", (0.055, 0.052, 0.050),
+                          rugosidade=0.72, metalico=0.35)
+    remendo = C.mat_simples("via_remendo", (0.028, 0.028, 0.030),
+                            rugosidade=0.95)
+    vao = C.mat_simples("via_boca", (0.014, 0.014, 0.015), rugosidade=0.88)
+
+    for i, (x, y) in enumerate(((-9.5, -3.1), (6.2, -7.8), (21.0, -4.4))):
+        poco = C.cilindro(f"via_poco_{i}", 0.34, 0.030, (x, y, -0.002),
+                          segmentos=14)
+        C.aplicar(poco, tampa)
+        aro = C.cilindro(f"via_poco_aro_{i}", 0.42, 0.022, (x, y, -0.008),
+                         segmentos=14)
+        C.aplicar(aro, remendo)
+
+    # bocas de lobo encostadas nos dois meios-fios, onde a agua corre
+    for i, (x, y) in enumerate(((-14.0, -1.45), (4.5, -9.82),
+                                (19.5, -1.45), (-3.0, -9.82))):
+        b = C.caixa(f"via_boca_{i}", (0.86, 0.30, 0.06), (x, y, -0.018))
+        C.aplicar(b, vao)
+
+    for i, (x, y, cx, cy) in enumerate(((-2.0, -5.4, 7.0, 1.1),
+                                        (13.5, -8.2, 2.4, 3.0),
+                                        (-21.0, -2.6, 3.6, 1.4))):
+        r = C.caixa(f"via_remendo_{i}", (cx, cy, 0.024), (x, y, -0.006))
+        C.aplicar(r, remendo)
 
 
 def quadra(m):
