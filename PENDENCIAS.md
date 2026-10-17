@@ -11,7 +11,31 @@ Enquanto estiver `[ ]`, está em aberto, mesmo que eu ache que resolvi.
       separados. Eram a mesma cor cinza
 - [x] Descalço — 17/10: tênis entra com a roupa de base e sai quando a
       botina entra. Conferido no vestiário
-- [ ] Rosto/corpo ainda "esquisito" — referência enviada (homem real, camisa e calça)
+- [x] Rosto/corpo "esquisito" — 17/10. Quatro causas, todas medidas no
+      render de perto (`prova_rosto.py`), nenhuma era a que eu vinha tratando:
+      **íris poligonal.** O material do olho media o raio na coordenada
+      GERADA, que é atributo de VÉRTICE e o Cycles interpola de face em face.
+      Numa esfera de 32×16 a frente do olho tem meia dúzia de quadriláteros,
+      então a circunferência da íris saía com lados retos e a pupila puxada
+      para um canto. Passou a medir na coordenada de OBJETO, exata por pixel.
+      (Subir o bake de 256 para 1024 veio junto, mas sozinho só desenharia o
+      polígono com mais nitidez.)
+      **sobrancelha.** Elipsoide de 0,038 com suavidade 0,48 lia como mancha
+      cinza alta na testa — olheira, não sobrancelha. Mais baixa, mais curta
+      na vertical (0,0062) e com borda (0,44).
+      **cabelo de touca de natação.** Não era brilho — já estava em 0,82 de
+      rugosidade. Era a superfície: casca deslocada de uma calota lisa
+      continua lisa. Ganhou deslocamento por ruído, só para fora (CLOUDS,
+      `mid_level` 0), que a faixa de capacete não leva.
+      **roupa base.** A cor saiu cinza na tela mesmo "sendo" azul: 0,082/
+      0,105/0,135 tem razão R/B de 0,61 e some sob luz quente. Agora
+      0,055/0,118/0,205 e jeans 0,034/0,055/0,112, e os dois afastados 17 mm
+      do corpo em vez de 9 — com 9 a camiseta copiava peitoral e linha alba e
+      lia como blusa de compressão.
+      Conferido no vestiário do jogo, não só no render. **Fica em aberto para
+      a próxima rodada:** a silhueta ainda é de roupa de academia, não de
+      roupa de trabalho — a camiseta precisaria de barra solta e a bermuda de
+      perna reta, e isso é modelagem nova, não parâmetro
 
 ## Cabine
 - [x] Mão no volante — 17/10: a IK levava o PUNHO ao eixo do aro. Agora o

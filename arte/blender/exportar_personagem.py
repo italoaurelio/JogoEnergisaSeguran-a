@@ -148,9 +148,17 @@ def assar_olhos(olhos):
         m = X.preparar(o)
         antes = so_no_bake(m)
         try:
-            # 256 e nao 512: o olho tem 7 mm de raio e aparece de perto so na
-            # tela de tom de pele. Dois mapas de 256 custam menos que um de 512.
-            X.assar_grupo(m, f"olho_{i}", 256, piso_ao=0.85)
+            # 1024, e nao 256. A conta antiga ("o olho tem 7 mm, dois mapas
+            # de 256 custam menos que um de 512") estava medindo o olho em
+            # METROS e nao em TEXELS: a esfera inteira se desdobra no mapa,
+            # entao a frente do olho — o unico pedaco que alguem ve — fica
+            # com menos de um quinto dele. Com 256 isso da ~80 texels para
+            # a iris, e no render a iris sai POLIGONAL, com a borda em
+            # degraus retos e a pupila esticada para um lado.
+            #
+            # O olho e o detalhe mais caro de errar num rosto e o mais barato
+            # de consertar aqui: dois mapas de 1024 em webp dao uns 20 KB.
+            X.assar_grupo(m, f"olho_{i}", 1024, piso_ao=0.85)
         finally:
             restaurar(antes)
         membros.append(m)

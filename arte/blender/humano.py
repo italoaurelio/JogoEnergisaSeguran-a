@@ -160,8 +160,21 @@ def _caixa_do_grupo(obj, nome_grupo, repouso=False):
     return (mn + mx) / 2, max((mx - mn)) / 2
 
 
-def mat_olho(nome="olho", iris=(0.06, 0.035, 0.018)):
-    """Esclera com iris e pupila por coordenada gerada. Procedural: vai ser assado."""
+def mat_olho(nome="olho", iris=(0.06, 0.035, 0.018), raio=0.0125):
+    """Esclera com iris e pupila por coordenada de OBJETO. Procedural: vai ser assado.
+
+    Era por coordenada GERADA, e gerada e um atributo de VERTICE: o Cycles
+    interpola de face em face. Numa esfera de 32 por 16 a frente do olho tem
+    meia duzia de quadrilateros, entao o campo de raio sai linear por pedaco
+    e a circunferencia da iris vira um POLIGONO — no render de 17/10 dava
+    para contar os lados, e a pupila saia esticada para um canto. Nenhum
+    aumento de resolucao de bake conserta isso, porque o defeito esta na
+    malha e nao no mapa; so vira um poligono mais bem desenhado.
+
+    Coordenada de objeto e a posicao do ponto sombreado, exata por pixel. O
+    preco e precisar do `raio` da esfera para normalizar — os limiares da
+    rampa continuam na escala antiga, em que 0,5 e a borda do globo.
+    """
     mat = bpy.data.materials.new(nome)
     mat.use_nodes = True
     nt = mat.node_tree
@@ -174,24 +187,27 @@ def mat_olho(nome="olho", iris=(0.06, 0.035, 0.018)):
     bsdf.inputs["IOR"].default_value = 1.38
     links.new(bsdf.outputs["BSDF"], saida.inputs["Surface"])
 
-    # distancia ao eixo de visada (-Y), medida na coordenada gerada
+    # distancia ao eixo de visada (-Y), na coordenada de OBJETO (centro na
+    # origem da esfera, que e o centro do globo)
     coord = nos.new("ShaderNodeTexCoord")
     sep = nos.new("ShaderNodeSeparateXYZ")
-    links.new(coord.outputs["Generated"], sep.inputs["Vector"])
+    links.new(coord.outputs["Object"], sep.inputs["Vector"])
 
-    # Generated vai de 0 a 1; centro em 0.5. Raio no plano XZ.
     comb = nos.new("ShaderNodeCombineXYZ")
-    for eixo, saida_eixo in (("X", "X"), ("Y", "Z")):
-        sub = nos.new("ShaderNodeMath")
-        sub.operation = "SUBTRACT"
-        sub.inputs[1].default_value = 0.5
-        links.new(sep.outputs[saida_eixo], sub.inputs[0])
-        links.new(sub.outputs[0], comb.inputs[eixo])
+    links.new(sep.outputs["X"], comb.inputs["X"])
+    links.new(sep.outputs["Z"], comb.inputs["Y"])
     comb.inputs["Z"].default_value = 0.0
 
-    raio = nos.new("ShaderNodeVectorMath")
-    raio.operation = "LENGTH"
-    links.new(comb.outputs["Vector"], raio.inputs[0])
+    medida = nos.new("ShaderNodeVectorMath")
+    medida.operation = "LENGTH"
+    links.new(comb.outputs["Vector"], medida.inputs[0])
+
+    # volta para a escala antiga da rampa: 0,5 = borda do globo
+    escala = nos.new("ShaderNodeMath")
+    escala.operation = "MULTIPLY"
+    escala.inputs[1].default_value = 0.5 / max(raio, 1e-6)
+    links.new(medida.outputs["Value"], escala.inputs[0])
+    raio = escala
 
     """
     A IRIS TINHA METADE DO TAMANHO QUE DEVIA.
@@ -229,10 +245,14 @@ def mat_olho(nome="olho", iris=(0.06, 0.035, 0.018)):
 
 def criar_olhos(corpo, material=None):
     """Duas esferas dimensionadas pelos grupos helper-l-eye / helper-r-eye."""
-    mat = material or mat_olho()
+    # o material precisa do RAIO (ver `mat_olho`), entao ele so nasce depois
+    # de medir o helper — e os dois olhos tem o mesmo raio, entao um basta
+    medidos = [(lado, *_caixa_do_grupo(corpo, f"helper-{lado}-eye"))
+               for lado in ("l", "r")]
+    raios = [m[2] * 0.92 for m in medidos if m[1] is not None]
+    mat = material or mat_olho(raio=raios[0] if raios else 0.0125)
     olhos = []
-    for lado in ("l", "r"):
-        centro, raio = _caixa_do_grupo(corpo, f"helper-{lado}-eye")
+    for lado, centro, raio in medidos:
         if centro is None:
             continue
         bpy.ops.mesh.primitive_uv_sphere_add(
@@ -430,11 +450,14 @@ def sobrancelhas(corpo, olhos, cor=(0.016, 0.010, 0.006)):
     regioes = []
     for olho in olhos:
         cx, cy, cz = olho.location
+        # 17/10: o elipsoide de 0,038 com suavidade 0,48 saia como MANCHA
+        # CINZA alta na testa — no render de frente lia como olheira acima
+        # da sobrancelha, nao como sobrancelha. A sobrancelha de verdade e
+        # mais baixa (encosta no arco do osso), mais CURTA na vertical e
+        # tem borda: suavidade 0,48 espalha a tinta por 2 cm de testa.
         regioes.append(("elipsoide",
-                        (cx * 1.06, cy - 0.010, cz + 0.019),
-                        # era (0,032 · 0,024 · 0,0085): a 40 cm a sobrancelha
-                        # sumia e o rosto ficava sem a linha que o organiza
-                        (0.038, 0.028, 0.0115), 0.48))
+                        (cx * 1.05, cy - 0.010, cz + 0.0145),
+                        (0.036, 0.024, 0.0062), 0.44))
     pintar_regioes(corpo, regioes, cor)
 
 
@@ -704,7 +727,29 @@ def _peca_de_cabelo(corpo, pesos, nome, limiar, espessura, teto_z=None,
             mod.vertex_group = grupo
             mod.thickness_clamp = 0.0
             mod.offset = 1.0
-    C.aplicar(peca, mat_pelo("cabelo", cor=cor, rugosidade=0.82))
+    # VOLUME IRREGULAR (17/10).
+    #
+    # Com rugosidade 0,82 e a borda ja afinada, o corte AINDA saia no render
+    # como touca de natacao — e foi a palavra que o cliente usou duas vezes.
+    # Nao era brilho: era a SUPERFICIE. Uma casca deslocada 2,6 cm de uma
+    # calota lisa continua sendo uma calota lisa, e cabeca de gente nao tem
+    # uma unica curva perfeita em cima.
+    #
+    # O deslocamento e so para FORA (`mid_level` zero, valor da textura de 0
+    # a 1): deslocar para dentro enfiaria a casca no couro cabeludo e
+    # abriria buraco de pele no meio do cabelo.
+    #
+    # A faixa de capacete nao leva ruido: ela vive esmagada embaixo do casco.
+    if teto_z is None:
+        tex = bpy.data.textures.new(f"{nome}_ruido", type="CLOUDS")
+        tex.noise_scale = 0.055
+        tex.noise_depth = 1
+        onda = peca.modifiers.new("Volume", "DISPLACE")
+        onda.texture = tex
+        onda.texture_coords = "GLOBAL"
+        onda.mid_level = 0.0
+        onda.strength = 0.008
+    C.aplicar(peca, mat_pelo("cabelo", cor=cor, rugosidade=0.88))
     return peca
 
 

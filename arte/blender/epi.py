@@ -989,9 +989,9 @@ def roupa_base(corpo, ref, nome="base_roupa"):
     # material cinza e o conjunto lia como macacao de presidio — "essas
     # cinzas sao muito esquisitas". Camiseta num azul lavado, bermuda num
     # jeans escuro: e a roupa com que alguem chega ao trabalho.
-    malha = mat_tecido("malha_base", (0.082, 0.105, 0.135), aspereza=0.86,
+    malha = mat_tecido("malha_base", (0.055, 0.118, 0.205), aspereza=0.86,
                        brilho_fio=0.25)
-    jeans = mat_tecido("jeans_base", (0.032, 0.040, 0.062), aspereza=0.90,
+    jeans = mat_tecido("jeans_base", (0.034, 0.055, 0.112), aspereza=0.90,
                        brilho_fio=0.18)
     saida = []
 
@@ -1007,8 +1007,12 @@ def roupa_base(corpo, ref, nome="base_roupa"):
     def camiseta(_, co):
         return z_barra <= co.z <= z_gola and abs(co.x) <= x_manga
 
-    c = H.recortar(corpo, camiseta, nome + "_camiseta", deslocar=0.009,
-                   espessura=0.003, subdividir=1, reduzir=0.40, repouso=True)
+    # 17 mm de afastamento, e nao 9. Com 9 a camiseta copiava peitoral,
+    # serratil e linha alba: no vestiario ela lia como blusa de compressao
+    # de academia, nao como a camiseta com que alguem chega para trabalhar.
+    # Pano nao cola no musculo — pousa sobre ele e pula os vales.
+    c = H.recortar(corpo, camiseta, nome + "_camiseta", deslocar=0.017,
+                   espessura=0.0035, subdividir=1, reduzir=0.40, repouso=True)
     if c:
         alisar_bordas(c, nivelar=z_gola)
         C.aplicar(c, malha)
@@ -1022,8 +1026,8 @@ def roupa_base(corpo, ref, nome="base_roupa"):
     def bermuda(_, co):
         return z_bainha <= co.z <= z_cos and abs(co.x) <= x_perna
 
-    b = H.recortar(corpo, bermuda, nome + "_bermuda", deslocar=0.011,
-                   espessura=0.003, subdividir=1, reduzir=0.40, repouso=True)
+    b = H.recortar(corpo, bermuda, nome + "_bermuda", deslocar=0.016,
+                   espessura=0.0035, subdividir=1, reduzir=0.40, repouso=True)
     if b:
         alisar_bordas(b)
         C.aplicar(b, jeans)
