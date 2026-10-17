@@ -534,16 +534,33 @@ body {
    Encostada à esquerda, acima do velocímetro: no meio da tela ela tapava a
    pista justamente enquanto o veículo anda, e a decisão é NÃO desviar a
    atenção da via — a interface não pode ensinar o contrário do exercício. */
+/* NO MEIO DA TELA, com o mundo escurecendo atrás.
+   Estava no canto de baixo à esquerda, em cima do velocímetro: o jogador
+   olhava a pista e o telefone tocava fora do campo de visão. A chamada é a
+   única decisão do trajeto que PARA para ser tomada — ela merece o centro. */
 .trajeto-chamada {
-  position: absolute; left: 22px; bottom: 150px;
+  position: absolute; inset: 0; z-index: 30;
+  display: grid; place-items: center;
+  background: radial-gradient(60% 60% at 50% 50%, #0009, #000c);
   animation: chamada-entra 0.26s cubic-bezier(.2,.9,.3,1.2);
+  /* O VÉU NÃO PEGA CLIQUE: só o aparelho pega.
+     Cobrindo a tela inteira ele engolia os pedais, e o caminhão seguia a
+     90 km/h sem o jogador conseguir frear enquanto o telefone tocava —
+     exatamente o aperto que a cena quer criar, virado contra o jogador. */
+  pointer-events: none;
 }
+.trajeto-chamada .fone { pointer-events: auto }
 @keyframes chamada-entra {
-  from { opacity: 0; transform: translateY(16px) scale(.96); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.trajeto-chamada .fone { animation: fone-sobe .3s cubic-bezier(.2,1.2,.4,1) both }
+@keyframes fone-sobe {
+  from { opacity: 0; transform: translateY(18px) scale(.94) }
+  to   { opacity: 1; transform: none }
 }
 .fone {
-  width: 212px; padding: 18px 16px 16px; border-radius: 26px;
+  width: clamp(232px, 26vmin, 300px); padding: 24px 20px 20px; border-radius: 28px;
   background: linear-gradient(#1b2430, #121922);
   border: 1px solid #39465a;
   box-shadow: 0 22px 50px #000b, inset 0 1px 0 #ffffff1a;

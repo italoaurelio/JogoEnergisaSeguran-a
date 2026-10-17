@@ -17,6 +17,7 @@ import { PalcoPronto } from '../cena/Carregando'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { som } from '../som'
 import { IconeAviso, type TipoAviso } from '../icones'
+import { SeloVeredito, type Selo } from '../Veredito'
 import { Acabamento } from '../cena/Acabamento'
 import { BORDA_DIR, ZONA_ESCOLA } from '../cena/paisagem'
 import { Environment } from '@react-three/drei'
@@ -282,6 +283,8 @@ export default function Fase2Trajeto({
   const [acabou, setAcabou] = useState(false)
   /** Legenda da fala do personagem. Estado, porque é texto na tela. */
   const [legenda, setLegenda] = useState<string | null>(null)
+  /* selo de erro quando o jogador ATENDE o telefone dirigindo */
+  const [selo, setSelo] = useState<Selo>(null)
   /** O celular está à vista no painel (toca) ou guardado. */
   const [foneAVista, setFoneAVista] = useState(false)
   /** Chegou ao local: a tela esmaece antes de entregar a fase. */
@@ -442,6 +445,7 @@ export default function Fase2Trajeto({
             aoChegar={() => setChegando(true)}
             mostrarFone={setFoneAVista}
             dizer={setLegenda}
+            marcarErro={() => setSelo('erro')}
           />
           <CameraFixa distancia={distancia} celular={celular} excesso={excesso}
                       solavanco={solavanco} />
@@ -459,6 +463,7 @@ export default function Fase2Trajeto({
 
       <Painel ref={painel} pedal={pedal} celular={celular} />
       {chegando && <div className="trajeto-chegada" aria-hidden />}
+      <SeloVeredito tipo={selo} aoFim={() => setSelo(null)} />
       {legenda && (
         <p className="trajeto-legenda" role="status">{legenda}</p>
       )}
@@ -568,7 +573,7 @@ function CameraFixa({
 function Motor({
   distancia, velocidade, pedal, carro, faltas, pedestreLiberado, onibusLiberado,
   onibusOnde, garagemLiberada, sinal, celular, painel, lateral, seta, excesso,
-  solavanco, aoChegar, mostrarFone, dizer,
+  solavanco, aoChegar, mostrarFone, dizer, marcarErro,
 }: {
   distancia: React.RefObject<number>
   velocidade: React.RefObject<number>
@@ -589,6 +594,8 @@ function Motor({
   aoChegar: () => void
   mostrarFone: (v: boolean) => void
   dizer: (texto: string | null) => void
+  /** Acende o selo vermelho por cima da tela. */
+  marcarErro: () => void
 }) {
   const desdeAtualizacao = useRef(0)
   const paradoDesde = useRef(0)
@@ -774,6 +781,16 @@ function Motor({
       julgados.current.celular = true
       contar(faltas, 'celular', 1)
       mostrarFone(false)
+      /*
+        ATENDER TEM DE DOER NA HORA.
+        A falta era contabilizada em silêncio e só reaparecia no relatório,
+        oito minutos depois — o cliente atendeu de propósito para ver o que
+        acontecia e não viu nada. Quem recusa ouve o personagem dizer por
+        quê; quem atende não ouvia nada, que é o avesso do que a fase ensina.
+      */
+      marcarErro()
+      dizer('Atendeu dirigindo. É infração grave — e tirou os olhos da pista.')
+      window.setTimeout(() => dizer(null), 3600)
     }
     // Recusou: o personagem fala. A legenda carrega o sentido e a voz carrega
     // só a intenção — é de propósito que não dê para entender a palavra.
