@@ -289,7 +289,7 @@ function pintarVeiculo(
 function Contrafluxo({
   molde, distancia, dobra, quantos = 11, vao = VAO_CONTRA, deslocamento = 0,
   velocidade = VELOCIDADE_CONTRA, x = CONTRA_X, forcaSom = 1,
-  faixa = null, pedestreLiberado,
+  faixa = null, pedestreLiberado, ciclista = null,
 }: {
   molde: THREE.Object3D | null
   distancia: React.RefObject<number>
@@ -299,6 +299,11 @@ function Contrafluxo({
   faixa?: number | null
   /** Enquanto for falso, esta fila PARA antes da faixa. */
   pedestreLiberado?: React.RefObject<boolean>
+  /**
+   * Metro do ciclista. Enquanto o jogador se aproxima dele, esta fila
+   * ESPERA — ver a regra dentro do laço.
+   */
+  ciclista?: number | null
   quantos?: number
   /** Metros entre um veículo e o seguinte desta fila. */
   vao?: number
@@ -390,9 +395,41 @@ function Contrafluxo({
       linha de parada DELE fica depois da faixa — em `faixa + 4`. Quem já
       passou da faixa segue embora; quem ainda não chegou encosta e espera.
     */
-    const parando = faixa != null && pedestreLiberado
+    const naFaixa = faixa != null && pedestreLiberado
       && !pedestreLiberado.current
+
+    /*
+      A PISTA FICA LIVRE PARA A ULTRAPASSAGEM DO CICLISTA.
+      -----------------------------------------------------------------
+      Ultrapassar com 1,5 m de folga só cabe invadindo a contramão — é
+      disso que o trecho trata. Com o contrafluxo correndo, o jogador era
+      espremido entre o ciclista e um carro vindo de frente, e na tela
+      parecia que o ciclista se jogava em cima dos outros carros. A cena
+      desmentia a manobra que a fase está cobrando.
+
+      Eles esperam 55 m ANTES do ciclista (do lado de lá), que é onde um
+      motorista de verdade pararia ao ver alguém ultrapassando na contramão.
+      Fila parada à frente é cena comum; carro atravessando o jogador não é.
+    */
+    const d0 = ciclista
+    const esperandoCiclista =
+      d0 != null && d >= d0 - 85 && d <= d0 + 18
+
+    /*
+      O ciclista NÃO usa o caminho do `parando`.
+
+      Aquele caminho crava `p[i] = linha` de uma vez, e isso só não aparece
+      na faixa de pedestre porque lá a linha está sempre longe. Aqui a linha
+      cai a 140 m do jogador, dentro do alcance de 320 — um carro saltando
+      para trás no meio da tela seria pior que o defeito original.
+
+      Em vez disso a linha entra na PERSEGUIÇÃO como se fosse um veículo
+      parado: quem chega nela desacelera sozinho e encosta a 8 m, e quem vem
+      atrás enfileira atrás dele pela mesma regra. Nada teleporta.
+    */
+    const parando = naFaixa
     const linha = (faixa ?? 0) + 4
+    const linhaCiclista = esperandoCiclista ? (d0 ?? 0) + 55 : null
 
     for (let i = 0; i < copias.length; i++) {
       if (!parando) {
@@ -408,6 +445,11 @@ function Contrafluxo({
           if (j === i) continue
           const gap = p[i] - p[j]
           if (gap > 0 && gap < folga) { folga = gap; vFrente = va[j] }
+        }
+        // a linha do ciclista conta como um veículo parado à frente
+        if (linhaCiclista != null) {
+          const gap = p[i] - linhaCiclista
+          if (gap > 0 && gap < folga) { folga = gap; vFrente = 0 }
         }
         let alvo = vq[i]
         // 26 m é onde se começa a aliviar; 8 m é onde se para de verdade
@@ -1328,7 +1370,7 @@ export function Mundo({
       <PessoasDoPatio molde={moldes.pedestre} distancia={distancia} />
       <Contrafluxo
         molde={moldes.carro} distancia={distancia} dobra={dobra}
-        faixa={faixa} pedestreLiberado={pedestreLiberado}
+        faixa={faixa} pedestreLiberado={pedestreLiberado} ciclista={ciclista}
       />
       {/*
         Moto em fila PRÓPRIA, e não misturada na dos carros.
@@ -1350,7 +1392,7 @@ export function Mundo({
         molde={moldes.moto} distancia={distancia} dobra={dobra} quantos={5}
         vao={118} deslocamento={37} velocidade={VELOCIDADE_CONTRA * 1.18}
         x={CONTRA_X - 1.05} forcaSom={1.45}
-        faixa={faixa} pedestreLiberado={pedestreLiberado}
+        faixa={faixa} pedestreLiberado={pedestreLiberado} ciclista={ciclista}
       />
       {garagem && (
         <Garagem
