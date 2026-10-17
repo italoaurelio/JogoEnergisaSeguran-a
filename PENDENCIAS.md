@@ -20,7 +20,25 @@ Enquanto estiver `[ ]`, está em aberto, mesmo que eu ache que resolvi.
       Caminho refeito sobre o perfil medido do corpo; sobra 0 no peito
 - [x] Fundo da garagem — 17/10: nervura, tesoura, demarcação, painel de
       ferramentas, paletes, pneus, carrinho, escada, extintor, cones
-- [ ] Modelar a cabine direito
+- [x] Modelar a cabine direito — 17/10, em duas frentes porque o problema
+      eram duas coisas:
+      **(a) painel de instrumentos.** Medido com `scene.ray_cast` do olho do
+      motorista: NENHUM ponto do mostrador era visível — o capô do painel era
+      um contorno fechado de 21 cm, plástico maciço, e os relógios moravam
+      dentro dele. Virou pala de 3,5 cm sobre um nicho aberto. Dentro:
+      dois relógios com aro cromado, 9 traços, ponteiro e cubo, visor de bordo
+      entre eles; marcação e ponteiro ACENDEM (`C.mat_luminoso`, novo), porque
+      dentro da pala não entra luz nenhuma. Mais: difusores com moldura,
+      palhetas e botão (eram retângulos pretos), console com tela, 6 teclas,
+      2 giratórios e luzes do ar, hastes de seta e limpador, e a grelha do
+      desembaçador. Conferido em `cab_motorista.png` e `cab_item_celular.png`
+      **(b) o que o jogador REALMENTE vê dirigindo.** Projetado na tela do
+      jogo: o painel inteiro cai em px 970 de 1038, debaixo dos botões. O
+      terço de baixo da tela — o que o cliente chamou de protótipo — é o
+      CAPÔ, e ele era uma caixa lisa. Ganhou as duas frestas do para-lama,
+      vinco, nervura em x ±0,45 (medido: é a faixa que cabe no quadro, o
+      lombo central cai fora pela direita) e para-lama 1,7 cm mais alto.
+      Conferido na tela, não no render
 
 ## Rua / cenário
 - [x] Teto vazado — 17/10: era o OITÃO que faltava. O telhado é uma casca em
@@ -44,7 +62,14 @@ Enquanto estiver `[ ]`, está em aberto, mesmo que eu ache que resolvi.
 ## Gente e veículos da rua
 - [x] Joelho — 17/10: coxa e canela separadas. Medido: 51° no pico e zero
       na metade do ciclo em que não dobra
-- [ ] Remodelar pedestres
+- [x] Remodelar pedestres — 17/10: mão no fim do braço (acabava num toco no
+      pulso), sapato em cabedal+sola (era uma caixa só), pescoço encurtado
+      (sobravam 10 cm de tubo entre tronco e mandíbula, lia como tartaruga).
+      Ciclista: coxa/canela/braço/antebraço eram `C.barra` — paralelepípedo de
+      13,5 cm de lado — viraram `_membro`, loft com o anel perpendicular ao
+      osso, e ganhou mão no guidão. Conferido no render `via_gente_frente.png`
+      e medido no jogo: `via_pedestre_braco_d` tem 0,447 m (era 0,405: a mão
+      entrou), canela continua filha da coxa depois do `optimize`
 - [x] Moto — 17/10: perna do piloto com joelho, aro e cubo de roda, garfo,
       paralama, lanterna, escapamento, retrovisores
 - [x] Moto dentro de carro — 17/10: o corredor era ideia de via de várias

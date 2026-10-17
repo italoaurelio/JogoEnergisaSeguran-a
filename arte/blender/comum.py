@@ -108,6 +108,23 @@ def mat_simples(nome, cor, rugosidade=0.5, metalico=0.0, ior=1.45):
     return mat
 
 
+def mat_luminoso(nome, cor, forca=1.0, rugosidade=0.45):
+    """Material que ACENDE. Atravessa o glTF como `emissiveFactor`.
+
+    Painel de instrumento e retroiluminado: sem isso o mostrador le como
+    um buraco preto, por mais marcacao que tenha — nenhuma luz da cabine
+    chega la dentro, que e justamente o que a pala do capo garante.
+    """
+    mat = bpy.data.materials.new(nome)
+    mat.use_nodes = True
+    b = _principled(mat)
+    _set(b, "Base Color", (*cor, 1.0))
+    _set(b, "Roughness", rugosidade)
+    _set(b, "Emission Color", (*cor, 1.0))
+    _set(b, "Emission Strength", forca)
+    return mat
+
+
 def mat_textura(nome, pasta, escala=1.0, rugosidade_extra=0.0, cor_mistura=None,
                 forca_normal=1.0, projecao="BOX", saturacao=1.0, brilho=1.0):
     """Monta PBR a partir de <tex>/<pasta>/<pasta>_{diff,nor,rough}.jpg.

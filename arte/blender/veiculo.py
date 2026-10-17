@@ -299,44 +299,305 @@ def painel():
     C.aplicar(p, plastico)
     pecas = [p]
 
-    # capo do painel de instrumentos, em cima do volante
-    # recuado 6 cm com o volante de caminhao: o aro agora chega a y -0,49 e
-    # com o capo na posicao antiga os dois se atravessavam
+    # CAPO DO PAINEL: uma PALA, nao um bloco (17/10).
+    #
+    # O perfil antigo era um contorno fechado de y -0,700 a -0,490 e z 0,842
+    # a 0,967 — isto e, 21 cm de plastico MACICO. O mostrador morava dentro
+    # dele. Medido por raio a partir do olho do motorista: de z 0,85 a 0,95
+    # TODO raio batia em `cab_capo`, e abaixo de 0,845 batia no volante.
+    # Nao existia um unico ponto da cabine em que o motorista visse o
+    # painel de instrumentos. Era literalmente um painel dentro da parede.
+    #
+    # Agora e uma casca de 3,5 cm: sobe do painel, faz o bico sobre o nicho
+    # e volta por dentro. O nicho fica aberto, e os relogios cabem nele.
     capo = [
         (-0.700, PAINEL_TOPO + 0.010),
-        (-0.580, PAINEL_TOPO + 0.042),
-        (-0.490, PAINEL_TOPO - 0.003),
-        (-0.500, PAINEL_TOPO - 0.078),
-        (-0.660, PAINEL_TOPO - 0.083),
+        (-0.610, PAINEL_TOPO + 0.080),
+        (-0.468, PAINEL_TOPO + 0.062),   # bico da pala, sobre o nicho
+        (-0.472, PAINEL_TOPO + 0.030),
+        (-0.610, PAINEL_TOPO + 0.040),
+        (-0.700, PAINEL_TOPO - 0.022),
     ]
-    c = extrudar("cab_capo", capo, VOLANTE.x - 0.145, VOLANTE.x + 0.145)
+    c = extrudar("cab_capo", capo, VOLANTE.x - 0.158, VOLANTE.x + 0.158)
+    C.chanfrar(c, largura=0.012, segmentos=2)
     C.aplicar(c, plastico)
     pecas.append(c)
 
-    # mostrador: uma placa escura sob o capo, levemente inclinada
-    mostrador = C.caixa("cab_mostrador", (0.255, 0.008, 0.105),
-                        (VOLANTE.x, -0.565, PAINEL_TOPO - 0.035),
-                        rot=(math.radians(-18), 0, 0))
-    C.aplicar(mostrador, C.mat_simples("mostrador", (0.008, 0.009, 0.011),
-                                       rugosidade=0.25))
-    pecas.append(mostrador)
+    pecas += desembacador()
+    pecas += instrumentos()
+    pecas += saidas_de_ar()
+    pecas += central_do_painel()
+    pecas += hastes_da_coluna()
+    return pecas
 
-    # saidas de ar
+
+# ------------------------------------------------------- dentro do capo
+#
+# A FAIXA QUE O MOTORISTA ENXERGA, medida por RAIO e nao calculada.
+#
+# A primeira tentativa foi por trigonometria e errou inteira: deu uma
+# fresta de 19,8 a 24,8 graus que nao existe. O `scene.ray_cast` do olho
+# para cada ponto mostrou o que estava acontecendo de verdade — abaixo de
+# z 0,845 o raio bate no VOLANTE, de 0,85 a 0,95 bate no CAPO, e acima de
+# 0,96 ja e para-brisa. Nenhum ponto livre: o painel de instrumentos
+# inteiro estava dentro de um bloco de plastico macico.
+#
+# Com o capo virado pala (ver `painel`), o nicho abre em y -0,523. Os
+# relogios ficam na face desse nicho, e nao no fundo dele, porque o bico
+# da pala corta tudo que estiver mais fundo que ~2 cm.
+#
+# Quem mexer nestes numeros RODA O RAIO DE NOVO — a conta no papel ja
+# mentiu uma vez aqui.
+MOSTRADOR_Y = -0.523
+MOSTRADOR_Z = 0.901
+RAIO_RELOGIO = 0.037
+TOMBO_PAINEL = math.radians(-14)   # o painel deita para tras
+
+
+def _no_mostrador(x, dy, dz):
+    """(x, y, z) de um ponto dado em coordenada do MOSTRADOR.
+
+    `dy` e a profundidade (positivo = para o motorista), `dz` a altura na
+    face. Aplica o tombo de 18 graus, para que agulha, aro e marcacao
+    fiquem todos no mesmo plano em vez de flutuar cada um no seu.
+    """
+    c, sn = math.cos(TOMBO_PAINEL), math.sin(TOMBO_PAINEL)
+    return (x,
+            MOSTRADOR_Y + dy * c - dz * sn,
+            MOSTRADOR_Z + dy * sn + dz * c)
+
+
+def desembacador():
+    """Grelha do desembacador, rente ao para-brisa.
+
+    E a UNICA coisa que quebra o cocuruto do painel no campo de visao de
+    quem dirige. Saida de ar e console ficam em z 0,80 e 0,70, trinta
+    centimetros abaixo da borda de baixo da tela da fase 2b: existem para
+    as cameras da fase 2a, e nenhum pixel deles chega ao trajeto. O
+    desembacador fica na face de CIMA do painel, que e exatamente o que o
+    motorista enxerga — e sem ele aquela faixa e um borrao escuro de meio
+    metro.
+    """
+    pecas = []
+    rasgo = C.mat_simples("cab_desemb_rasgo", (0.008, 0.009, 0.011),
+                          rugosidade=0.72)
+    aba = mat_plastico_painel((0.034, 0.036, 0.042))
+    for lado, x0, x1 in ((0, -0.74, -0.08), (1, 0.06, 0.70)):
+        moldura = C.caixa(f"cab_desemb_{lado}", (x1 - x0, 0.072, 0.014),
+                          ((x0 + x1) / 2, -0.735, PAINEL_TOPO - 0.012))
+        C.chanfrar(moldura, largura=0.005, segmentos=2)
+        C.aplicar(moldura, aba)
+        pecas.append(moldura)
+        n = int((x1 - x0) / 0.042)
+        for i in range(n):
+            x = x0 + 0.021 + i * ((x1 - x0 - 0.012) / n)
+            f = C.caixa(f"cab_desemb_{lado}_{i}", (0.026, 0.052, 0.010),
+                        (x, -0.735, PAINEL_TOPO - 0.009))
+            C.aplicar(f, rasgo)
+            pecas.append(f)
+    return pecas
+
+
+def instrumentos():
+    """Dois relogios com aro, marcacao e ponteiro, e o visor entre eles.
+
+    Relogio de verdade, e nao uma placa escura: o aro cromado separa o
+    mostrador do capo, a marcacao diz que e um instrumento e nao um buraco,
+    e o PONTEIRO e o que o olho procura. Custa ~900 triangulos no unico
+    lugar da cabine que o jogador olha o tempo todo.
+    """
+    pecas = []
+    fundo = C.mat_luminoso("cab_mostrador_fundo", (0.042, 0.050, 0.066), 0.55,
+                           rugosidade=0.30)
+    cromo = C.mat_simples("cab_mostrador_aro", (0.52, 0.53, 0.55),
+                          rugosidade=0.22, metalico=1.0)
+    # marcacao e ponteiro ACENDEM: dentro da pala nao entra luz nenhuma, e
+    # no render o mostrador saiu como dois buracos pretos de aro cromado.
+    # Painel de instrumento de verdade e retroiluminado — nao e licenca
+    # poetica, e o unico jeito de ele existir na tela.
+    risco = C.mat_luminoso("cab_mostrador_risco", (0.80, 0.82, 0.86), 1.6)
+    agulha = C.mat_luminoso("cab_mostrador_agulha", (0.82, 0.10, 0.055), 2.4)
+
+    placa = C.caixa("cab_mostrador", (0.255, 0.010, 0.098),
+                    _no_mostrador(VOLANTE.x, 0, 0), rot=(TOMBO_PAINEL, 0, 0))
+    C.aplicar(placa, fundo)
+    pecas.append(placa)
+
+    # ponteiro de cada relogio: velocimetro parado embaixo a esquerda,
+    # conta-giros na marcha lenta. Angulo medido do eixo para baixo.
+    # zero de um mostrador fica embaixo a ESQUERDA, em -125 graus. O
+    # caminhao esta parado: velocimetro no zero, conta-giros na marcha
+    # lenta, um passo acima.
+    for i, (dx, grau) in enumerate(((-0.063, -125), (0.063, -98))):
+                # AS PROFUNDIDADES SAO EMPILHADAS, nao arbitrarias.
+        #
+        # Na primeira versao o aro era um disco MACICO de 13 mm centrado em
+        # dy 0,012 — ou seja, ocupava de 5,5 a 18,5 mm — e face, marcacao e
+        # ponteiro estavam todos DENTRO dele. O render mostrou dois buracos
+        # pretos com borda cromada e um pontinho vermelho, e foi exatamente
+        # o que o disco deixava escapar. Agora cada camada comeca onde a de
+        # baixo termina: aro ate 17 mm, face 17-22, marcacao 22,5-26,5,
+        # ponteiro 23,5-28,5.
+        aro = C.cilindro(f"cab_relogio_aro_{i}", RAIO_RELOGIO + 0.006, 0.014,
+                         _no_mostrador(VOLANTE.x + dx, 0.010, 0), segmentos=24,
+                         rot=(math.radians(90) + TOMBO_PAINEL, 0, 0))
+        C.aplicar(aro, cromo)
+        pecas.append(aro)
+
+        face = C.cilindro(f"cab_relogio_face_{i}", RAIO_RELOGIO, 0.005,
+                          _no_mostrador(VOLANTE.x + dx, 0.0195, 0), segmentos=24,
+                          rot=(math.radians(90) + TOMBO_PAINEL, 0, 0))
+        C.aplicar(face, fundo)
+        pecas.append(face)
+
+        # MARCACAO E PONTEIRO POR DOIS PONTOS, nao por angulo de Euler.
+        #
+        # Com `C.caixa(rot=(TOMBO, a, 0))` o giro do ponteiro acontecia em
+        # torno do Y DO MUNDO, depois do tombo de 14 graus do painel — ou
+        # seja, fora do plano do mostrador: nos extremos do arco o ponteiro
+        # descolava da face. E o X saia espelhado, porque o motorista olha
+        # na direcao -Y e nessa vista o +X do mundo aparece a ESQUERDA.
+        # Os dois somados punham o zero do velocimetro embaixo a direita.
+        #
+        # `C.barra` entre dois pontos ja calculados por `_no_mostrador`
+        # nao tem nenhuma das duas armadilhas: o que entra e onde a peca
+        # comeca e onde termina, nos mesmos eixos em que o mostrador vive.
+        def no_relogio(ang, raio, prof=0.0245):
+            # ang: 0 = para cima, cresce no sentido horario NA TELA
+            return _no_mostrador(VOLANTE.x + dx - math.sin(ang) * raio,
+                                 prof, math.cos(ang) * raio)
+
+        for t in range(9):
+            a = math.radians(-125 + t * 31.25)
+            traco = C.barra(f"cab_relogio_traco_{i}_{t}",
+                            no_relogio(a, RAIO_RELOGIO - 0.013),
+                            no_relogio(a, RAIO_RELOGIO - 0.003),
+                            secao=(0.0042, 0.0042))
+            C.aplicar(traco, risco)
+            pecas.append(traco)
+
+        a = math.radians(grau)
+        pt = C.barra(f"cab_relogio_ponteiro_{i}",
+                     no_relogio(a + math.pi, RAIO_RELOGIO * 0.17, 0.026),
+                     no_relogio(a, RAIO_RELOGIO * 0.84, 0.026),
+                     secao=(0.0052, 0.0052))
+        C.aplicar(pt, agulha)
+        pecas.append(pt)
+
+        cubo = C.cilindro(f"cab_relogio_cubo_{i}", 0.0070, 0.010,
+                          _no_mostrador(VOLANTE.x + dx, 0.028, 0), segmentos=12,
+                          rot=(math.radians(90) + TOMBO_PAINEL, 0, 0))
+        C.aplicar(cubo, agulha)
+        pecas.append(cubo)
+
+    # visor de bordo entre os dois relogios
+    visor = C.caixa("cab_mostrador_visor", (0.052, 0.006, 0.026),
+                    _no_mostrador(VOLANTE.x, 0.013, -0.006),
+                    rot=(TOMBO_PAINEL, 0, 0))
+    C.aplicar(visor, C.mat_luminoso("cab_visor", (0.22, 0.52, 0.30), 1.4))
+    pecas.append(visor)
+    return pecas
+
+
+def saidas_de_ar():
+    """Difusor com MOLDURA, palhetas e botao, nao um retangulo preto.
+
+    Tres palhetas horizontais dentro de uma moldura rebaixada. A palheta e
+    o que faz a saida de ar parecer saida de ar: sem ela o painel tem tres
+    manchas escuras do mesmo tom do resto e o olho nao le nenhuma delas.
+    """
+    pecas = []
+    moldura_mat = mat_plastico_painel((0.030, 0.032, 0.038))
+    vao = C.mat_simples("cab_ar_vao", (0.006, 0.007, 0.009), rugosidade=0.70)
+    palheta_mat = C.mat_simples("cab_ar_palheta", (0.090, 0.094, 0.102),
+                                rugosidade=0.45)
     for x in (VOLANTE.x + 0.30, VOLANTE.x - 0.46, -0.60):
-        ar = C.caixa(f"cab_ar_{x:.2f}", (0.115, 0.030, 0.062),
-                     (x, -0.492, PAINEL_TOPO - 0.130))
-        C.chanfrar(ar, largura=0.006, segmentos=2)
-        C.aplicar(ar, C.mat_simples("grelha_ar", (0.012, 0.013, 0.015),
-                                    rugosidade=0.55))
-        pecas.append(ar)
+        z = PAINEL_TOPO - 0.130
+        moldura = C.caixa(f"cab_ar_moldura_{x:.2f}", (0.125, 0.034, 0.072),
+                          (x, -0.490, z))
+        C.chanfrar(moldura, largura=0.007, segmentos=2)
+        C.aplicar(moldura, moldura_mat)
+        pecas.append(moldura)
 
-    # central: tela e comandos
-    central = C.caixa("cab_central", (0.30, 0.026, 0.19),
-                      (-0.16, -0.500, PAINEL_TOPO - 0.230))
-    C.chanfrar(central, largura=0.006, segmentos=2)
-    C.aplicar(central, C.mat_simples("tela_central", (0.010, 0.011, 0.014),
-                                     rugosidade=0.22))
-    pecas.append(central)
+        buraco = C.caixa(f"cab_ar_vao_{x:.2f}", (0.108, 0.020, 0.056),
+                         (x, -0.496, z))
+        C.aplicar(buraco, vao)
+        pecas.append(buraco)
+
+        for i, dz in enumerate((-0.018, 0.0, 0.018)):
+            pal = C.caixa(f"cab_ar_palheta_{x:.2f}_{i}", (0.104, 0.016, 0.0065),
+                          (x, -0.502, z + dz), rot=(math.radians(-14), 0, 0))
+            C.aplicar(pal, palheta_mat)
+            pecas.append(pal)
+
+        bot = C.cilindro(f"cab_ar_botao_{x:.2f}", 0.0075, 0.012,
+                         (x + 0.050, -0.504, z), segmentos=10,
+                         rot=(math.radians(90), 0, 0))
+        C.aplicar(bot, palheta_mat)
+        pecas.append(bot)
+    return pecas
+
+
+def central_do_painel():
+    """Radio e ar-condicionado: tela, seis teclas e dois botoes giratorios.
+
+    Era uma caixa preta de 30 x 19 cm — o maior retangulo chapado do
+    painel. O conteudo nao precisa ser legivel (o jogador nunca encosta
+    nele): precisa ter RITMO, que e o que distingue um console de um vao.
+    """
+    pecas = []
+    x0, y0 = -0.16, -0.500
+    z0 = PAINEL_TOPO - 0.230
+    corpo = C.caixa("cab_central", (0.30, 0.026, 0.19), (x0, y0, z0))
+    C.chanfrar(corpo, largura=0.006, segmentos=2)
+    C.aplicar(corpo, mat_plastico_painel((0.026, 0.028, 0.033)))
+    pecas.append(corpo)
+
+    tela = C.caixa("cab_central_tela", (0.205, 0.008, 0.062),
+                   (x0, y0 - 0.014, z0 + 0.052))
+    C.aplicar(tela, C.mat_luminoso("cab_central_vidro", (0.075, 0.145, 0.195),
+                                   0.9, rugosidade=0.12))
+    pecas.append(tela)
+
+    tecla = C.mat_simples("cab_central_tecla", (0.075, 0.078, 0.086),
+                          rugosidade=0.48)
+    for i in range(6):
+        t = C.caixa(f"cab_central_tecla_{i}", (0.031, 0.009, 0.016),
+                    (x0 - 0.115 + i * 0.046, y0 - 0.014, z0 - 0.006))
+        C.chanfrar(t, largura=0.003, segmentos=1)
+        C.aplicar(t, tecla)
+        pecas.append(t)
+
+    for i, dx in enumerate((-0.098, 0.098)):
+        b = C.cilindro(f"cab_central_giro_{i}", 0.019, 0.018,
+                       (x0 + dx, y0 - 0.018, z0 - 0.052), segmentos=14,
+                       rot=(math.radians(90), 0, 0))
+        C.aplicar(b, tecla)
+        pecas.append(b)
+    # fileira de luzes do ar-condicionado, entre os dois giratorios
+    for i in range(4):
+        l = C.caixa(f"cab_central_luz_{i}", (0.014, 0.006, 0.010),
+                    (x0 - 0.036 + i * 0.024, y0 - 0.013, z0 - 0.052))
+        C.aplicar(l, C.mat_luminoso("cab_central_luz", (0.72, 0.38, 0.10), 1.8))
+        pecas.append(l)
+    return pecas
+
+
+def hastes_da_coluna():
+    """Seta e limpador, os dois gravetos atras do volante.
+
+    Entram porque a fase 2b COBRA a seta: o jogador ouve "ligue a seta" e
+    nao havia seta nenhuma na cabine para ligar.
+    """
+    pecas = []
+    plast = C.mat_simples("cab_haste", (0.040, 0.042, 0.048), rugosidade=0.42)
+    for lado, nome in ((-1, "seta"), (1, "limpador")):
+        h = C.barra(f"cab_haste_{nome}",
+                    (VOLANTE.x + lado * 0.052, -0.455, VOLANTE.z + 0.012),
+                    (VOLANTE.x + lado * 0.128, -0.420, VOLANTE.z - 0.018),
+                    secao=(0.014, 0.014))
+        C.aplicar(h, plast)
+        pecas.append(h)
     return pecas
 
 
@@ -679,10 +940,67 @@ def detalhes():
                                   rugosidade=0.22))
     pecas.append(capo)
 
+    # VINCOS E FRISOS DO CAPO (17/10).
+    #
+    # Medido na tela do jogo, nao no render: do olho da fase 2b o painel de
+    # dentro nunca aparece — fica em px 970 de 1038, debaixo dos botoes. A
+    # faixa de baixo da tela, que o cliente chamou de "prototipo", e o CAPO,
+    # e ele era uma caixa chanfrada lisa de 1,76 x 1,60 m. Um terco da tela,
+    # a coisa mais perto da camera, e sem uma linha.
+    #
+    # Tres pecas resolvem: as duas frestas que separam o capo dos paralamas
+    # e o vinco central. Sao as linhas que o olho usa para ler chapa em vez
+    # de bloco, e sao as unicas que estao na faixa visivel.
+    tinta_escura = C.mat_simples("cab_capo_fresta", (0.012, 0.016, 0.026),
+                                 rugosidade=0.65)
+    for lado in (-1, 1):
+        fresta = C.caixa(f"cab_capo_fresta_{lado}", (0.022, 1.52, 0.030),
+                         (lado * 0.775, PARABRISA_BASE - 0.80,
+                          PAINEL_TOPO - 0.206),
+                         rot=(math.radians(7.0), 0, 0))
+        C.aplicar(fresta, tinta_escura)
+        pecas.append(fresta)
+        # vinco: um degrau raso de 3 cm acompanhando a fresta por dentro
+        vinco = C.caixa(f"cab_capo_vinco_{lado}", (0.075, 1.46, 0.024),
+                        (lado * 0.690, PARABRISA_BASE - 0.80,
+                         PAINEL_TOPO - 0.198),
+                        rot=(math.radians(7.0), 0, 0))
+        C.chanfrar(vinco, largura=0.010, segmentos=2)
+        C.aplicar(vinco, C.mat_simples("pintura3", (0.030, 0.062, 0.115),
+                                       rugosidade=0.22))
+        pecas.append(vinco)
+
+    # NERVURA do meio-capo, de cada lado.
+    #
+    # Medido projetando o capo na tela do jogo: a camera esta em x +0,38 e o
+    # que cabe no quadro e a METADE DO MOTORISTA, de x +0,1 a +0,9. O lombo
+    # central (x 0) cai fora da tela pela direita — bonito no render, zero
+    # pixel no jogo. A nervura em x +0,45 esta no meio da faixa que aparece,
+    # e e ela que faz a chapa pegar luz diferente dos dois lados em vez de
+    # devolver o mesmo azul em 300 px de tela.
+    for lado in (-1, 1):
+        nerv = C.caixa(f"cab_capo_nervura_{lado}", (0.090, 1.40, 0.026),
+                       (lado * 0.450, PARABRISA_BASE - 0.82,
+                        PAINEL_TOPO - 0.200),
+                       rot=(math.radians(7.0), 0, 0))
+        C.chanfrar(nerv, largura=0.020, segmentos=3)
+        C.aplicar(nerv, C.mat_simples("pintura5", (0.030, 0.062, 0.115),
+                                      rugosidade=0.22))
+        pecas.append(nerv)
+
+    # lombo central: a elevacao que todo capo de caminhonete tem no eixo
+    lombo = C.caixa("cab_capo_lombo", (0.62, 1.44, 0.040),
+                    (0, PARABRISA_BASE - 0.82, PAINEL_TOPO - 0.196),
+                    rot=(math.radians(7.0), 0, 0))
+    C.chanfrar(lombo, largura=0.028, segmentos=3)
+    C.aplicar(lombo, C.mat_simples("pintura4", (0.030, 0.062, 0.115),
+                                   rugosidade=0.22))
+    pecas.append(lombo)
+
     paralama = []
     for lado in (-1, 1):
-        p = C.caixa(f"cab_paralama_{lado}", (0.20, 1.52, 0.15),
-                    (lado * 0.86, PARABRISA_BASE - 0.78, PAINEL_TOPO - 0.175),
+        p = C.caixa(f"cab_paralama_{lado}", (0.21, 1.52, 0.15),
+                    (lado * 0.865, PARABRISA_BASE - 0.78, PAINEL_TOPO - 0.158),
                     rot=(math.radians(7.0), 0, 0))
         C.chanfrar(p, largura=0.035, segmentos=3)
         C.aplicar(p, C.mat_simples("pintura2", (0.030, 0.062, 0.115),
