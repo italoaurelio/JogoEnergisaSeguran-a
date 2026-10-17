@@ -168,6 +168,30 @@ export const som = {
     }
   },
 
+  /**
+   * ERRO. Cigarra grave e desafinada, e de propósito.
+   *
+   * `veredito(false)` é sóbrio — dois triângulos descendo — e foi escrito
+   * para o vestiário, onde o retorno aparece peça a peça e uma buzina a cada
+   * clique viraria barulho. Nas DECISÕES não serve: o cliente jogou a fase
+   * inteira e não registrou que tinha errado.
+   *
+   * O que faz isto soar errado é o BATIMENTO: duas serras a meio tom uma da
+   * outra brigam a ~8 Hz, e o ouvido lê isso como alarme, não como nota.
+   */
+  erro() {
+    tom(146, 0.17, 0.30, 'sawtooth')
+    tom(138, 0.16, 0.34, 'sawtooth', 0.02)
+    tom(98, 0.13, 0.44, 'square', 0.10)
+  },
+
+  /** ACERTO. O mesmo acorde do vestiário, com a terceira nota por cima. */
+  acerto() {
+    tom(660, 0.11, 0.12, 'triangle')
+    tom(880, 0.10, 0.16, 'triangle', 0.08)
+    tom(1320, 0.07, 0.26, 'triangle', 0.17)
+  },
+
   /** Buzina de caminhão: dois quadrados batidos, uma terça abaixo da de carro. */
   buzina() {
     const c = ligar()

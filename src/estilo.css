@@ -1467,3 +1467,59 @@ body {
 }
 .btn-gesto:hover { border-color: var(--verde); color: var(--verde-claro); }
 .conferencia-cabine li.mexido .btn-gesto { color: var(--texto-fraco); }
+
+/* ------------------------------------------------- selo de acerto e erro */
+
+/*
+  Cobre a tela inteira e NÃO é clicável: o jogador continua podendo ler o
+  painel enquanto o selo sai. `position: fixed` e não `absolute` porque
+  `.vestiario-palco` e `.vestiario-painel` têm `overflow: hidden` — foi o que
+  recortou o clarão do arco elétrico numa tira, e aconteceria igual aqui.
+*/
+.selo-grande {
+  position: fixed; inset: 0; z-index: 60;
+  display: grid; place-content: center; gap: 14px; justify-items: center;
+  pointer-events: none;
+  animation: selo-sai 1.15s ease-in forwards;
+}
+.selo-disco {
+  width: clamp(130px, 22vmin, 210px); aspect-ratio: 1;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  border: 5px solid currentColor;
+  background: rgba(9, 13, 17, 0.62);
+  backdrop-filter: blur(3px);
+  animation: selo-bate 0.42s cubic-bezier(.2, 1.5, .4, 1) both;
+}
+.selo-disco svg { width: 62%; height: 62%; }
+.selo-palavra {
+  font-size: clamp(22px, 3.4vmin, 34px); font-weight: 800;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: currentColor;
+  animation: selo-bate 0.42s cubic-bezier(.2, 1.5, .4, 1) 0.06s both;
+}
+.selo-erro   { color: #ff5d4a; }
+.selo-acerto { color: #2fd18c; }
+
+/* O erro TREME e o acerto não: é o que separa os dois sem depender de cor,
+   que é o que o daltônico tem. */
+.selo-erro .selo-disco { animation: selo-bate .42s cubic-bezier(.2,1.5,.4,1) both, selo-treme .34s .2s 2; }
+
+@keyframes selo-bate {
+  from { transform: scale(0.45); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+@keyframes selo-treme {
+  0%, 100% { translate: 0 0 }
+  25% { translate: -7px 0 }
+  75% { translate: 7px 0 }
+}
+@keyframes selo-sai {
+  0%, 72% { opacity: 1 }
+  100% { opacity: 0 }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .selo-disco, .selo-palavra, .selo-erro .selo-disco { animation: none }
+  .selo-grande { animation: selo-sai 1.15s linear forwards }
+}

@@ -11,6 +11,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { som } from '../som'
+import { SeloVeredito, type Selo } from '../Veredito'
 import { PalcoPronto } from '../cena/Carregando'
 import { Canvas } from '@react-three/fiber'
 import { Acabamento } from '../cena/Acabamento'
@@ -189,6 +190,8 @@ export default function Fase3Ocorrencia({
   const [retorno, setRetorno] = useState<string | null>(null)
   /** Opção escolhida mas ainda NÃO confirmada: é o que vira fantasma na cena. */
   const [previa, setPrevia] = useState<string | null>(null)
+  /* o selo de acerto/erro por cima da tela; ele mesmo se apaga */
+  const [selo, setSelo] = useState<Selo>(null)
   const [kit, setKit] = useState<string[]>([])
   const [ordem, setOrdem] = useState<string[]>([])
   /** O que já aconteceu no poste. É o estado que decide o que cada ação faz. */
@@ -497,6 +500,7 @@ export default function Fase3Ocorrencia({
           painel: `.vestiario-painel` tem `overflow: hidden` e recortava o
           arco elétrico numa tira na lateral direita. */}
       {clarao && <div className="clarao" aria-hidden />}
+      <SeloVeredito tipo={selo} aoFim={() => setSelo(null)} />
       <div className="vestiario-palco">
         <Canvas dpr={[1, 1.5]} shadows camera={{ position: [-16, 8, 18], fov: 40 }}>
           {/*
@@ -559,10 +563,13 @@ export default function Fase3Ocorrencia({
             marcar={(id) => { setPrevia(id); som.clique() }}
             confirmar={() => {
               if (!previa) return
+              const op = CHEGADA[indice].opcoes.find((o) => o.id === previa)
               setEscolhas((a) => ({ ...a, [CHEGADA[indice].id]: previa }))
               setRetorno(previa)
               setPrevia(null)
-              som.confirmar()
+              // o selo toca o som; `som.confirmar()` por baixo dele viraria
+              // dois bipes em cima um do outro
+              setSelo(op?.certa ? 'acerto' : 'erro')
             }}
             avancar={() => {
               setRetorno(null)
