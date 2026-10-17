@@ -2125,6 +2125,55 @@ def onibus(m, nome="via_onibus"):
             C.aplicar(arco, preto)
             pecas.append(arco)
 
+    """
+    MONTANTES, PORTA E PARA-CHOQUES.
+
+    A fita de janela era UM vidro corrido de 7,2 m de cada lado. Vidro
+    corrido nao existe em onibus, e e justamente o ritmo dos montantes que
+    faz o olho ler "onibus" em vez de "caixa amarela com uma tarja escura" —
+    o mesmo motivo pelo qual a escola ganhou esquadria em vez de mancha.
+
+    E faltava a PORTA, que e a peca mais caracteristica de um escolar: ele
+    esta parado EM EMBARQUE na fase, com criancas entrando, e a porta por
+    onde elas entram nao existia.
+    """
+    # montantes entre as janelas, nos dois lados
+    for lado in (-1, 1):
+        for i in range(7):
+            y = -3.6 + i * 1.05
+            mont = C.caixa(f"{nome}_montante_{lado}_{i}", (0.10, 0.09, 0.84),
+                           (lado * 1.225, y, 2.40))
+            C.aplicar(mont, amarelo)
+            pecas.append(mont)
+
+    # PORTA de embarque, no lado da calcada (direita de quem dirige = -X,
+    # porque o onibus aponta para -Y como o resto da via)
+    porta_y = -2.95
+    moldura = C.caixa(f"{nome}_porta", (0.11, 1.00, 1.70),
+                      (-1.235, porta_y, 1.92))
+    C.aplicar(moldura, preto)
+    pecas.append(moldura)
+    for i, dy in enumerate((-0.23, 0.23)):
+        folha = C.caixa(f"{nome}_porta_vidro_{i}", (0.07, 0.40, 1.44),
+                        (-1.26, porta_y + dy, 1.98))
+        C.aplicar(folha, vidro)
+        pecas.append(folha)
+    # degrau: o pisante que aparece com a porta aberta, e o que explica a
+    # altura do piso
+    degrau = C.caixa(f"{nome}_degrau", (0.34, 0.92, 0.09),
+                     (-1.26, porta_y, 1.02))
+    C.aplicar(degrau, preto)
+    pecas.append(degrau)
+
+    # PARA-CHOQUES: a barra que fecha a silhueta embaixo, na frente e atras.
+    # Sem ela a carroceria morre no ar e as rodas ficam penduradas.
+    for dy, comp in ((-4.36, 0.16), (4.36, 0.16)):
+        pc = C.caixa(f"{nome}_choque_{dy:+.1f}", (2.50, comp, 0.30),
+                     (0, dy, 1.06))
+        C.chanfrar(pc, largura=0.05, segmentos=2)
+        C.aplicar(pc, preto)
+        pecas.append(pc)
+
     # placa de PARE do escolar, aberta do lado do motorista que ultrapassa
     braco = C.caixa(f"{nome}_pare_braco", (0.70, 0.06, 0.06), (-1.55, -1.2, 1.83))
     C.aplicar(braco, preto)

@@ -47,8 +47,14 @@ Enquanto estiver `[ ]`, está em aberto, mesmo que eu ache que resolvi.
 - [ ] Remodelar pedestres
 - [x] Moto — 17/10: perna do piloto com joelho, aro e cubo de roda, garfo,
       paralama, lanterna, escapamento, retrovisores
-- [ ] Moto entra dentro de carro (colisão)
-- [ ] Ônibus porco — remodelar
+- [x] Moto dentro de carro — 17/10: o corredor era ideia de via de várias
+      faixas; aqui a contramão tem UMA. Medido: moto ia a x 2,65 e carro
+      começa em 2,40. Moto entrou na mesma fila e usa a perseguição.
+      Conferido rodando: 11 veículos, ZERO sobreposições em x e z
+- [x] Ônibus — 17/10: a fita de janela era UM vidro corrido de 7,2 m.
+      Ganhou montantes (é o ritmo deles que lê como ônibus), porta de
+      embarque com degrau — faltava, e ele está parado EM EMBARQUE —, e
+      para-choques. Render `prova_via.py -- decisao`
 
 ## Jogo
 - [x] Ícone de missão — 17/10: cilindro no poste do serviço, só na chegada

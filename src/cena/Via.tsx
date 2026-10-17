@@ -1632,31 +1632,28 @@ export function Mundo({
         distancia={distancia} metro={cruzamento ?? null}
         sinal={sinal} dobra={dobra}
       />
-      <Contrafluxo
-        moldes={[moldes.carro, moldes.carro_b, moldes.carro_c, moldes.carro_d]}
-        distancia={distancia} dobra={dobra}
-        faixa={faixa} pedestreLiberado={pedestreLiberado} ciclista={ciclista}
-      />
       {/*
-        Moto em fila PRÓPRIA, e não misturada na dos carros.
-        Duas correções, e a segunda é a que resolve:
+        UMA FILA SÓ, com a moto no meio — e não uma fila de carros mais uma
+        de motos no corredor.
 
-        1. O deslocamento inicial não basta — andando na mesma velocidade, o
-           desencontro sobrevivia até a primeira reciclagem e depois moto e
-           carro apareciam a 1 m um do outro (medido). A moto é 18% mais
-           rápida, que é o que moto faz.
-        2. Mas velocidade diferente na MESMA faixa significa que uma hora ela
-           ultrapassa, e aí as duas se atravessam. Por isso a moto anda no
-           CORREDOR: 2,45 em vez de 3,5, ou seja encostada na faixa central (que
-           fica em ~1,75). É onde moto anda no Brasil, e é o que a torna
-           visível como moto e não como carro pequeno.
+        O corredor era uma ideia de via de várias faixas no mesmo sentido.
+        Aqui a contramão tem UMA faixa, e o que acontecia é que a moto, 18%
+        mais rápida, alcançava os carros e passava POR DENTRO deles.
 
-        Mais esparsa de propósito: moto demais no contrafluxo vira desfile.
+        Medido na cena: a moto ia de x 1,91 a 2,65 e os carros da contramão
+        começam em 2,40 — 25 cm de lataria atravessada. E não havia correção
+        lateral possível: o caminhão do jogador vai até x 1,50, então entre
+        ele e os carros não cabem os 0,74 m da moto.
+
+        Na mesma fila ela entra na perseguição que já existe: alcança o carro
+        da frente, alivia e fica atrás, como moto faz numa pista de mão
+        dupla. Continua reconhecível pela silhueta e pelo farol, que era o
+        argumento do corredor.
       */}
       <Contrafluxo
-        moldes={[moldes.moto]} distancia={distancia} dobra={dobra} quantos={5}
-        vao={118} deslocamento={37} velocidade={VELOCIDADE_CONTRA * 1.18}
-        x={CONTRA_X - 1.05} forcaSom={1.45}
+        moldes={[moldes.carro, moldes.moto, moldes.carro_b, moldes.carro_c,
+                 moldes.carro_d, moldes.moto]}
+        distancia={distancia} dobra={dobra}
         faixa={faixa} pedestreLiberado={pedestreLiberado} ciclista={ciclista}
       />
       {garagem && (
