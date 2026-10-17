@@ -16,6 +16,7 @@ import {
 import { PalcoPronto } from '../cena/Carregando'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { som } from '../som'
+import { IconeAviso, type TipoAviso } from '../icones'
 import { Acabamento } from '../cena/Acabamento'
 import { BORDA_DIR, ZONA_ESCOLA } from '../cena/paisagem'
 import { Environment } from '@react-three/drei'
@@ -1027,12 +1028,27 @@ const Painel = forwardRef<
     const avisoEl = useRef<HTMLElement>(null)
     const barraEl = useRef<HTMLElement>(null)
     const alertaEl = useRef<HTMLDivElement>(null)
+    const alertaTexto = useRef<HTMLSpanElement>(null)
     const sinalEl = useRef<HTMLDivElement>(null)
     const setaEl = useRef<HTMLDivElement>(null)
     // A chamada é o único pedaço do painel que passa pelo estado do React:
     // ela aparece uma vez por partida, então o re-render não custa nada —
     // e sem estado não dá para montar os dois botões.
     const [chamando, setChamando] = useState(false)
+    /*
+      O ANÚNCIO GRANDE DE TRECHO.
+      O aviso do trecho morava numa linha de 19 px no canto de cima, junto da
+      barra de progresso — que é onde se põe dado consultável, não onde se
+      avisa que a rua mudou. Dirigindo, ninguém lê o canto da tela.
+
+      Entra como estado do React, e não pelos refs como o resto do painel:
+      trecho muda oito vezes numa partida inteira, então o re-render não
+      custa nada. O que não pode passar pelo estado é o que muda por quadro.
+    */
+    const [anuncio, setAnuncio] = useState<
+      { tipo: TipoAviso; nome: string; aviso: string } | null>(null)
+    const trechoAnterior = useRef<string | null>(null)
+    const someAnuncio = useRef(0)
 
     useImperativeHandle(ref, () => ({
       celular(tocando) { setChamando(tocando) },
@@ -1064,6 +1080,20 @@ const Painel = forwardRef<
           const piscando = s.seta != null && Math.floor(Date.now() / 420) % 2 === 0
           setaEl.current.className =
             `trajeto-seta${s.seta ? ` seta-${s.seta}` : ''}${piscando ? ' acesa' : ''}`
+        }
+        if (s.trecho.id !== trechoAnterior.current) {
+          trechoAnterior.current = s.trecho.id
+          setAnuncio({
+            tipo: s.trecho.id as TipoAviso,
+            nome: s.trecho.nome,
+            // o nome já está no título: aqui fica só o que ele AVISA
+            aviso: s.trecho.aviso
+              .split(' · ')
+              .filter((x) => x !== s.trecho.nome && !/^\d+\s*km\/h$/.test(x.trim()))
+              .join(' · '),
+          })
+          window.clearTimeout(someAnuncio.current)
+          someAnuncio.current = window.setTimeout(() => setAnuncio(null), 3000)
         }
         if (trechoEl.current) trechoEl.current.textContent = s.trecho.nome
         if (avisoEl.current) {
@@ -1102,7 +1132,9 @@ const Painel = forwardRef<
               ? `Veículo saindo da garagem · reduza a ${Math.round(s.ateGaragem)} m`
               : null
           alertaEl.current.style.display = texto ? '' : 'none'
-          if (texto) alertaEl.current.textContent = texto
+          alertaEl.current.className =
+            `trajeto-alerta ${s.ateParada != null ? 'alerta-pedestre' : 'alerta-garagem'}`
+          if (texto && alertaTexto.current) alertaTexto.current.textContent = texto
         }
       },
     }), [])
@@ -1134,7 +1166,25 @@ const Painel = forwardRef<
           </p>
         </header>
 
-        <div className="trajeto-alerta" ref={alertaEl} style={{ display: 'none' }} />
+        {anuncio && (
+          <div className="trajeto-anuncio" key={anuncio.nome} role="status">
+            <div className="anuncio-icone"><IconeAviso tipo={anuncio.tipo} /></div>
+            <div>
+              <p className="anuncio-nome">{anuncio.nome}</p>
+              {anuncio.aviso && <p className="anuncio-aviso">{anuncio.aviso}</p>}
+            </div>
+          </div>
+        )}
+
+        {/* Os dois ícones ficam SEMPRE no DOM e o CSS esconde o que não vale.
+            O texto do alerta é uma contagem em metros que muda por quadro, e
+            por isso continua imperativo — trocar o ícone por `innerHTML` a
+            cada quadro seria pagar análise de HTML 60 vezes por segundo. */}
+        <div className="trajeto-alerta" ref={alertaEl} style={{ display: 'none' }}>
+          <span className="alerta-ic ic-pedestre"><IconeAviso tipo="pedestre" /></span>
+          <span className="alerta-ic ic-garagem"><IconeAviso tipo="garagem" /></span>
+          <span ref={alertaTexto} />
+        </div>
         <div className="trajeto-sinal" ref={sinalEl} style={{ display: 'none' }} />
 
         {chamando && (

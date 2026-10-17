@@ -189,3 +189,87 @@ const MAPA: Record<string, React.ReactElement> = {
 export function IconePeca({ id }: { id: string }) {
   return MAPA[id] ?? <Armario />
 }
+
+/**
+ * Ícone do aviso do trajeto.
+ *
+ * Traço só, 24×24, `currentColor`: o aviso muda de cor com a urgência e o
+ * ícone tem de ir junto. Desenhados com o mesmo peso de linha para não
+ * haver um que pese mais que os outros na mesma tela.
+ */
+export type TipoAviso =
+  | 'patio' | 'avenida' | 'semaforo' | 'escola' | 'faixa'
+  | 'residencial' | 'fluxo' | 'vicinal' | 'pedestre' | 'garagem'
+
+const TRACO = {
+  fill: 'none', stroke: 'currentColor', strokeWidth: 1.7,
+  strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
+}
+
+const DESENHO: Record<TipoAviso, React.ReactNode> = {
+  // semáforo: caixa de três lâmpadas, a de cima acesa
+  semaforo: (<>
+    <rect x="8" y="2.5" width="8" height="15" rx="2.4" />
+    <circle cx="12" cy="6.2" r="1.5" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="10" r="1.5" /><circle cx="12" cy="13.8" r="1.5" />
+    <path d="M12 17.5V21M9 21h6" />
+  </>),
+  // escola: prédio com bandeira
+  escola: (<>
+    <path d="M3 20h18" />
+    <path d="M5 20v-9l7-4 7 4v9" />
+    <path d="M12 7V3.5M12 3.5l3.4 1.2L12 5.9" />
+    <path d="M10 20v-4h4v4" />
+  </>),
+  // faixa de pedestre: quatro tarjas em fuga
+  faixa: (<>
+    <path d="M4 20l2-16M9 20l1.4-16M14.6 20L15.4 4M20 20l-.6-16" />
+  </>),
+  // pedestre atravessando
+  pedestre: (<>
+    <circle cx="12.5" cy="4" r="2" />
+    <path d="M12.5 6.5v6M12.5 9l-3-1.5M12.5 9l3 1M12.5 12.5L10 20M12.5 12.5L15.5 20" />
+  </>),
+  // garagem: portão com seta saindo
+  garagem: (<>
+    <path d="M3 10.5 12 5l9 5.5V20H3z" />
+    <path d="M7 20v-5h10v5" />
+    <path d="M9.5 17.5h5M14.5 17.5l-1.6-1.6M14.5 17.5l-1.6 1.6" />
+  </>),
+  // pátio: dois caminhões lado a lado
+  patio: (<>
+    <rect x="2.5" y="8" width="8" height="7" rx="1.2" />
+    <path d="M13.5 15V9.5h3.2l2.8 2.8V15" />
+    <circle cx="6" cy="17.5" r="1.8" /><circle cx="17" cy="17.5" r="1.8" />
+  </>),
+  // avenida: pista com faixa central
+  avenida: (<>
+    <path d="M6 21 9 3M18 21 15 3" />
+    <path d="M12 5v3M12 11v3M12 17v3" />
+  </>),
+  // residencial: duas casinhas
+  residencial: (<>
+    <path d="M2.5 13 7 9.2 11.5 13v7h-9z" />
+    <path d="M12.5 11 17 7.2 21.5 11v9h-9z" />
+    <path d="M6 20v-3.2h2V20M16 20v-3.4h2V20" />
+  </>),
+  // veículo à frente: traseira de carro com distância
+  fluxo: (<>
+    <path d="M5 16v-4.2l1.6-3.3h10.8L19 11.8V16" />
+    <path d="M5 16h14M7.5 16v2M16.5 16v2" />
+    <path d="M2.5 6.5h19" strokeDasharray="2.6 2.6" />
+  </>),
+  // vicinal: estrada curvando no mato
+  vicinal: (<>
+    <path d="M9 21c0-6 6-7 6-12 0-2.5-1-4-1-4" />
+    <path d="M3 18.5c1.6 0 2.4-1.2 2.4-2.6M21 13c-1.6 0-2.6-1.1-2.6-2.5" />
+  </>),
+}
+
+export function IconeAviso({ tipo }: { tipo: TipoAviso }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden focusable="false" {...TRACO}>
+      {DESENHO[tipo]}
+    </svg>
+  )
+}
