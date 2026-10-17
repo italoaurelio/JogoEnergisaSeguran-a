@@ -23,6 +23,14 @@ import humano as H
 # problema nao e cada numero e sim a ORDEM: faixa refletiva a 1 mm da camisa
 # briga por z-fighting e sai rasgada, e tirante por baixo da faixa atravessa.
 CAMADA = {
+    # A roupa de baixo e a PRIMEIRA camada, e os numeros dela sao apertados
+    # de proposito: a camisa do uniforme nasce em 0,019 e a calca em 0,024,
+    # e peca de baixo com superficie externa acima disso ATRAVESSA o uniforme
+    # em manchas (as duas saem da mesma superficie e a decimacao aproxima uma
+    # da outra). Com 0,010 + 3,5 mm de espessura a camisa de baixo fecha em
+    # 0,0135, e a calca em 0,0165 — folga de 5,5 e 7,5 mm para o uniforme.
+    "base_camisa": 0.010,
+    "base_calca": 0.013,
     "camisa": 0.019,
     "calca": 0.024,
     "acabamento": 0.030,   # gola, punho, carcela, bolso
@@ -709,7 +717,8 @@ def _camisa(corpo, rep, nome, folga=CAMADA["camisa"], espessura=0.005):
                       subdividir=1, reduzir=0.40, repouso=True)
 
 
-def _calca(corpo, rep, nome, folga=CAMADA["calca"], espessura=0.005):
+def _calca(corpo, rep, nome, folga=CAMADA["calca"], espessura=0.005,
+           bainha=0.100):
     """Calca recortada da perna. `rep` e `repouso=True`, ver `_camisa`.
 
     Nao usa o grupo `helper-tights`: esse helper e uma gaiola de simulacao bem
@@ -723,8 +732,10 @@ def _calca(corpo, rep, nome, folga=CAMADA["calca"], espessura=0.005):
     """
     z_cos = rep["pelvis"].z + 0.055
     # a bainha para em cima do cano da bota, nao no tornozelo: terminando
-    # embaixo sobra uma faixa de pele entre a calca e o peito do pe
-    z_bainha = rep["l-ankle"].z + 0.100
+    # embaixo sobra uma faixa de pele entre a calca e o peito do pe.
+    # `bainha` e menor na calca de baixo, que fica a vista no vestiario com
+    # tenis — ali 10 cm de canela nua e que ficariam estranhos.
+    z_bainha = rep["l-ankle"].z + bainha
     # sem limite em x a caixa pega a MAO, que em descanso fica na altura da
     # coxa — a mesma lasca que estragava a camisa
     x_perna = abs(rep["l-upper-leg"].x) + 0.130
@@ -980,57 +991,54 @@ def alisar_bordas(obj, voltas=8, nivelar=None, alcance=0.045):
     return obj
 
 def roupa_base(corpo, ref, nome="base_roupa"):
-    """Camiseta e bermuda que o personagem usa por baixo de tudo.
+    """Camisa e calca que o personagem usa por baixo de tudo.
 
-    Fica SEMPRE visivel. Nao e enfeite: a etapa de montar o fisico mostra o
-    corpo inteiro, e um boneco nu num treinamento de empresa e um problema.
+    Fica SEMPRE visivel ate o uniforme entrar. Nao e enfeite: a etapa de
+    montar o fisico mostra o corpo inteiro, e um boneco nu num treinamento
+    de empresa e um problema.
+
+    ERA CAMISETA E BERMUDA, e saiu errado duas rodadas seguidas. Primeiro
+    cinza — "essas cinzas sao muito esquisitas". Depois azul, mas colada:
+    recortada 9 mm da pele ela copiava peitoral, serratil e linha alba, e no
+    vestiario lia como roupa de academia. Afastar nao resolve: com 17 mm ela
+    passa a ATRAVESSAR o uniforme, que nasce em 19 mm.
+
+    O que resolve e a FORMA, e a forma ja estava resolvida — no uniforme.
+    `_camisa` corta manga longa ate 10 mm alem do punho, com o criterio no
+    eixo do antebraco que nao deixa lasca na mao; `_calca` corta a perna
+    inteira e passa um SMOOTH de 12 voltas que relaxa panturrilha, rotula e
+    tendao, que e a diferenca entre tecido caindo e legging. Usar as mesmas
+    funcoes numa camada abaixo entrega camisa e calca de trabalho de graca,
+    e qualquer conserto futuro no corte vale para as duas roupas.
     """
-    # DUAS PECAS, e nao uma cor so. Camiseta e bermuda dividiam o mesmo
-    # material cinza e o conjunto lia como macacao de presidio — "essas
-    # cinzas sao muito esquisitas". Camiseta num azul lavado, bermuda num
-    # jeans escuro: e a roupa com que alguem chega ao trabalho.
-    malha = mat_tecido("malha_base", (0.055, 0.118, 0.205), aspereza=0.86,
-                       brilho_fio=0.25)
-    jeans = mat_tecido("jeans_base", (0.034, 0.055, 0.112), aspereza=0.90,
-                       brilho_fio=0.18)
+    # Azul de brim e calca grafite: e a roupa com que alguem chega ao
+    # trabalho. Eram a MESMA cor cinza, e depois um azul tao dessaturado
+    # (razao R/B de 0,61) que sumia sob luz quente e continuava lendo cinza.
+    brim = mat_tecido("malha_base", (0.055, 0.118, 0.205), aspereza=0.86,
+                      brilho_fio=0.25)
+    grafite = mat_tecido("jeans_base", (0.034, 0.055, 0.112), aspereza=0.90,
+                         brilho_fio=0.18)
+
+    # a caixa e as referencias tem de estar as duas no corpo em DESCANSO,
+    # senao o recorte segue a pose e corta na diagonal
+    rep = H.referencias(corpo, repouso=True)
     saida = []
 
-    # mesma correcao da camisa: a caixa e as referencias tem de estar as duas
-    # no corpo em DESCANSO, senao o recorte segue a pose e corta na diagonal
-    rep = H.referencias(corpo, repouso=True)
-    eixo = rep["neck"]
-    z_barra = rep["pelvis"].z + 0.060
-    x_manga = abs(rep["l-shoulder"].x) + 0.085
-
-    z_gola = eixo.z - 0.004
-
-    def camiseta(_, co):
-        return z_barra <= co.z <= z_gola and abs(co.x) <= x_manga
-
-    # 17 mm de afastamento, e nao 9. Com 9 a camiseta copiava peitoral,
-    # serratil e linha alba: no vestiario ela lia como blusa de compressao
-    # de academia, nao como a camiseta com que alguem chega para trabalhar.
-    # Pano nao cola no musculo — pousa sobre ele e pula os vales.
-    c = H.recortar(corpo, camiseta, nome + "_camiseta", deslocar=0.017,
-                   espessura=0.0035, subdividir=1, reduzir=0.40, repouso=True)
+    c = _camisa(corpo, rep, nome + "_camisa", folga=CAMADA["base_camisa"],
+                espessura=0.0035)
     if c:
-        alisar_bordas(c, nivelar=z_gola)
-        C.aplicar(c, malha)
+        alisar_bordas(c)
+        C.aplicar(c, brim)
         saida.append(c)
 
-    z_cos = rep["pelvis"].z + 0.075
-    z_bainha = rep["l-knee"].z + 0.075
-    # mesmo limite em X da calca: sem ele a bermuda engole a mao
-    x_perna = abs(rep["l-upper-leg"].x) + 0.130
-
-    def bermuda(_, co):
-        return z_bainha <= co.z <= z_cos and abs(co.x) <= x_perna
-
-    b = H.recortar(corpo, bermuda, nome + "_bermuda", deslocar=0.016,
-                   espessura=0.0035, subdividir=1, reduzir=0.40, repouso=True)
+    # bainha em 3,5 cm e nao 10: a calca do uniforme para em cima do cano da
+    # bota, mas esta aparece no vestiario com TENIS, e ali 10 cm de canela
+    # nua entre a barra e o tenis e justamente o que lia como bermuda.
+    b = _calca(corpo, rep, nome + "_calca", folga=CAMADA["base_calca"],
+               espessura=0.0035, bainha=0.035)
     if b:
         alisar_bordas(b)
-        C.aplicar(b, jeans)
+        C.aplicar(b, grafite)
         saida.append(b)
 
     for p in saida:

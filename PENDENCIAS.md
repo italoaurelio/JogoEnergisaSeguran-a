@@ -128,3 +128,41 @@ Enquanto estiver `[ ]`, está em aberto, mesmo que eu ache que resolvi.
       pela leitura na tela e não pelo catálogo do condutor. Conferido na rua
       residencial: os vãos próximos saem contínuos, os de 200 m ainda
       pontilham (e aí está certo que pontilhem)
+
+---
+
+# Rodada 17/10 (segunda leva) — anotado antes de começar
+
+Mesma regra: só sai daqui com data e com o que foi olhado.
+
+## Cabine (o cliente já pediu 3 vezes)
+- [ ] Volante está virado para baixo
+- [ ] Personagem NÃO está segurando o volante — 3ª vez que é pedido
+- [ ] Cinto de segurança sumiu da cena
+- [ ] Dentro do veículo o personagem está descalço
+
+## Gente e tráfego
+- [ ] Pedestres deslizam e teleportam. Fazer a caminhada COMPLETA no Blender,
+      testar, e julgar se ficou real ou amaldiçoada
+- [ ] Na faixa de pedestre só eu paro; os outros veículos passam. Quando o
+      pedestre atravessa, TODO MUNDO para
+- [ ] O carro que sai da garagem desliza de forma sobrenatural
+
+## Rua / cenário
+- [ ] Ainda tem espaço vazio na estrada
+- [ ] Cruzamento sem artefato nenhum no meio
+- [ ] Tem um POSTE no meio do cruzamento
+- [ ] Espaço vazio ATRÁS das casas (aparece na chegada)
+- [ ] Fios pairando no ar na tela de chegada
+
+## Chegada ao local
+- [ ] Hoje o caminhão leva ~20 s parando lentamente. Precisa de animação de
+      encostar na calçada, e o ícone de missão entra aí
+- [ ] A tela de chegada inteira está lendo como protótipo
+
+## Em andamento (código pronto, falta exportar e conferir na tela)
+- [ ] Roupa base virou camisa de manga longa + calça (reusa `_camisa`/`_calca`
+      do uniforme, numa camada abaixo). Falta exportar e olhar
+- [ ] Os 3 cortes de cabelo eram indistinguíveis na tela (22,2 / 24,9 /
+      22,6 cm de caixa). `limiar` e `espessura` agora andam juntos em
+      direções opostas. Falta exportar e olhar

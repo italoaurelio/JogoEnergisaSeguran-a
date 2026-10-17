@@ -481,8 +481,12 @@ function AtoFisico({
       ),
     },
     {
-      titulo: 'Cabelo',
-      nota: 'O corte é o mesmo — raspado, que é o que cabe embaixo do capacete.',
+      titulo: 'Cor do cabelo',
+      // A nota aqui dizia "o corte é o mesmo — raspado": texto de quando só
+      // havia um corte. Os três existem desde 17/10 e a etapa seguinte
+      // escolhe entre eles — a tela estava DESMENTINDO o próprio jogo, e foi
+      // por isso que o cliente perguntou de novo onde estavam os três cortes.
+      nota: 'A cor; o corte vem na etapa seguinte.',
       corpo: (
         <div className="tons">
           {CABELOS.map((c) => (
@@ -499,8 +503,8 @@ function AtoFisico({
       ),
     },
     {
-      titulo: 'Corte',
-      nota: 'Debaixo do capacete os três ficam iguais — o corte aparece no vestiário e no fim do turno.',
+      titulo: 'Corte do cabelo',
+      nota: 'Três cortes, e são peças diferentes de verdade. Debaixo do capacete os três ficam iguais: sobram nuca e costeleta.',
       corpo: (
         <div className="opcoes">
           {CORTES.map((c) => (

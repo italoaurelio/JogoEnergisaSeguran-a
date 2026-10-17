@@ -690,15 +690,36 @@ def _grupo_desbotado(corpo, origem, nome=None, voltas=26):
 
 #: Os tres cortes. `limiar` e onde a rampa da orla e cortada (quanto menor,
 #: mais baixa a linha do cabelo); `espessura` e o volume no alto da cabeca.
+"""
+OS TRES CORTES PRECISAM SER TRES NA TELA, e nao so no codigo.
+
+Medido no jogo, nos nos do `.glb`: curto tinha 22,2 cm de altura de caixa,
+medio 24,9 e raspado 22,6. Dois deles a 4 mm um do outro — na camera do
+vestiario, que esta a um metro e meio, nao da para dizer qual esta posto.
+O cliente perguntou "cade os 3 tipos de cabelo" olhando para tres cortes
+que existiam, e ele estava certo: tres pecas que ninguem distingue sao uma.
+
+Agora os dois parametros andam JUNTOS e em direcoes opostas, que e como
+corte de cabelo funciona de verdade:
+
+- `limiar` e onde a linha do cabelo para. Mais ALTO = menos area = testa
+  mais alta e entradas marcadas, que e o corte social curto.
+- `espessura` e o volume.
+
+Raspado: area cheia descendo ate a nuca (limiar baixo) com 3 mm — maquina
+dois. Curto: linha alta (limiar alto) com 15 mm. Medio: linha no meio e
+35 mm, que ja e cabelo que o vento mexe. Entre o raspado e o medio sao
+3,2 cm de diferenca de volume, nao 2,3 mm.
+"""
 CORTES = (
-    dict(id="curto",   limiar=0.52, espessura=0.011),
-    dict(id="medio",   limiar=0.45, espessura=0.027),
-    dict(id="raspado", limiar=0.36, espessura=0.004),
+    dict(id="curto",   limiar=0.60, espessura=0.015, ruido=0.006),
+    dict(id="medio",   limiar=0.44, espessura=0.035, ruido=0.011),
+    dict(id="raspado", limiar=0.28, espessura=0.003, ruido=0.0),
 )
 
 
 def _peca_de_cabelo(corpo, pesos, nome, limiar, espessura, teto_z=None,
-                    cor=(0.016, 0.011, 0.008)):
+                    cor=(0.016, 0.011, 0.008), ruido=0.008):
     """Uma casca de cabelo recortada da rampa da orla.
 
     `teto_z` corta tudo acima de uma altura: e como nasce a FAIXA que fica
@@ -740,7 +761,9 @@ def _peca_de_cabelo(corpo, pesos, nome, limiar, espessura, teto_z=None,
     # abriria buraco de pele no meio do cabelo.
     #
     # A faixa de capacete nao leva ruido: ela vive esmagada embaixo do casco.
-    if teto_z is None:
+    # o raspado NAO leva ruido (ruido=0): maquina dois e liso de verdade, e
+    # a irregularidade so faz sentido onde ha volume para ser irregular
+    if teto_z is None and ruido > 0:
         tex = bpy.data.textures.new(f"{nome}_ruido", type="CLOUDS")
         tex.noise_scale = 0.055
         tex.noise_depth = 1
@@ -748,7 +771,7 @@ def _peca_de_cabelo(corpo, pesos, nome, limiar, espessura, teto_z=None,
         onda.texture = tex
         onda.texture_coords = "GLOBAL"
         onda.mid_level = 0.0
-        onda.strength = 0.008
+        onda.strength = ruido
     C.aplicar(peca, mat_pelo("cabelo", cor=cor, rugosidade=0.88))
     return peca
 
@@ -796,7 +819,8 @@ def cabelo(corpo, cor=(0.016, 0.011, 0.008), comprimento=0.026, peso_min=0.12):
     pecas = []
     for corte in CORTES:
         p = _peca_de_cabelo(corpo, pesos, f"cabelo_{corte['id']}",
-                            corte["limiar"], corte["espessura"], cor=cor)
+                            corte["limiar"], corte["espessura"], cor=cor,
+                            ruido=corte["ruido"])
         if p:
             pecas.append(p)
     faixa = _peca_de_cabelo(corpo, pesos, "cabelo_capacete",
