@@ -15,7 +15,7 @@ import { useGLTF, useTexture } from '@react-three/drei'
 import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
 import {
-  aplicarPerfil, criarDobra, dobrarMaterial, type NoTracado,
+  aplicarPerfil, criarDobra, dobrarMaterial, type Dobra, type NoTracado,
 } from './curva'
 import { uvPorPosicao, vestir } from './texturas'
 import { som } from '../som'
@@ -222,6 +222,57 @@ function Pista({
   return <group ref={grupo} />
 }
 
+/*
+  AS CORES DO TRÂNSITO.
+  -----------------------------------------------------------------
+  Todo carro da via era o mesmo vermelho escuro, porque todas as cópias
+  dividem o material do molde — `clone()` não duplica material. Onze carros
+  idênticos em fila não leem como trânsito, leem como repetição, e foi isso
+  que o cliente viu.
+
+  Valores em LINEAR, que é o espaço em que `setRGB` escreve: o vermelho
+  original é (0,195 · 0,062 · 0,048), e as outras saíram da mesma faixa para
+  não haver uma que estoure ao lado das outras. São as cores que se vê numa
+  rua brasileira, na proporção em que se vê: branco, prata e cinza primeiro.
+*/
+const PINTURAS: [number, number, number][] = [
+  [0.620, 0.620, 0.600],   // branco
+  [0.340, 0.350, 0.370],   // prata
+  [0.160, 0.170, 0.190],   // cinza chumbo
+  [0.195, 0.062, 0.048],   // vermelho (o original)
+  [0.620, 0.620, 0.600],   // branco de novo: é a cor mais comum da frota
+  [0.045, 0.072, 0.165],   // azul
+  [0.030, 0.031, 0.034],   // preto
+  [0.280, 0.230, 0.165],   // bege
+  [0.340, 0.350, 0.370],   // prata
+  [0.048, 0.105, 0.062],   // verde escuro
+]
+
+/**
+ * Pinta UMA cópia, sem encostar no molde.
+ *
+ * Clonar o material é obrigatório — sem isso a última cor pintaria a frota
+ * inteira. E clonar exige repetir a dobra: `Material.clone()` copia o
+ * `userData` (e com ele a marca `dobrado`) mas NÃO copia o
+ * `onBeforeCompile`. Sem limpar a marca, o material novo sairia do forno sem
+ * a dobra e o carro andaria reto no meio de uma curva — com a marca ainda
+ * lá, `dobrarMaterial` desistiria em silêncio.
+ */
+function pintarVeiculo(
+  raiz: THREE.Object3D, cor: [number, number, number], dobra: Dobra,
+) {
+  raiz.traverse((o) => {
+    const malha = o as THREE.Mesh
+    const m = malha.material as THREE.MeshStandardMaterial
+    if (!m || Array.isArray(malha.material) || !/pintura/.test(m.name)) return
+    const novo = m.clone()
+    novo.color.setRGB(cor[0], cor[1], cor[2])
+    novo.userData = { ...novo.userData, dobrado: false }
+    dobrarMaterial(novo, dobra)
+    malha.material = novo
+  })
+}
+
 /**
  * Tráfego no sentido oposto.
  *
@@ -236,12 +287,14 @@ function Pista({
  * ser comparável entre colaboradores, e aqui não há o que comparar.
  */
 function Contrafluxo({
-  molde, distancia, quantos = 11, vao = VAO_CONTRA, deslocamento = 0,
+  molde, distancia, dobra, quantos = 11, vao = VAO_CONTRA, deslocamento = 0,
   velocidade = VELOCIDADE_CONTRA, x = CONTRA_X, forcaSom = 1,
   faixa = null, pedestreLiberado,
 }: {
   molde: THREE.Object3D | null
   distancia: React.RefObject<number>
+  /** As uniforms da curva, para repintar sem perder a dobra. */
+  dobra: Dobra
   /** Metro da faixa de pedestre. Null quando este trajeto não tem uma. */
   faixa?: number | null
   /** Enquanto for falso, esta fila PARA antes da faixa. */
@@ -262,15 +315,20 @@ function Contrafluxo({
 
   const copias = useMemo(() => {
     if (!molde) return []
-    return Array.from({ length: quantos }, () => {
+    return Array.from({ length: quantos }, (_, i) => {
       const c = molde.clone(true)
       // meia-volta: ele vem de frente
       c.rotation.y = Math.PI
-      c.position.x = x
+      // cada um na sua cor, e cada fila começando num ponto diferente da
+      // paleta — senão carro e moto saem na mesma ordem de cores
+      pintarVeiculo(c, PINTURAS[(i * 3 + deslocamento) % PINTURAS.length], dobra)
+      // e cada um com a sua folga na faixa: alinhamento perfeito é o que
+      // denuncia que aquilo é um trilho e não um motorista
+      c.position.x = x + ((i * 37) % 11 - 5) * 0.035
       c.visible = false
       return c
     })
-  }, [molde, quantos])
+  }, [molde, quantos, x, deslocamento, dobra])
 
   useEffect(() => {
     const g = grupo.current
@@ -285,6 +343,21 @@ function Contrafluxo({
   const posicoes = useRef<number[] | null>(null)
   /** z do quadro anterior, para saber QUANDO cada um cruza o jogador. */
   const antes = useRef<number[]>([])
+  /*
+    CADA UM COM A SUA VELOCIDADE, e cada um olhando o da frente.
+
+    Todos andavam na MESMA velocidade constante, para sempre. O vão entre
+    eles nunca mudava, nenhum nunca alcançava nenhum, e o resultado lê como
+    esteira — foi o "parece uma animação plana" do cliente.
+
+    `cruzeiro` é a velocidade que cada um QUER; `atual` é a que ele tem. A
+    diferença entre as duas é o que faz trânsito: quem anda mais rápido
+    alcança o da frente, alivia, fica preso atrás dele por um tempo e o
+    pelotão respira. Nada disso precisa de rota nem de decisão — só de um
+    carro olhar para o outro.
+  */
+  const cruzeiro = useRef<number[] | null>(null)
+  const atual = useRef<number[]>([])
 
   useFrame((_, bruto) => {
     const dt = Math.min(bruto, TETO_DT)
@@ -292,8 +365,17 @@ function Contrafluxo({
     if (!posicoes.current) {
       posicoes.current = copias.map((_, i) => d + 60 + deslocamento + i * vao)
       antes.current = posicoes.current.map((v) => v - d)
+      // ±14% em volta da velocidade da fila, sorteado por índice e não por
+      // `Math.random`: cenário do trajeto é determinístico de propósito, para
+      // a prova de dois colaboradores ser comparável
+      cruzeiro.current = copias.map(
+        (_, i) => velocidade * (0.86 + (((i * 29) % 17) / 17) * 0.28),
+      )
+      atual.current = [...cruzeiro.current]
     }
     const p = posicoes.current
+    const vq = cruzeiro.current!
+    const va = atual.current
 
     /*
       ELES PARAM NA FAIXA TAMBÉM.
@@ -313,7 +395,30 @@ function Contrafluxo({
     const linha = (faixa ?? 0) + 4
 
     for (let i = 0; i < copias.length; i++) {
-      p[i] -= velocidade * dt
+      if (!parando) {
+        /*
+          PERSEGUIÇÃO SIMPLES. Esta fila anda do metro alto para o baixo,
+          então quem está À FRENTE é quem tem o menor `p` acima do meu.
+          O(n²) com onze veículos é nada, e evita manter uma lista ordenada
+          que teria de ser refeita a cada reciclagem.
+        */
+        let folga = Infinity
+        let vFrente = vq[i]
+        for (let j = 0; j < p.length; j++) {
+          if (j === i) continue
+          const gap = p[i] - p[j]
+          if (gap > 0 && gap < folga) { folga = gap; vFrente = va[j] }
+        }
+        let alvo = vq[i]
+        // 26 m é onde se começa a aliviar; 8 m é onde se para de verdade
+        if (folga < 26) {
+          alvo = Math.min(alvo, vFrente * Math.max(0, (folga - 8) / 18))
+        }
+        // acelera devagar e alivia rápido, que é o que um pé faz
+        const ritmo = Math.min(1, dt * (alvo < va[i] ? 3.2 : 1.1))
+        va[i] += (alvo - va[i]) * ritmo
+      }
+      p[i] -= (parando ? velocidade : va[i]) * dt
       if (parando && p[i] < linha && p[i] > linha - 120) p[i] = linha
       // passou do jogador: volta para o fim da fila, lá na frente. O resto da
       // divisão por 5 (e não por 3) evita que os reciclados voltem sempre nas
@@ -330,6 +435,9 @@ function Contrafluxo({
         let ultimo = d + ALCANCE
         for (let j = 0; j < p.length; j++) if (j !== i && p[j] > ultimo) ultimo = p[j]
         p[i] = ultimo + vao
+        // volta solto: sem isto ele reentra com a velocidade de quem estava
+        // parado atrás de alguém e segura a fila nova
+        va[i] = vq[i]
       }
       const z = p[i] - d
       // cruzou o jogador neste quadro: é agora que o "fiuu" tem de soar,
@@ -1219,7 +1327,7 @@ export function Mundo({
       />
       <PessoasDoPatio molde={moldes.pedestre} distancia={distancia} />
       <Contrafluxo
-        molde={moldes.carro} distancia={distancia}
+        molde={moldes.carro} distancia={distancia} dobra={dobra}
         faixa={faixa} pedestreLiberado={pedestreLiberado}
       />
       {/*
@@ -1239,7 +1347,7 @@ export function Mundo({
         Mais esparsa de propósito: moto demais no contrafluxo vira desfile.
       */}
       <Contrafluxo
-        molde={moldes.moto} distancia={distancia} quantos={5}
+        molde={moldes.moto} distancia={distancia} dobra={dobra} quantos={5}
         vao={118} deslocamento={37} velocidade={VELOCIDADE_CONTRA * 1.18}
         x={CONTRA_X - 1.05} forcaSom={1.45}
         faixa={faixa} pedestreLiberado={pedestreLiberado}
