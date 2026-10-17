@@ -82,6 +82,15 @@ GRUPOS = {
                 "fundos": ((2.0, -42.0, 8.0), (0.0, -5.0, 2.6), 42),
                 "rua": ((16.0, 20.0, 4.0), (-6.0, -3.0, 2.4), 48)},
     ),
+    # Os quatro carros lado a lado: a prova e a SILHUETA, entao de perfil
+    # tambem, que e como o motorista ve o contrafluxo passar.
+    "carros": dict(
+        pecas=[("carro", (-7.0, 0, 0)), ("carro_b", (-2.4, 0, 0)),
+               ("carro_c", (2.4, 0, 0)), ("carro_d", (7.4, 0, 0)),
+               ("moto", (11.4, 0, 0))],
+        vistas={"frente": ((0.0, 26.0, 4.2), (1.0, 0.0, 1.0), 48),
+                "perfil": ((22.0, 2.0, 2.4), (0.0, 0.0, 1.1), 42)},
+    ),
     # Gente de perto: a silhueta so se julga com a peca ocupando a tela.
     "gente": dict(
         pecas=[("pedestre", (-1.4, 0, 0)), ("crianca", (0.6, 0.3, 0)),

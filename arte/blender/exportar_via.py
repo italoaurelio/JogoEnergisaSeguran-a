@@ -38,7 +38,13 @@ def processar():
         "casa_b": V.casa_b(m),
         "casa_c": V.casa_c(m),
         "escola": V.escola(m),
+        # Quatro carros, pelo mesmo motivo das tres casas: o jogo clona a
+        # malha e clone de three.js divide o material, entao variacao de
+        # FORMA so existe como peca separada no catalogo.
         "carro": V.carro(m),
+        "carro_b": V.carro_b(m),
+        "carro_c": V.carro_c(m),
+        "carro_d": V.carro_d(m),
         "moto": V.moto(m),
         "lombada": V.lombada(m),
         "faixa_pedestre": V.faixa_pedestre(m),

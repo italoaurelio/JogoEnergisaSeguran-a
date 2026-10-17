@@ -287,11 +287,16 @@ function pintarVeiculo(
  * ser comparável entre colaboradores, e aqui não há o que comparar.
  */
 function Contrafluxo({
-  molde, distancia, dobra, quantos = 11, vao = VAO_CONTRA, deslocamento = 0,
+  moldes, distancia, dobra, quantos = 11, vao = VAO_CONTRA, deslocamento = 0,
   velocidade = VELOCIDADE_CONTRA, x = CONTRA_X, forcaSom = 1,
   faixa = null, pedestreLiberado, ciclista = null,
 }: {
-  molde: THREE.Object3D | null
+  /**
+   * Os modelos desta fila. Cada veículo pega um, em rodízio — é a FORMA que
+   * separa um carro de outro a 60 m, não a cor: a cor já variava em dez
+   * pinturas e ainda assim o retorno foi "os carros são todos iguais".
+   */
+  moldes: (THREE.Object3D | null)[]
   distancia: React.RefObject<number>
   /** As uniforms da curva, para repintar sem perder a dobra. */
   dobra: Dobra
@@ -319,9 +324,12 @@ function Contrafluxo({
   const grupo = useRef<THREE.Group>(null)
 
   const copias = useMemo(() => {
-    if (!molde) return []
+    const uteis = moldes.filter(Boolean) as THREE.Object3D[]
+    if (!uteis.length) return []
     return Array.from({ length: quantos }, (_, i) => {
-      const c = molde.clone(true)
+      // rodízio de forma e de cor em passos diferentes (modelo a cada 1,
+      // pintura a cada 3), senão o mesmo carro sai sempre da mesma cor
+      const c = uteis[i % uteis.length].clone(true)
       // meia-volta: ele vem de frente
       c.rotation.y = Math.PI
       // cada um na sua cor, e cada fila começando num ponto diferente da
@@ -333,7 +341,7 @@ function Contrafluxo({
       c.visible = false
       return c
     })
-  }, [molde, quantos, x, deslocamento, dobra])
+  }, [moldes, quantos, x, deslocamento, dobra])
 
   useEffect(() => {
     const g = grupo.current
@@ -1316,7 +1324,7 @@ export function Mundo({
     // sincronia com o POOL em silencio — molde faltando vira null, e peca
     // sem molde nao desenha nem reclama. Sai do POOL, mais o que nao e marco.
     const nomes = [...FILEIRAS, 'trecho', 'chao', 'moto', 'pedestre',
-      'crianca']
+      'crianca', 'carro_b', 'carro_c', 'carro_d']
     const mapa: Record<string, THREE.Object3D | null> = {}
     for (const n of nomes) mapa[n] = scene.getObjectByName(`via_${n}`) ?? null
 
@@ -1432,7 +1440,8 @@ export function Mundo({
       />
       <PessoasDoPatio molde={moldes.pedestre} distancia={distancia} />
       <Contrafluxo
-        molde={moldes.carro} distancia={distancia} dobra={dobra}
+        moldes={[moldes.carro, moldes.carro_b, moldes.carro_c, moldes.carro_d]}
+        distancia={distancia} dobra={dobra}
         faixa={faixa} pedestreLiberado={pedestreLiberado} ciclista={ciclista}
       />
       {/*
@@ -1452,7 +1461,7 @@ export function Mundo({
         Mais esparsa de propósito: moto demais no contrafluxo vira desfile.
       */}
       <Contrafluxo
-        molde={moldes.moto} distancia={distancia} dobra={dobra} quantos={5}
+        moldes={[moldes.moto]} distancia={distancia} dobra={dobra} quantos={5}
         vao={118} deslocamento={37} velocidade={VELOCIDADE_CONTRA * 1.18}
         x={CONTRA_X - 1.05} forcaSom={1.45}
         faixa={faixa} pedestreLiberado={pedestreLiberado} ciclista={ciclista}

@@ -973,7 +973,38 @@ def _vidraca(nome, a, b, largura, mat, espessura=0.05):
     return obj
 
 
-def carro(m, nome="via_carro"):
+# QUATRO SILHUETAS, e nao quatro cores do mesmo carro.
+#
+# Cor ja variava (dez pinturas), e nao bastou: "os carros sao todos iguais"
+# veio depois disso. Cor some a 60 m e contra o sol; SILHUETA nao. O que
+# separa um carro de outro na retina, nessa ordem: comprimento, altura do
+# teto e onde a cabine cai no corpo.
+#
+# Os quatro: sedan (tres volumes), hatch (curto, traseira cortada), picape
+# (cabine a frente e cacamba aberta) e van (caixa alta). O `tipo=0` repete
+# NUMERO POR NUMERO o carro que ja existia — assim um defeito que aparecer
+# depois disto nao fica em duvida entre "mudou a forma" e "quebrou a peca".
+CARROS = (
+    dict(id="sedan", comp=4.34, larg=1.76, alt=0.74, z=0.62,
+         teto=(1.56, 1.92, 0.50), ty=-0.14, tz=1.23,
+         eixos=(-1.42, 1.38), cacamba=None),
+    dict(id="hatch", comp=3.78, larg=1.68, alt=0.78, z=0.62,
+         teto=(1.50, 1.98, 0.58), ty=-0.26, tz=1.28,
+         eixos=(-1.20, 1.18), cacamba=None),
+    dict(id="picape", comp=5.00, larg=1.86, alt=0.88, z=0.72,
+         teto=(1.66, 1.46, 0.62), ty=-0.92, tz=1.50,
+         eixos=(-1.62, 1.58), cacamba=(1.34, 0.46)),
+    # A van nao e um sedan com uma caixinha em cima: o corpo dela JA e a
+    # cabine. Com o teto curto e alto a primeira tentativa saiu com cara de
+    # furgao com escotilha. Corpo mais baixo e estufa longa — que e o que faz
+    # uma Kombi ser uma Kombi na silhueta.
+    dict(id="van", comp=4.52, larg=1.84, alt=1.30, z=0.95,
+         teto=(1.74, 2.60, 0.52), ty=-0.30, tz=1.86,
+         eixos=(-1.42, 1.44), cacamba=None),
+)
+
+
+def carro(m, nome="via_carro", tipo=0):
     """Veiculo a frente. E o que o motorista olha o trajeto inteiro.
 
     Era duas caixas empilhadas com um retangulo de vidro em pe: lia como
@@ -981,7 +1012,10 @@ def carro(m, nome="via_carro"):
     habitaculo (um carro tem tres volumes, nao dois), vidros inclinados,
     colunas pretas em volta das janelas, rodas maiores com calota e para-choque
     marcado. Continua sem detalhe fino de proposito — ele passa a 30 km/h.
+
+    `tipo` escolhe uma das quatro linhas de `CARROS`.
     """
+    cfg = CARROS[tipo % len(CARROS)]
     pecas = []
     pintura = C.mat_simples("via_carro_pintura", (0.195, 0.062, 0.048),
                             rugosidade=0.22)
@@ -991,60 +1025,99 @@ def carro(m, nome="via_carro"):
                           rugosidade=0.50)
     pneu = C.mat_simples("via_pneu", (0.018, 0.018, 0.020), rugosidade=0.92)
 
+    comp, larg, alt, z0 = cfg["comp"], cfg["larg"], cfg["alt"], cfg["z"]
+    meia = comp / 2
+
     # a traseira do carro fica em +Y (de frente para quem vem atras)
-    corpo = C.caixa(f"{nome}_corpo", (1.76, 4.34, 0.74), (0, 0, 0.62))
+    corpo = C.caixa(f"{nome}_corpo", (larg, comp, alt), (0, 0, z0))
     C.chanfrar(corpo, largura=0.07, segmentos=3)
     C.aplicar(corpo, pintura)
     pecas.append(corpo)
 
     # habitaculo: mais estreito e mais curto que o corpo, e RECUADO — e esse
     # degrau que faz os tres volumes aparecerem na silhueta
-    teto = C.caixa(f"{nome}_teto", (1.56, 1.92, 0.50), (0, -0.14, 1.23))
+    tl, tc, ta = cfg["teto"]
+    tz = cfg["tz"]
+    teto = C.caixa(f"{nome}_teto", (tl, tc, ta), (0, cfg["ty"], tz))
     C.chanfrar(teto, largura=0.12, segmentos=3)
     C.aplicar(teto, pintura)
     pecas.append(teto)
 
-    # para-brisa (para -Y) e vigia (para +Y), ambos deitados
-    pecas.append(_vidraca(f"{nome}_vigia", (0.82, 1.44), (1.18, 1.00),
-                          1.48, vidro))
-    pecas.append(_vidraca(f"{nome}_parabrisa", (-1.10, 1.44), (-1.56, 1.00),
-                          1.44, vidro))
+    # para-brisa (para -Y) e vigia (para +Y), ambos deitados. Os dois saem da
+    # CAIXA DO TETO, entao acompanham sozinhos cada silhueta.
+    topo = tz + ta / 2 - 0.02
+    base = tz - ta / 2 - 0.23
+    tras, frente = cfg["ty"] + tc / 2, cfg["ty"] - tc / 2
+    pecas.append(_vidraca(f"{nome}_vigia", (tras - 0.10, topo),
+                          (tras + 0.36, base), tl - 0.12, vidro))
+    pecas.append(_vidraca(f"{nome}_parabrisa", (frente + 0.14, topo),
+                          (frente - 0.46, base), tl - 0.12, vidro))
     for lado in (-1, 1):
-        jan = C.caixa(f"{nome}_janela_{lado}", (0.05, 1.74, 0.40),
-                      (lado * 0.785, -0.14, 1.26))
+        jan = C.caixa(f"{nome}_janela_{lado}", (0.05, tc - 0.18, ta - 0.10),
+                      (lado * (tl / 2 + 0.005), cfg["ty"], tz + 0.03))
         C.aplicar(jan, vidro)
         pecas.append(jan)
 
-    for dy, alt in ((2.17, 0.30), (-2.17, 0.34)):
-        choque = C.caixa(f"{nome}_choque_{dy:+.1f}", (1.74, 0.14, alt),
-                         (0, dy, 0.42))
+    for dy, alt_ch in ((meia + 0.0, 0.30), (-meia - 0.0, 0.34)):
+        choque = C.caixa(f"{nome}_choque_{dy:+.1f}", (larg - 0.02, 0.14, alt_ch),
+                         (0, dy, z0 - 0.20))
         C.chanfrar(choque, largura=0.04, segmentos=2)
         C.aplicar(choque, preto)
         pecas.append(choque)
 
+    # CACAMBA da picape: dois costados e uma tampa, abertos em cima. E o que
+    # separa picape de sedan quando os dois tem o mesmo comprimento.
+    if cfg["cacamba"]:
+        fundo_y, altura_c = cfg["cacamba"]
+        for lado in (-1, 1):
+            costado = C.caixa(f"{nome}_cacamba_{lado}",
+                              (0.10, 2.10, altura_c),
+                              (lado * (larg / 2 - 0.05), fundo_y,
+                               z0 + alt / 2 + altura_c / 2))
+            C.chanfrar(costado, largura=0.03, segmentos=2)
+            C.aplicar(costado, pintura)
+            pecas.append(costado)
+        tampa = C.caixa(f"{nome}_cacamba_tampa", (larg - 0.06, 0.10, altura_c),
+                        (0, fundo_y + 1.05, z0 + alt / 2 + altura_c / 2))
+        C.chanfrar(tampa, largura=0.03, segmentos=2)
+        C.aplicar(tampa, pintura)
+        pecas.append(tampa)
+
     for lado in (-1, 1):
         luz = C.caixa(f"{nome}_luz_{lado}", (0.42, 0.07, 0.17),
-                      (lado * 0.60, 2.16, 0.82))
+                      (lado * 0.60, meia - 0.01, z0 + 0.20))
         C.aplicar(luz, C.mat_simples("via_lanterna", (0.42, 0.030, 0.022),
                                      rugosidade=0.25))
         pecas.append(luz)
-        for dy in (-1.42, 1.38):
+        for dy in cfg["eixos"]:
             # caixa de roda: sem ela o pneu nasce de uma lateral lisa
             arco = C.caixa(f"{nome}_arco_{lado}_{dy:+.1f}", (0.10, 0.84, 0.50),
-                           (lado * 0.84, dy, 0.42))
+                           (lado * (larg / 2 - 0.04), dy, 0.42))
             C.aplicar(arco, preto)
             pecas.append(arco)
             roda = C.cilindro(f"{nome}_roda_{lado}_{dy:+.1f}", 0.34, 0.22,
-                              (lado * 0.80, dy, 0.34), segmentos=14,
+                              (lado * (larg / 2 - 0.08), dy, 0.34), segmentos=14,
                               rot=(0, math.radians(90), 0))
             C.aplicar(roda, pneu)
             pecas.append(roda)
             calota = C.cilindro(f"{nome}_calota_{lado}_{dy:+.1f}", 0.21, 0.04,
-                                (lado * 0.90, dy, 0.34), segmentos=12,
+                                (lado * (larg / 2 + 0.02), dy, 0.34), segmentos=12,
                                 rot=(0, math.radians(90), 0))
             C.aplicar(calota, m["metal"])
             pecas.append(calota)
     return C.juntar(pecas, nome)
+
+
+def carro_b(m, nome="via_carro_b"):
+    return carro(m, nome=nome, tipo=1)
+
+
+def carro_c(m, nome="via_carro_c"):
+    return carro(m, nome=nome, tipo=2)
+
+
+def carro_d(m, nome="via_carro_d"):
+    return carro(m, nome=nome, tipo=3)
 
 
 # ------------------------------------------------- peças de decisão (rodada 2)
