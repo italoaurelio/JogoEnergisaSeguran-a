@@ -498,12 +498,26 @@ const ABERTURA_CHAVE = -2.0
  */
 export function Aterramento({ posto }: { posto: boolean }) {
   const grupo = useRef<THREE.Group>(null)
+  /*
+    O CABO PASSA POR FORA DO TRANSFORMADOR.
+
+    Medido na cena: o transformador ocupa x 0,22→1,03, y 6,16→7,15,
+    z −0,38→0,39. O traçado antigo tinha um nó em (0,52 · 6,20 · 0,12) —
+    dentro dessa caixa nos três eixos. O cabo de aterramento atravessava a
+    carcaça, que é a imagem que o cliente mandou.
+
+    Agora ele encosta no poste na altura do transformador (x 0,13, que fica
+    entre a face do poste em 0,06 e a face do trafo em 0,22) e passa pela
+    frente, em z 0,26 — o poste vai só até z 0,18. Desce pelos dois vãos
+    que existem, em vez de pelo meio do equipamento.
+  */
   const curva = useMemo(() => new THREE.CatmullRomCurve3([
     new THREE.Vector3(0.95, 9.20, 0.10),
-    new THREE.Vector3(0.75, 8.10, 0.16),
-    new THREE.Vector3(0.52, 6.20, 0.12),
-    new THREE.Vector3(0.38, 3.40, 0.08),
-    new THREE.Vector3(0.46, 0.60, 0.26),
+    new THREE.Vector3(0.62, 8.42, 0.20),
+    new THREE.Vector3(0.15, 7.60, 0.27),
+    new THREE.Vector3(0.13, 6.40, 0.27),
+    new THREE.Vector3(0.24, 4.00, 0.25),
+    new THREE.Vector3(0.42, 0.90, 0.30),
     new THREE.Vector3(0.52, 0.04, 0.34),
   ]), [])
 
@@ -793,6 +807,70 @@ export function Eletricista({
     })
   }, [scene, fisico])
 
+  /*
+    ONDE ESTÃO OS PÉS DE CADA POSE.
+    -----------------------------------------------------------------
+    `cestoEm` devolve o CENTRO do cesto — conferido: devolve mesmo, o
+    centro da caixa do cesto e a origem do grupo batem na terceira casa.
+    O que não bate é a pose: medida em cena, a faixa dos pés de
+    `trabalhando` fica 24,7 cm deslocada em x dentro do próprio `.glb`,
+    e com isso a botina atravessava a parede do cesto do lado do poste —
+    17 cm para fora, medidos.
+
+    O deslocamento é por POSE (cada uma é uma malha assada separada), e
+    sai de medir os vértices da faixa de 25 cm acima do piso, que é onde
+    só há pé. Medir é melhor que corrigir à mão porque a próxima pose
+    exportada se corrige sozinha.
+  */
+  const centroDosPes = useMemo(() => {
+    const mapa: Record<string, [number, number]> = {}
+    const v = new THREE.Vector3()
+    /*
+      MEDIDO NO ESPAÇO DA MALHA, e não no do mundo.
+
+      `o.matrixWorld` já carrega a posição e o GIRO do grupo do cesto, e a
+      correção é aplicada no `position` do primitivo, que vive no espaço do
+      grupo. Medir num espaço e corrigir no outro deixava a botina 11 cm
+      fora da parede mesmo depois da conta certa — a conta estava certa, o
+      sistema de coordenadas é que não era.
+    */
+    scene.updateWorldMatrix(true, true)
+    const paraLocal = scene.matrixWorld.clone().invert()
+    for (const no of scene.children) {
+      if (!no.name.startsWith('el_')) continue
+      // piso desta pose, no mesmo espaço
+      let piso = Infinity
+      const cantos: THREE.Vector3[] = []
+      no.traverse((o) => {
+        const g = (o as THREE.Mesh).geometry
+        const pos = g?.attributes?.position
+        if (!pos) return
+        for (let i = 0; i < pos.count; i += 3) {
+          v.fromBufferAttribute(pos, i)
+            .applyMatrix4(o.matrixWorld).applyMatrix4(paraLocal)
+          if (v.y < piso) piso = v.y
+          cantos.push(v.clone())
+        }
+      })
+      if (cantos.length < 20) continue
+      // MEIO DA CAIXA dos pés, e não centroide: o centroide é puxado pelo pé
+      // com mais vértices, e com um pé à frente do outro ele cai 16 cm fora
+      // do meio. O que tem de caber no cesto é a caixa.
+      const teto = piso + 0.25
+      let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity, n = 0
+      for (const c of cantos) {
+        if (c.y > teto) continue
+        if (c.x < x0) x0 = c.x
+        if (c.x > x1) x1 = c.x
+        if (c.z < z0) z0 = c.z
+        if (c.z > z1) z1 = c.z
+        n++
+      }
+      if (n > 20) mapa[no.name] = [(x0 + x1) / 2, (z0 + z1) / 2]
+    }
+    return mapa
+  }, [scene])
+
   useEffect(() => {
     for (const no of scene.children) {
       if (no.name.startsWith('el_')) no.visible = no.name === `el_${pose}`
@@ -833,10 +911,16 @@ export function Eletricista({
   })
 
   const escala = (fisico?.altura ?? ALTURA_BASE) / ALTURA_BASE
+  const [px, pz] = centroDosPes[`el_${pose}`] ?? [0, 0]
 
   return (
     <group ref={grupo} rotation={[0, 0, 0]}>
-      <primitive object={scene} scale={escala} />
+      <primitive
+        object={scene}
+        scale={escala}
+        /* centrado PELOS PÉS no piso do cesto, e não pela origem do `.glb` */
+        position={[-px * escala, 0, -pz * escala]}
+      />
     </group>
   )
 }
