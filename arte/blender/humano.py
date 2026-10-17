@@ -505,6 +505,59 @@ def recortar(corpo, teste, nome, deslocar=0.0015, espessura=0.003, suave=50,
     return obj
 
 
+def _grupo_desbotado(corpo, origem, nome=None, voltas=26):
+    """Copia um grupo de vertices e borra os pesos, criando uma orla.
+
+    O `scalp` do MakeHuman nao tem meio-termo: 376 vertices, todos em peso 1,0
+    — medido, depois de uma pintura de linha do cabelo nao ter mudado um pixel
+    no render. Mascara nenhuma desbota a partir dele, porque a transicao que
+    se quer pintar fica toda FORA do grupo.
+
+    Borrando os pesos para fora nasce a rampa que faltava, e e nela que a
+    linha do cabelo e desenhada.
+    """
+    if origem not in corpo.vertex_groups:
+        return None
+    nome = nome or origem + "_orla"
+    if nome in corpo.vertex_groups:
+        corpo.vertex_groups.remove(corpo.vertex_groups[nome])
+    idx = corpo.vertex_groups[origem].index
+    dentro = [v.index for v in corpo.data.vertices
+              if any(g.group == idx for g in v.groups)]
+    if not dentro:
+        return None
+    # suavizacao a mao: `bpy.ops.object.vertex_group_smooth` so passa no poll
+    # em modo de edicao, e entrar em modo de edicao no meio de um script
+    # headless custa mais linha do que a media que ele faz.
+    #
+    # Os vertices de dentro ficam PRESOS em 1,0 a cada volta. Sem isso o
+    # Laplaciano afunda o miolo junto, e a calota inteira desbota com a orla —
+    # o que se quer e so a rampa de fora.
+    dentro = set(dentro)
+    vizinhos = {}
+    for e in corpo.data.edges:
+        x, y = e.vertices
+        vizinhos.setdefault(x, []).append(y)
+        vizinhos.setdefault(y, []).append(x)
+    peso = {v.index: (1.0 if v.index in dentro else 0.0)
+            for v in corpo.data.vertices}
+    for _ in range(voltas):
+        passo = {}
+        for i, atual in peso.items():
+            ns = vizinhos.get(i)
+            if i in dentro or not ns:
+                passo[i] = atual
+            else:
+                passo[i] = (atual + sum(peso[n] for n in ns)) / (1 + len(ns))
+        peso = passo
+
+    grupo = corpo.vertex_groups.new(name=nome)
+    for i, valor in peso.items():
+        if valor > 0.004:
+            grupo.add([i], min(1.0, valor), "REPLACE")
+    return nome
+
+
 def cabelo(corpo, cor=(0.016, 0.011, 0.008), comprimento=0.004, peso_min=0.12):
     """Corte raspado: calota recortada pelo grupo `scalp` da propria malha.
 
@@ -525,7 +578,27 @@ def cabelo(corpo, cor=(0.016, 0.011, 0.008), comprimento=0.004, peso_min=0.12):
     peca = recortar_grupo(corpo, "scalp", "cabelo", peso_min=peso_min,
                           deslocar=0.0012, espessura=comprimento)
     if peca:
+        # a mesma serrilha do decote: o recorte vai de face em face, e no
+        # cabelo ela saia como degrau quadrado na costeleta
+        import epi as E
+        E.alisar_bordas(peca)
         C.aplicar(peca, mat_pelo("cabelo", cor=cor, rugosidade=0.82))
+
+    """
+    A PELE ESCURECE EM VOLTA DA CALOTA, e nao so debaixo dela.
+
+    O corte raspado e uma casca com espessura: por mais lisa que esteja a
+    borda, ela termina em degrau, e um degrau preto pousado em pele clara le
+    como touca de natacao. Com a pele escurecendo para fora da borda, o
+    degrau vira densidade caindo.
+
+    E so pintura — a tentativa de fazer o cabelo INTEIRO assim esta registrada
+    acima e nao funciona, porque a pele mantem o brilho dela. As duas juntas e
+    que servem: malha para o volume, pintura para a linha do cabelo.
+    """
+    desbotado = _grupo_desbotado(corpo, "scalp")
+    if desbotado:
+        pintar_regioes(corpo, [("grupo", desbotado, None, 0.42)], cor=cor)
     return peca
 
 
