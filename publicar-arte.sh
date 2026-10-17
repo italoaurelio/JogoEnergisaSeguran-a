@@ -21,42 +21,48 @@ comprimir() {
 }
 
 # sem `;;&`: o /bin/bash do macOS e 3.2 e nao tem fallthrough em case
-alvo="${1:-tudo}"
+# Aceita VARIOS alvos: `publicar-arte.sh personagem motorista` publica os dois.
+# Antes so lia $1 e ignorava o resto EM SILENCIO — o terminal dizia "publicado"
+# e dois dos tres modelos continuavam velhos em public/. O erro so aparecia
+# depois, no jogo, como "mas eu acabei de exportar isso".
+for alvo in "${@:-tudo}"; do
 
-if [ "$alvo" = "cenario" ] || [ "$alvo" = "tudo" ]; then
-  comprimir arte/export/cenario.glb public/modelos/cenario.glb 1024
-  [ -f arte/export/riscos.json ] && cp arte/export/riscos.json public/modelos/
-fi
+  if [ "$alvo" = "cenario" ] || [ "$alvo" = "tudo" ]; then
+    comprimir arte/export/cenario.glb public/modelos/cenario.glb 1024
+    [ -f arte/export/riscos.json ] && cp arte/export/riscos.json public/modelos/
+  fi
 
-if [ "$alvo" = "personagem" ] || [ "$alvo" = "tudo" ]; then
-  comprimir arte/export/personagem.glb public/modelos/personagem.glb 1024
-  [ -f arte/export/personagem.json ] && cp arte/export/personagem.json public/modelos/
-fi
+  if [ "$alvo" = "personagem" ] || [ "$alvo" = "tudo" ]; then
+    comprimir arte/export/personagem.glb public/modelos/personagem.glb 1024
+    [ -f arte/export/personagem.json ] && cp arte/export/personagem.json public/modelos/
+  fi
 
-if [ "$alvo" = "motorista" ] || [ "$alvo" = "tudo" ]; then
-  comprimir arte/export/motorista.glb public/modelos/motorista.glb 1024
-  [ -f arte/export/motorista.json ] && cp arte/export/motorista.json public/modelos/
-fi
+  if [ "$alvo" = "motorista" ] || [ "$alvo" = "tudo" ]; then
+    comprimir arte/export/motorista.glb public/modelos/motorista.glb 1024
+    [ -f arte/export/motorista.json ] && cp arte/export/motorista.json public/modelos/
+  fi
 
-if [ "$alvo" = "cabine" ] || [ "$alvo" = "tudo" ]; then
-  comprimir arte/export/cabine.glb public/modelos/cabine.glb 1024
-  [ -f arte/export/cabine.json ] && cp arte/export/cabine.json public/modelos/
-fi
+  if [ "$alvo" = "cabine" ] || [ "$alvo" = "tudo" ]; then
+    comprimir arte/export/cabine.glb public/modelos/cabine.glb 1024
+    [ -f arte/export/cabine.json ] && cp arte/export/cabine.json public/modelos/
+  fi
 
-if [ "$alvo" = "via" ] || [ "$alvo" = "tudo" ]; then
-  comprimir arte/export/via.glb public/modelos/via.glb 1024
-  [ -f arte/export/via.json ] && cp arte/export/via.json public/modelos/
-fi
+  if [ "$alvo" = "via" ] || [ "$alvo" = "tudo" ]; then
+    comprimir arte/export/via.glb public/modelos/via.glb 1024
+    [ -f arte/export/via.json ] && cp arte/export/via.json public/modelos/
+  fi
 
-if [ "$alvo" = "ocorrencia" ] || [ "$alvo" = "tudo" ]; then
-  comprimir arte/export/ocorrencia.glb public/modelos/ocorrencia.glb 1024
-  [ -f arte/export/ocorrencia.json ] && cp arte/export/ocorrencia.json public/modelos/
-fi
+  if [ "$alvo" = "ocorrencia" ] || [ "$alvo" = "tudo" ]; then
+    comprimir arte/export/ocorrencia.glb public/modelos/ocorrencia.glb 1024
+    [ -f arte/export/ocorrencia.json ] && cp arte/export/ocorrencia.json public/modelos/
+  fi
 
-if [ "$alvo" = "eletricista" ] || [ "$alvo" = "tudo" ]; then
-  comprimir arte/export/eletricista.glb public/modelos/eletricista.glb 512
-  [ -f arte/export/eletricista.json ] && cp arte/export/eletricista.json public/modelos/
-fi
+  if [ "$alvo" = "eletricista" ] || [ "$alvo" = "tudo" ]; then
+    comprimir arte/export/eletricista.glb public/modelos/eletricista.glb 512
+    [ -f arte/export/eletricista.json ] && cp arte/export/eletricista.json public/modelos/
+  fi
+
+done
 
 echo "publicado:"
 ls -lh public/modelos/

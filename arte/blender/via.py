@@ -244,6 +244,52 @@ def _tubo(bm, pontos, segmentos=7, topo=False):
     return aneis
 
 
+def _membro(bm, no, raios, segmentos=8, fechar=True):
+    """Membro INCLINADO: aneis perpendiculares ao proprio eixo.
+
+    `no` = [(x, y, z), ...] e a linha do centro (ombro, cotovelo, pulso);
+    `raios` = o raio em cada no. Entre dois nos o anel usa a bissetriz das
+    duas direcoes, que e o que faz a dobra do cotovelo sair cheia em vez de
+    estrangulada.
+
+    `_loft` e `_tubo` cortam o membro em fatias HORIZONTAIS. Serve para
+    tronco e perna em pe, nao serve para a coxa de quem pedala: ela e quase
+    deitada, e a fatia horizontal nela vira uma elipse de meio metro — foi
+    assim que o ciclista acabou com coxas de caixote. Aqui o anel acompanha
+    o osso.
+    """
+    eixo = [Vector(a) for a in no]
+    dirs = [(eixo[i + 1] - eixo[i]).normalized() for i in range(len(eixo) - 1)]
+    aneis = []
+    for i, c in enumerate(eixo):
+        if i == 0:
+            n = dirs[0]
+        elif i == len(eixo) - 1:
+            n = dirs[-1]
+        else:
+            n = (dirs[i - 1] + dirs[i]).normalized()
+        # dois vetores quaisquer perpendiculares ao eixo
+        u = n.cross(Vector((0, 0, 1)))
+        if u.length < 1e-4:
+            u = n.cross(Vector((1, 0, 0)))
+        u.normalize()
+        v = n.cross(u)
+        r = raios[i]
+        aneis.append([bm.verts.new(c + u * (math.cos(a) * r)
+                                   + v * (math.sin(a) * r))
+                      for a in (2 * math.pi * j / segmentos
+                                for j in range(segmentos))])
+    for k in range(len(aneis) - 1):
+        A, B = aneis[k], aneis[k + 1]
+        for i in range(segmentos):
+            j = (i + 1) % segmentos
+            bm.faces.new((A[i], A[j], B[j], B[i]))
+    if fechar:
+        bm.faces.new(list(reversed(aneis[0])))
+        bm.faces.new(aneis[-1])
+    return aneis
+
+
 def _loft(bm, secoes, segmentos=8, fechar=True, giro=0.0):
     """Loft de aneis ELIPTICOS: `secoes` = [(x, y, z, rx, ry)], de baixo p/ cima.
 
@@ -1692,7 +1738,8 @@ def pedestre(m, nome="via_pedestre", altura=1.72, roupa=(0.30, 0.10, 0.09)):
                (0.00, 0, 1.08, 0.086, 0.110),   # cintura
                (0.01, 0, 1.26, 0.100, 0.158),   # peito
                (0.01, 0, 1.40, 0.102, 0.196),   # ombro
-               (0.00, 0, 1.47, 0.082, 0.148)], segmentos=10)
+               (0.00, 0, 1.47, 0.082, 0.148),   # trapezio
+               (0.00, 0, 1.515, 0.064, 0.082)], segmentos=10)
     # mangas curtas: o volume que separa o braco do tronco na silhueta
     for lado in (-1, 1):
         _loft(bm, [(0.005, lado * 0.185, 1.41, 0.062, 0.062),
@@ -1710,11 +1757,11 @@ def pedestre(m, nome="via_pedestre", altura=1.72, roupa=(0.30, 0.10, 0.09)):
     # pescoco + cabeca na mesma malha: a emenda some e sobra o degrau que
     # importa, que e o do ombro
     bm = bmesh.new()
-    _loft(bm, [(0.00, 0, 1.44, 0.052, 0.058),
-               (0.00, 0, 1.53, 0.050, 0.054),   # pescoco
-               (0.01, 0, 1.565, 0.072, 0.074),  # mandibula
-               (0.015, 0, 1.615, 0.090, 0.084),  # maca do rosto
-               (0.010, 0, 1.675, 0.088, 0.082),  # cranio
+    _loft(bm, [(0.00, 0, 1.46, 0.054, 0.060),
+               (0.00, 0, 1.512, 0.050, 0.054),  # pescoco
+               (0.008, 0, 1.548, 0.072, 0.074),  # mandibula
+               (0.012, 0, 1.604, 0.090, 0.084),  # maca do rosto
+               (0.008, 0, 1.668, 0.088, 0.082),  # cranio
                (0.000, 0, 1.725, 0.062, 0.060),
                (0.000, 0, 1.752, 0.022, 0.022)], segmentos=10)
     _fechar_bm(bm, f"{nome}_cabeca", pele, pecas)
@@ -1787,11 +1834,20 @@ def pedestre(m, nome="via_pedestre", altura=1.72, roupa=(0.30, 0.10, 0.09)):
                    (0.00, dy, 0.30, 0.056, 0.054),
                    (0.00, dy, 0.09, 0.048, 0.046)], segmentos=8)
         _fechar_bm(bm, f"{nome}_canela_malha_{lado}", calca, canela_sol)
-        o = C.caixa(f"{nome}_pe_{lado}", (0.25, 0.105, 0.07),
-                    (0.045, dy, 0.042))
-        C.chanfrar(o, largura=0.02, segmentos=2)
+        # SAPATO em duas pecas: cabedal e SOLA. A sola um pouco mais larga e
+        # mais clara e o que faz o pe pousar no chao — uma caixa so, da cor
+        # do cadarco, fica um tijolo preto na ponta da perna.
+        o = C.caixa(f"{nome}_pe_{lado}", (0.235, 0.098, 0.062),
+                    (0.040, dy, 0.052))
+        C.chanfrar(o, largura=0.024, segmentos=2)
         C.aplicar(o, sapato)
         canela_sol.append(o)
+        sola = C.caixa(f"{nome}_sola_{lado}", (0.240, 0.101, 0.019),
+                       (0.041, dy, 0.016))
+        C.chanfrar(sola, largura=0.007, segmentos=2)
+        C.aplicar(sola, C.mat_simples("via_ped_sola", (0.105, 0.100, 0.098),
+                                      rugosidade=0.85))
+        canela_sol.append(sola)
         canelas.append((C.juntar(canela_sol, f"{nome}_canela_{'e' if lado < 0 else 'd'}"),
                         dy))
 
@@ -1813,6 +1869,15 @@ def pedestre(m, nome="via_pedestre", altura=1.72, roupa=(0.30, 0.10, 0.09)):
                    (0.00, lado * 0.210, 0.87, 0.040, 0.034)],
               segmentos=8)
         _fechar_bm(bm, f"{nome}_braco_malha_{lado}", pele, soltas_b)
+        # MAO. O braco acabava num toco arredondado no pulso. A mao nao
+        # precisa de dedo a 30 m, precisa EXISTIR: e a mancha de pele no fim
+        # do braco que diz onde o braco acaba, e sem ela a silhueta termina
+        # no nada. Sobreposta 2 cm no antebraco, para nao deixar costura.
+        mao = C.caixa(f"{nome}_mao_{lado}", (0.034, 0.070, 0.098),
+                      (0.0, lado * 0.208, 0.832))
+        C.chanfrar(mao, largura=0.015, segmentos=3)
+        C.aplicar(mao, pele)
+        soltas_b.append(mao)
         bracos.append((C.juntar(soltas_b, f"{nome}_braco_{'e' if lado < 0 else 'd'}"),
                        lado * 0.200))
 
@@ -2336,29 +2401,59 @@ def ciclista(m, nome="via_ciclista"):
         # para a frente e canela para tras e a forma de quem pedala — e e o
         # joelho dobrado que da a leitura, nao o detalhe.
         # o quadril agora fica em y=+0,175: a coxa nasce de la, e nao de +0,08
-        coxa = C.barra(f"{nome}_coxa_{lado}", (lado * 0.105, 0.145, 0.90),
-                       (lado * 0.125, -0.21, 0.71), secao=(0.135, 0.135))
-        C.aplicar(coxa, roupa)
-        pecas.append(coxa)
-        perna = C.barra(f"{nome}_perna_{lado}", (lado * 0.125, -0.21, 0.71),
-                        (lado * 0.115, -0.04, 0.30), secao=(0.105, 0.105))
-        C.aplicar(perna, pele)
-        pecas.append(perna)
-        pe = C.caixa(f"{nome}_pe_{lado}", (0.10, 0.22, 0.07),
-                     (lado * 0.115, -0.02, 0.26))
-        C.aplicar(pe, C.mat_simples("via_bike_tenis", (0.045, 0.045, 0.050),
-                                    rugosidade=0.60))
+        # COXA E CANELA COMO MEMBRO, NAO COMO BARRA (17/10).
+        #
+        # `C.barra` e um paralelepipedo de secao constante: a coxa saia com
+        # 13,5 cm de LADO, quadrada, do quadril ao joelho, e a canela igual.
+        # No render o ciclista tinha pernas de caixote — foi o "parecem
+        # massinha" do cliente. Aqui a perna afina do quadril (11 cm) para o
+        # joelho (7,5 cm) e de novo para o tornozelo (5 cm), com o anel
+        # perpendicular ao osso: na coxa, que e quase deitada, e a unica
+        # forma de a secao nao virar uma elipse de meio metro.
+        bm = bmesh.new()
+        _membro(bm, [(lado * 0.100, 0.165, 0.915),
+                     (lado * 0.118, -0.030, 0.815),
+                     (lado * 0.125, -0.210, 0.712)],
+                [0.110, 0.092, 0.076], segmentos=8)
+        _fechar_bm(bm, f"{nome}_coxa_{lado}", roupa, pecas)
+
+        bm = bmesh.new()
+        _membro(bm, [(lado * 0.124, -0.205, 0.725),
+                     (lado * 0.120, -0.120, 0.515),
+                     (lado * 0.115, -0.045, 0.315)],
+                [0.072, 0.058, 0.046], segmentos=8)
+        _fechar_bm(bm, f"{nome}_perna_{lado}", pele, pecas)
+
+        tenis = C.mat_simples("via_bike_tenis", (0.045, 0.045, 0.050),
+                              rugosidade=0.60)
+        pe = C.caixa(f"{nome}_pe_{lado}", (0.098, 0.215, 0.062),
+                     (lado * 0.115, -0.028, 0.268))
+        C.chanfrar(pe, largura=0.018, segmentos=2)
+        C.aplicar(pe, tenis)
         pecas.append(pe)
-        # braco do ombro novo (y -0,145, z 1,355) ao guidao, com cotovelo:
-        # o braco reto fazia o ciclista parecer de muletas
-        braco = C.barra(f"{nome}_braco_{lado}", (lado * 0.155, -0.125, 1.33),
-                        (lado * 0.185, -0.30, 1.11), secao=(0.088, 0.088))
-        C.aplicar(braco, roupa)
-        pecas.append(braco)
-        antebraco = C.barra(f"{nome}_antebraco_{lado}",
-                            (lado * 0.185, -0.30, 1.11),
-                            (lado * 0.200, -0.40, 1.00), secao=(0.072, 0.072))
-        C.aplicar(antebraco, pele)
-        pecas.append(antebraco)
+
+        # BRACO: ombro -> cotovelo -> pulso, afinando, e uma MAO no guidao.
+        # Sem a mao o antebraco terminava num toco quadrado ATRAVESSANDO o
+        # guidao — o mesmo defeito que o cliente apontou na cabine.
+        bm = bmesh.new()
+        _membro(bm, [(lado * 0.150, -0.120, 1.340),
+                     (lado * 0.178, -0.225, 1.215),
+                     (lado * 0.188, -0.302, 1.108)],
+                [0.078, 0.058, 0.048], segmentos=8)
+        _fechar_bm(bm, f"{nome}_braco_{lado}", roupa, pecas)
+
+        bm = bmesh.new()
+        _membro(bm, [(lado * 0.187, -0.298, 1.114),
+                     (lado * 0.196, -0.355, 1.055),
+                     (lado * 0.202, -0.402, 1.002)],
+                [0.050, 0.042, 0.034], segmentos=8)
+        _fechar_bm(bm, f"{nome}_antebraco_{lado}", pele, pecas)
+
+        mao = C.caixa(f"{nome}_mao_{lado}", (0.052, 0.082, 0.070),
+                      (lado * 0.205, -0.420, 0.986),
+                      rot=(math.radians(-38), 0, 0))
+        C.chanfrar(mao, largura=0.016, segmentos=3)
+        C.aplicar(mao, pele)
+        pecas.append(mao)
 
     return C.juntar(pecas, nome)
