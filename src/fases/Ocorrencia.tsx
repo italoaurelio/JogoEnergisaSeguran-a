@@ -11,6 +11,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { som } from '../som'
+import { type Fisico } from '../cena/Personagem'
 import { SeloVeredito, type Selo } from '../Veredito'
 import { PalcoPronto } from '../cena/Carregando'
 import { Canvas } from '@react-three/fiber'
@@ -179,9 +180,11 @@ function feitosNoPoste(e: Estado) {
 type Etapa = 'briefing' | 'chegada' | 'ferramental' | 'reparo'
 
 export default function Fase3Ocorrencia({
-  aoConcluir,
+  aoConcluir, fisico,
 }: {
   aoConcluir: (registros: Registro[], maximo: number) => void
+  /** O físico do vestiário: é ele quem sobe no cesto. */
+  fisico: Fisico
 }) {
   useEffect(() => { som.ambiente(true); return () => som.ambiente(false) }, [])
   const [etapa, setEtapa] = useState<Etapa>('briefing')
@@ -538,6 +541,7 @@ export default function Fase3Ocorrencia({
                 caminhao={noCesto.caminhao}
                 giro={noCesto.giro}
                 subindo={1}
+                fisico={fisico}
               />
               <Aterramento posto={estadoPoste.aterrado} />
               <Bloqueio posto={estadoPoste.bloqueada} />

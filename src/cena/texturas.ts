@@ -188,6 +188,21 @@ export function vestir(
 export const CALOR_PELE: [number, number, number] = [0.42, 0.14, 0.07]
 
 /**
+ * O tom em que a pele é assada no Blender (`exportar_personagem.TOM_NEUTRO`).
+ *
+ * O personagem e o motorista chegam com a pele em TEXTURA, assada neste tom,
+ * e o `color` do material multiplica por cima — por isso o tom do jogador é
+ * um multiplicador e não uma cor.
+ *
+ * O ELETRICISTA não passa pelo forno: o `.glb` dele traz `pele_corpo` sem
+ * textura e sem `baseColorFactor`, o que em glTF quer dizer BRANCO. Ele
+ * aparecia alvo no poste, e era isso que fazia o cliente dizer que o homem
+ * no cesto não era o personagem que ele montou. Para esse caso o tom neutro
+ * precisa entrar na mão.
+ */
+export const TOM_ASSADO: [number, number, number] = [0.30, 0.215, 0.165]
+
+/**
  * Devolve calor à pele no lado da SOMBRA.
  *
  * Medido na tela "Tom de pele", que é o close do jogo: o lado iluminado do
@@ -206,11 +221,20 @@ export const CALOR_PELE: [number, number, number] = [0.42, 0.14, 0.07]
 export function aquecerPele(raiz: THREE.Object3D, tom?: [number, number, number]) {
   raiz.traverse((o) => {
     const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial
-    if (m?.name !== 'pele_export' || !m.map) return
-    // o mapa assado entra como emissivo também: o calor acompanha o desenho
-    // da pele em vez de pintar uma névoa vermelha por cima do rosto inteiro
-    m.emissiveMap = m.map
-    m.emissiveIntensity = 0.30
+    // PELO PREFIXO, e não pelo nome exato.
+    //
+    // `pele_export` é como sai do forno; o eletricista sai como
+    // `pele_corpo.002`, porque o `.glb` dele não é assado. Com a comparação
+    // exata esta função pulava o eletricista em silêncio — ou seja, o
+    // personagem que o jogador olha a fase inteira do reparo era o único
+    // que ficava sem o conserto.
+    if (!m?.name?.startsWith('pele_')) return
+    if (m.map) {
+      // o mapa assado entra como emissivo também: o calor acompanha o desenho
+      // da pele em vez de pintar uma névoa vermelha por cima do rosto inteiro
+      m.emissiveMap = m.map
+    }
+    m.emissiveIntensity = m.map ? 0.30 : 0.16
     m.emissive.setRGB(
       CALOR_PELE[0] * (tom?.[0] ?? 1),
       CALOR_PELE[1] * (tom?.[1] ?? 1),

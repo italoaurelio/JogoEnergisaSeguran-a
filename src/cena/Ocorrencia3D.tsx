@@ -10,7 +10,8 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Html, useGLTF } from '@react-three/drei'
 import { som } from '../som'
-import { aquecerPele, domarSheen } from './texturas'
+import { TOM_ASSADO, aquecerPele, domarSheen } from './texturas'
+import { ALTURA_BASE, type Fisico } from './Personagem'
 import * as THREE from 'three'
 
 const MODELO = './modelos/ocorrencia.glb'
@@ -726,9 +727,21 @@ export type PoseEletricista =
   | 'parado' | 'trabalhando' | 'choque' | 'subindo' | 'radio'
 
 export function Eletricista({
-  pose, caminhao, subindo, giro = 0, altura = 0.06,
+  pose, caminhao, subindo, giro = 0, altura = 0.06, fisico,
 }: {
   pose: PoseEletricista
+  /**
+   * O FÍSICO QUE O JOGADOR MONTOU no vestiário.
+   *
+   * Sem isto o homem no cesto era outra pessoa — altura padrão, tom de pele
+   * padrão — e o cliente reparou na hora: "o personagem não é o que eu
+   * criei? acaba com a imersão". Ele tem razão, e o conserto é barato
+   * porque o `.glb` do eletricista é assado com o MESMO tom neutro do
+   * personagem em pé. Tom e cabelo são multiplicação no material; a altura
+   * é escala da malha, não do grupo, senão a altura do cesto escalaria
+   * junto e o pé sairia do piso.
+   */
+  fisico?: Fisico
   /** Onde o caminhão está: é dele que sai o caminho do cesto. */
   caminhao: [number, number, number]
   /** 0 lança recolhida, 1 cesto na posição de trabalho. */
@@ -757,11 +770,28 @@ export function Eletricista({
     // parte que o cliente chama de mais importante — e era justamente a que
     // tinha ficado de fora da correção.
     domarSheen(scene)
-    aquecerPele(scene)
+    aquecerPele(scene, fisico?.tom)
     if (import.meta.env.DEV) {
       ;(window as unknown as Record<string, unknown>).__eletricista = scene
     }
-  }, [scene])
+  }, [scene, fisico?.tom])
+
+  useEffect(() => {
+    if (!fisico) return
+    scene.traverse((o) => {
+      const mat = (o as THREE.Mesh).material as THREE.MeshStandardMaterial
+      if (mat?.name?.startsWith('pele_')) {
+        // Sem textura (que é o caso dele), o tom neutro do forno não está em
+        // lugar nenhum: o material chega BRANCO. Entra aqui multiplicado
+        // pelo tom do jogador, que é a mesma conta que a textura faria.
+        const base = mat.map ? [1, 1, 1] : TOM_ASSADO
+        mat.color.setRGB(
+          base[0] * fisico.tom[0], base[1] * fisico.tom[1], base[2] * fisico.tom[2],
+        )
+      }
+      if (mat?.name === 'cabelo' && fisico.cabelo) mat.color.setRGB(...fisico.cabelo)
+    })
+  }, [scene, fisico])
 
   useEffect(() => {
     for (const no of scene.children) {
@@ -802,9 +832,11 @@ export function Eletricista({
     g.rotation.y = giro * t.current
   })
 
+  const escala = (fisico?.altura ?? ALTURA_BASE) / ALTURA_BASE
+
   return (
     <group ref={grupo} rotation={[0, 0, 0]}>
-      <primitive object={scene} />
+      <primitive object={scene} scale={escala} />
     </group>
   )
 }

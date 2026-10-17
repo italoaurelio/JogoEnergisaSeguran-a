@@ -133,7 +133,7 @@ export default function App() {
       )}
       {etapa === 'trajeto' && <Fase2Trajeto aoConcluir={concluirTrajeto} />}
       {etapa === 'ocorrencia' && (
-        <Fase3Ocorrencia aoConcluir={concluirOcorrencia} />
+        <Fase3Ocorrencia aoConcluir={concluirOcorrencia} fisico={fisico ?? FISICO_INICIAL} />
       )}
       {etapa === 'relatorio' && (
         <Relatorio
