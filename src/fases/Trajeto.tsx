@@ -682,6 +682,20 @@ function Motor({
       velCarroAnt.current = alvo
       freioCarro.current = Math.max(0, Math.min(1, -aceleracao / 1.2))
       carro.current += alvo * dt
+      /*
+        ELE NAO FOGE.
+
+        `carro.current` avanca todo quadro desde que entra em cena, com
+        velocidade propria e sem olhar para tras. Quem dirige devagar o
+        perde: medido num teste, 634 m de vao — e com o carro a 600 m o
+        exercicio de distancia de seguimento simplesmente deixa de existir,
+        que e o oposto do que este trecho cobra.
+
+        O teto e 95 m, que e onde ele ainda se ve na nevoa. Carro da frente
+        de verdade nao esta correndo de ninguem: anda no proprio ritmo e,
+        se o de tras some, quem fica para tras e so o de tras.
+      */
+      carro.current = Math.min(carro.current, d + 95)
       const vao = carro.current - d
       const seguro = Math.max(8, v * CONDUTA.segundosDeSeguimento)
       if (vao < seguro) contar(faltas, 'seguimento', dt)
