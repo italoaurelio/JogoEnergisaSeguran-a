@@ -69,7 +69,8 @@ const ARVORE_DIR = BORDA_DIR - 4.15
 export type Marco = {
   peca: 'poste' | 'cabos' | 'arvore' | 'arbusto' | 'casa'
     | 'casa_b' | 'casa_c' | 'placa'
-    | 'carro' | 'lombada' | 'faixa_pedestre' | 'semaforo' | 'cruzamento' | 'onibus'
+    | 'carro' | 'carro_b' | 'carro_c' | 'carro_d'
+    | 'lombada' | 'faixa_pedestre' | 'semaforo' | 'cruzamento' | 'onibus'
     | 'ciclista' | 'escola' | 'escola_portao' | 'muro_patio'
   /** Distância absoluta ao longo do trajeto, em metros. */
   metro: number
@@ -255,6 +256,41 @@ export function paisagem(distanciaTotal: number): Marco[] {
                    x: CASA_DIR - r * 1.6 })
     }
 
+    /*
+      SEGUNDA FILEIRA DE CASAS, atrás da primeira.
+
+      "A rua ainda tá vazia e sem nada." Uma rua de verdade não tem uma
+      fileira de casas e campo aberto atrás: tem QUADRA. Com uma fileira só,
+      tudo acima do telhado era céu e tudo atrás era grama — e é o fundo
+      vazio, mais que a frontaria, que faz a rua parecer maquete.
+
+      Fica 13 m atrás e desencontrada em meio módulo, então aparece pelos
+      VÃOS entre as casas da frente, que é como se vê a quadra de dentro de
+      um carro. Só de um lado por vez, alternando, para não dobrar a conta
+      de objetos na tela.
+    */
+    if (passo % 2 === 1) {
+      const atras = r < 0.5
+      saida.push({
+        peca: casaVar(r + 0.53),
+        metro: m + 5,
+        x: atras ? CASA_ESQ + 13.5 : CASA_DIR - 13.5,
+        giro: atras ? Math.PI : 0,
+      })
+    }
+
+    /*
+      CARRO ESTACIONADO no meio-fio. É o objeto que mais enche uma rua
+      residencial, e a frota já existia em quatro modelos — estava sendo
+      usada só no contrafluxo e no pátio.
+    */
+    if (r > 0.42 && r < 0.78) {
+      const modelo = (['carro', 'carro_b', 'carro_c', 'carro_d'] as const)[
+        Math.floor(r * 97) % 4
+      ]
+      saida.push({ peca: modelo, metro: m + 3 + r * 4, x: BORDA_DIR - 2.4 })
+    }
+
     // arborização de calçada, alternando o lado para não virar corredor
     if (r < 0.34) {
       saida.push({ peca: 'arvore', metro: m + r * 9, x: ARVORE_ESQ,
@@ -262,8 +298,12 @@ export function paisagem(distanciaTotal: number): Marco[] {
     } else if (r < 0.66) {
       saida.push({ peca: 'arvore', metro: m + r * 9, x: ARVORE_DIR,
                    giro: r * 6 })
-    } else if (r < 0.88) {
-      saida.push({ peca: 'arbusto', metro: m + r * 7, x: BORDA_DIR - 3.4 })
+    }
+    // arbusto SEMPRE, e dos dois lados: era `else if`, então em 2 de cada 3
+    // módulos a calçada não tinha nada entre a árvore e o muro
+    saida.push({ peca: 'arbusto', metro: m + r * 7, x: BORDA_DIR - 3.4 })
+    if (r > 0.3) {
+      saida.push({ peca: 'arbusto', metro: m + 5 + r * 4, x: BORDA_ESQ + 3.9 })
     }
   }
   return saida
@@ -297,16 +337,16 @@ export function paisagem(distanciaTotal: number): Marco[] {
  */
 export const POOL: Record<Marco['peca'], number> = {
   poste: 12, cabos: 12,
-  casa: 24, casa_b: 18, casa_c: 15,
+  casa: 34, casa_b: 28, casa_c: 36,
   escola: 33,
   // uma por trajeto: e a entrada, nao o muro
   escola_portao: 2,
   // duas fileiras, uma a cada 10 m, nos dois lados do pátio
   muro_patio: 30,
   arvore: 31,
-  arbusto: 34,
+  arbusto: 74,
   // frota parada do pátio
-  carro: 10,
+  carro: 14, carro_b: 8, carro_c: 8, carro_d: 8,
   onibus: 10,
   // peças de evento: uma de cada no trajeto inteiro
   placa: 10, lombada: 10, faixa_pedestre: 10, semaforo: 10, cruzamento: 4,

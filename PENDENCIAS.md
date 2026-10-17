@@ -28,7 +28,10 @@ Enquanto estiver `[ ]`, está em aberto, mesmo que eu ache que resolvi.
       vão triangular ABERTO. Render de rua novo em `prova_via.py -- casas`
 - [x] Escola — 17/10: módulo de entrada com portão (antes não havia porta
       nenhuma) e janela 9 cm para fora, acima do muro
-- [ ] Rua vazia — povoar
+- [x] Rua vazia — 17/10: segunda fileira de casas 13 m atrás (aparece pelos
+      vãos da primeira), carro estacionado no meio-fio com os 4 modelos,
+      arbusto em TODO módulo e dos dois lados (era `else if`, só entrava em 1
+      de 3). Auto-teste `npm run paisagem` reajustado: pegou 2 pools curtos
 - [x] Cruzamento — 17/10: peça `cruzamento` (dois braços de asfalto, linha de
       retenção, eixo tracejado, meio-fio nas 4 esquinas) + `TransitoCruzado`,
       que anda ao CONTRÁRIO do sinal do jogador. Conferido na tela: van parada
