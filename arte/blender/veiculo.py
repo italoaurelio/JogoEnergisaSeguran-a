@@ -516,12 +516,33 @@ def cinto(afivelado=True, lado=1):
     ancora_baixa = Vector((lado * (meia - 0.06), 0.30, ALTURA_ASSENTO - 0.08))
 
     if afivelado:
+        """
+        O CAMINHO SAI DO CORPO DO MOTORISTA, nao do banco vazio.
+
+        Ele foi desenhado quando o banco estava vazio e nunca foi revisto
+        depois que o motorista entrou. Com `DESLOC_BANCO` em -0,18, o ponto
+        do peito caia em y = 0,00 — e o peito dele esta em y = 0,237. Ou
+        seja: a faixa passava 23,7 cm DENTRO do torax, medido na cena. Na
+        tela, cinto entrando no personagem.
+
+        Os numeros abaixo sao a frente do corpo medida altura por altura, em
+        faixas de 5 cm, mais 3,5 cm de folga para a faixa pousar por cima e
+        nao rasante:
+
+            z 1,10 -> 0,161    z 0,90 -> 0,237
+            z 1,00 -> 0,203    z 0,60 -> 0,210
+            z 0,95 -> 0,228    z 0,45 -> 0,252
+
+        Quem mexer no banco ou no fisico do motorista tem de refazer esta
+        medicao — ela vale para ESTE corpo nesta posicao.
+        """
         caminho = [
             tuple(ancora_alta),
-            tuple(Vector((x + 0.02, 0.18 + DESLOC_BANCO, 0.92))),
-            tuple(Vector((x - 0.10, 0.20 + DESLOC_BANCO, ALTURA_ASSENTO + 0.20))),
+            tuple(Vector((x + 0.06, 0.200, 1.10))),                  # ombro
+            tuple(Vector((x + 0.01, 0.275, 0.92))),                  # peito
+            tuple(Vector((x - 0.09, 0.250, ALTURA_ASSENTO + 0.20))),  # abdome
             tuple(fivela),
-            tuple(Vector((x + 0.05, 0.26 + DESLOC_BANCO, ALTURA_ASSENTO - 0.02))),
+            tuple(Vector((x + 0.05, 0.280, ALTURA_ASSENTO - 0.02))),  # colo
             tuple(ancora_baixa),
         ]
     else:

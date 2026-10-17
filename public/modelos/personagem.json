@@ -31,7 +31,8 @@
     "tenis": "epi_tenis",
     "paraquedista_talabarte": "epi_paraquedista_talabarte",
     "cinto_abdominal": "epi_cinto_abdominal",
-    "base_roupa": "epi_base_roupa"
+    "base_roupa": "epi_base_roupa",
+    "base_tenis": "epi_base_tenis"
   },
   "marcos": {
     "ground": [

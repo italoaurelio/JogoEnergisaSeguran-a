@@ -158,17 +158,6 @@ export default function Personagem({ fisico, vestindo, giro, animo = 'ok' }: Pro
       `cabelo_capacete`, que é o mesmo recorte cortado abaixo da linha do
       casco.
     */
-    /*
-      O TÊNIS SAI QUANDO A BOTINA ENTRA.
-
-      Ele chega ao vestiário calçado — andava descalço a fase 1 inteira, e o
-      cliente apontou. Mas não dá para estar de tênis e de botina ao mesmo
-      tempo, então o nó próprio existe justamente para poder sumir.
-    */
-    const comBotina = [...vestidos].some((id) => id.startsWith('botina'))
-    const tenis = scene.getObjectByName('base_tenis')
-    if (tenis) tenis.visible = !comBotina
-
     const comCapacete = [...vestidos].some((id) => id.startsWith('capacete'))
     const alvoCabelo = comCapacete
       ? 'cabelo_capacete'

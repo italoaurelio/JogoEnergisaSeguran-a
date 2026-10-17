@@ -38,8 +38,22 @@ BACIA = (0.0, 0.16, V.ALTURA_ASSENTO + 0.055)
 
 #: pegada "9 e 3" no aro, onde as duas maos vao parar
 def _pegada(sinal):
+    """Onde o PUNHO tem de parar para a mao segurar o aro.
+
+    A IK leva o punho ao alvo, e o alvo era o eixo do aro: a mao inteira
+    nascia centrada no tubo e os dedos saiam do outro lado. Na tela, mao
+    atravessando o volante em vez de segura-lo — a foto que o cliente mandou.
+
+    Quem segura um aro poe o punho DO LADO DE CA dele e um pouco para
+    dentro do raio; sao os dedos que passam por cima. O volante e inclinado
+    32 graus, entao "do lado de ca" nao e +Y: e a normal do plano do aro,
+    que vale (0, sen 32, -cos 32) no sentido do motorista.
+    """
     from mathutils import Vector as _V
-    return _V((sinal * V.RAIO_VOLANTE, V.VOLANTE.y, V.VOLANTE.z))
+    recuo = 0.055
+    n = _V((0.0, math.sin(V.INCLINACAO_VOLANTE), -math.cos(V.INCLINACAO_VOLANTE)))
+    aro = _V((sinal * (V.RAIO_VOLANTE - 0.015), V.VOLANTE.y, V.VOLANTE.z))
+    return aro + n * recuo
 
 # as duas vagas que se veem de dentro da cabine
 VARIANTES_CORPO = ["vestimenta_fr", "camisa_algodao", "colete_refletivo"]

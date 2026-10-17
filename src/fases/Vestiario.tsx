@@ -133,7 +133,18 @@ export default function Vestiario({
   const vestindo = useMemo(() => {
     const ids = Object.values(escolhas).filter(Boolean) as string[]
     const cobre = ids.some((id) => PECAS.find((p) => p.id === id)?.substituiBase)
-    return cobre ? ids : ['base_roupa', ...ids]
+    if (cobre) return ids
+    /*
+      O TÊNIS ENTRA COM A ROUPA DE BASE, e sai quando a botina entra.
+
+      Ele andava descalço a fase 1 inteira — montando o físico, escolhendo o
+      tom de pele, e de novo no fim do turno. O calçado pessoal já existia no
+      catálogo (`botinas(tipo='tenis')`) e nunca tinha sido usado fora dele.
+    */
+    const comBotina = ids.some((id) => id.startsWith('botina'))
+    return comBotina
+      ? ['base_roupa', ...ids]
+      : ['base_roupa', 'base_tenis', ...ids]
   }, [escolhas])
 
   const completo = ORDEM_VAGAS.every((v) => escolhas[v])

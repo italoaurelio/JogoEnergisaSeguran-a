@@ -22,6 +22,8 @@
     "celular": "est_celular",
     "celular_guardado": "est_celular_guardado",
     "checklist_branco": "est_checklist_branco",
-    "checklist_feito": "est_checklist_feito"
+    "checklist_feito": "est_checklist_feito",
+    "freio_puxado": "est_freio_puxado",
+    "freio_solto": "est_freio_solto"
   }
 }
