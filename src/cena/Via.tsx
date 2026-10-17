@@ -1180,8 +1180,29 @@ export function Mundo({
             estava em 0,300 — mesma faixa de valor do asfalto texturizado e
             do céu com névoa, três massas grandes sem hierarquia nenhuma.
           */
+          // `'propria'`: cada variante de casa tem a SUA cor, escolhida no
+          // Blender. A tinta fixa de antes pintava as três de #ecebe6 —
+          // medido no jogo — e era metade do "as casas são todas iguais".
+          // O muro e a calçada não têm cor própria para preservar, mas
+          // também não perdem nada: a deles já nasce cinza.
           vestir(material, { cor: asfaltoCor, relevo: asfaltoRelevo }, anis, 0.60,
-                 0.9, [0.70, 0.69, 0.66])
+                 0.9, 'propria')
+        } else if (/^via_telha/.test(material.name)) {
+          /*
+            O TELHADO TAMBÉM GANHA GRÃO.
+
+            Era cor chapada: três telhados, três tons lisos, sem uma emenda
+            nem uma telha. Num plano em que o telhado é a maior superfície
+            inclinada da casa, chapado ele lê como plano de papel colado.
+
+            Ladrilho apertado (0,55 m): telha é um relevo MIÚDO, e com o
+            ladrilho largo das paredes o grão virava mancha. A cor é a
+            própria — as três variantes têm três telhas diferentes e é isso
+            que separa uma casa da outra na fileira.
+          */
+          vestir(material, { cor: asfaltoCor, relevo: asfaltoRelevo }, anis, 0.62,
+                 0.55, 'propria')
+          material.roughness = 0.93
         } else if (material.name === 'via_mato') {
           // A grama é gerada em arte/gerar_grama.py: não havia nenhuma em
           // arte/tex, e é a maior superfície do trajeto — chapada, era ela

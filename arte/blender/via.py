@@ -624,15 +624,24 @@ def arbusto(m, nome="via_arbusto", semente=5):
 # fecho na frente (muro cheio x grade). Nao e cor aleatoria: sao tres casas de
 # beira de estrada que existem de verdade, lado a lado, em qualquer rodovia do
 # interior.
+# TELHA NAO E PRETA.
+#
+# Medido no jogo: `via_telha_b` saia em #595856 e `via_telha_c` em #464445 —
+# albedo 0,10 e 0,062. A essa distancia um telhado com albedo 0,06 nao le
+# como telhado, le como BURACO no alto da casa, e foi isso que o cliente
+# chamou duas vezes de "casa sem teto".
+#
+# Telha de fibrocimento envelhecida fica entre 0,16 e 0,24 de albedo; telha
+# ceramica velha, entre 0,12 e 0,20. Os tres sobem para essa faixa.
 CASAS = (
     dict(parede=(0.255, 0.238, 0.205), barra=(0.125, 0.118, 0.105),
-         telha=(0.165, 0.062, 0.038), teto="duas_aguas", cxa=True,
+         telha=(0.205, 0.082, 0.052), teto="duas_aguas", cxa=True,
          fecho="muro", altura=2.90),
     dict(parede=(0.145, 0.185, 0.200), barra=(0.072, 0.092, 0.100),
-         telha=(0.100, 0.098, 0.092), teto="platibanda", cxa=True,
+         telha=(0.188, 0.182, 0.168), teto="platibanda", cxa=True,
          fecho="grade", altura=3.15),
     dict(parede=(0.310, 0.225, 0.190), barra=(0.165, 0.112, 0.090),
-         telha=(0.062, 0.058, 0.060), teto="duas_aguas", cxa=False,
+         telha=(0.158, 0.150, 0.142), teto="duas_aguas", cxa=False,
          fecho="muro", altura=2.70),
 )
 

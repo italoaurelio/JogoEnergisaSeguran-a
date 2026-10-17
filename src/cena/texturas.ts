@@ -135,7 +135,14 @@ export function vestir(
    * informação nenhuma, em vez de ir para o ciclista que estava em cima
    * dele. Problema de composição, não de técnica.
    */
-  tinta?: [number, number, number],
+  /**
+   * `'propria'` mantém a cor que veio do Blender e só a clareia para o
+   * `map` não apagá-la. É o que as paredes precisam: as três variantes de
+   * casa têm três cores escolhidas lá, e uma tinta fixa aqui transformava
+   * as três na mesma — medido no jogo, as três saíam em #ecebe6, que é o
+   * "as casas são todas iguais".
+   */
+  tinta?: [number, number, number] | 'propria',
 ) {
   const ladrilho = ladrilhoExplicito ?? LADRILHO[material.name] ?? 4
   if (mapas.cor) {
@@ -143,7 +150,8 @@ export function vestir(
     preparar(t, ladrilho, true, anisotropia)
     material.map = t
     // o `map` multiplica a cor base; sem clarear, o albedo original apaga
-    if (tinta) material.color.setRGB(tinta[0], tinta[1], tinta[2]).multiplyScalar(clarear / 0.5)
+    if (tinta === 'propria') material.color.multiplyScalar(clarear / 0.5)
+    else if (tinta) material.color.setRGB(tinta[0], tinta[1], tinta[2]).multiplyScalar(clarear / 0.5)
     else material.color.setScalar(clarear)
   }
   if (mapas.relevo) {
