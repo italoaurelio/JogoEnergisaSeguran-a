@@ -942,7 +942,25 @@ export function Mundo({
   // alcança todas as peças em cena.
   const dobra = useMemo(criarDobra, [])
 
-  useEffect(() => {
+  /*
+    OS TRÊS CAMPOS DE MALHA SÃO LIGADOS NO RENDER, e não no efeito abaixo.
+
+    `clone()` copia `castShadow`, `receiveShadow` e `frustumCulled` no
+    momento da cópia, e o mundo inteiro é feito de cópias: o catálogo nem
+    entra em cena. Ligados só no efeito, eles chegavam depois de os clones já
+    terem nascido — e a rua inteira passou meses sem uma sombra de contato,
+    com caminhão, poste e pedestre pousados em nada. Era a maior parte do que
+    fazia o trajeto parecer chapado.
+
+    Material e geometria podem ficar no efeito, e ficam: esses o clone
+    compartilha por referência, então remendar o molde alcança as cópias
+    depois. Os campos da malha, não.
+
+    `useMemo` sem valor é esquisito e é o ponto: isto precisa rodar no corpo
+    do render, antes dos `useMemo` que fazem os clones — que vêm mais abaixo
+    neste mesmo componente, e portanto depois deste.
+  */
+  useMemo(() => {
     scene.traverse((o) => {
       const m = o as THREE.Mesh
       if (!m.isMesh) return
@@ -951,6 +969,13 @@ export function Mundo({
       // o corte por caixa envolvente é calculado na geometria reta; depois da
       // dobra a peça não está mais lá e o three a descartaria em curva
       m.frustumCulled = false
+    })
+  }, [scene])
+
+  useEffect(() => {
+    scene.traverse((o) => {
+      const m = o as THREE.Mesh
+      if (!m.isMesh) return
       uvPorPosicao(m.geometry)
       for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
         dobrarMaterial(mat, dobra)
@@ -1145,6 +1170,7 @@ export function Mundo({
   useEffect(() => {
     if (import.meta.env.DEV) {
       ;(window as unknown as Record<string, unknown>).__via = raiz.current
+      ;(window as unknown as Record<string, unknown>).__dobra = dobra
     }
   }, [])
 
