@@ -417,7 +417,7 @@ function TransitoCruzado({
 function Contrafluxo({
   moldes, distancia, dobra, quantos = 11, vao = VAO_CONTRA, deslocamento = 0,
   velocidade = VELOCIDADE_CONTRA, x = CONTRA_X, forcaSom = 1,
-  faixa = null, pedestreLiberado, ciclista = null,
+  faixa = null, pedestreNaPista, ciclista = null,
 }: {
   /**
    * Os modelos desta fila. Cada veículo pega um, em rodízio — é a FORMA que
@@ -431,7 +431,7 @@ function Contrafluxo({
   /** Metro da faixa de pedestre. Null quando este trajeto não tem uma. */
   faixa?: number | null
   /** Enquanto for falso, esta fila PARA antes da faixa. */
-  pedestreLiberado?: React.RefObject<boolean>
+  pedestreNaPista?: React.RefObject<boolean>
   /**
    * Metro do ciclista. Enquanto o jogador se aproxima dele, esta fila
    * ESPERA — ver a regra dentro do laço.
@@ -531,8 +531,21 @@ function Contrafluxo({
       linha de parada DELE fica depois da faixa — em `faixa + 4`. Quem já
       passou da faixa segue embora; quem ainda não chegou encosta e espera.
     */
-    const naFaixa = faixa != null && pedestreLiberado
-      && !pedestreLiberado.current
+    /*
+      O SINAL ESTAVA INVERTIDO.
+
+      Era `!pedestreLiberado.current`. Mas `pedestreLiberado` quer dizer "o
+      jogador cedeu, o pedestre PODE atravessar" — então o contrafluxo
+      parava enquanto não havia ninguém na pista e ARRANCAVA no instante em
+      que o pedestre punha o pé no asfalto. Exatamente ao contrário do que a
+      fase cobra, e exatamente o que o cliente viu: "eu paro e os outros
+      veículos não".
+
+      Agora o sinal é `pedestreNaPista`, escrito pelo próprio pedestre
+      enquanto ele está entre os dois meios-fios. Quem anda é quem manda
+      parar.
+    */
+    const naFaixa = faixa != null && !!pedestreNaPista?.current
 
     /*
       A PISTA FICA LIVRE PARA A ULTRAPASSAGEM DO CICLISTA.
@@ -767,12 +780,14 @@ function andar(
 }
 
 function Pedestre({
-  molde, distancia, metro, liberado,
+  molde, distancia, metro, liberado, naPista,
 }: {
   molde: THREE.Object3D | null
   distancia: React.RefObject<number>
   metro: number | null
   liberado: React.RefObject<boolean>
+  /** Escrito aqui, lido pelo contrafluxo: ele está no asfalto AGORA. */
+  naPista: React.RefObject<boolean>
 }) {
   const grupo = useRef<THREE.Group>(null)
   const obj = useMemo(() => {
@@ -795,6 +810,9 @@ function Pedestre({
     const vao = ATE_PE_X - DE_PE_X
     const x = DE_PE_X + vao * avanco.current
     g.position.set(x, 0, z)
+    // ele pisa no asfalto da saída do meio-fio até o outro meio-fio
+    naPista.current = liberado.current
+      && avanco.current > 0.02 && avanco.current < 0.98
     // parado no meio-fio ele fica de pe; andando, anda
     andar(pernas, obj, avanco.current * vao)
     g.visible = z > -30 && z < ALCANCE
@@ -1333,6 +1351,12 @@ export function Mundo({
   /** Metro do cruzamento, para o trânsito da transversal. */
   cruzamento?: number | null
 }) {
+  /*
+    Quem manda o contrafluxo parar é o PEDESTRE NO ASFALTO, e esse sinal só
+    o próprio pedestre tem. Ele escreve aqui e o contrafluxo lê.
+  */
+  const pedestreNaPista = useRef(false)
+
   const { scene } = useGLTF(MODELO, DRACO)
   const [asfaltoCor, asfaltoRelevo, terraCor, terraRelevo, gramaCor, gramaRelevo] =
     useTexture([
@@ -1707,6 +1731,7 @@ export function Mundo({
         distancia={distancia}
         metro={faixa}
         liberado={pedestreLiberado}
+        naPista={pedestreNaPista}
       />
       <OnibusEscolar
         molde={moldes.onibus}
@@ -1744,7 +1769,7 @@ export function Mundo({
         moldes={[moldes.carro, moldes.moto, moldes.carro_b, moldes.carro_c,
                  moldes.carro_d, moldes.moto]}
         distancia={distancia} dobra={dobra}
-        faixa={faixa} pedestreLiberado={pedestreLiberado} ciclista={ciclista}
+        faixa={faixa} pedestreNaPista={pedestreNaPista} ciclista={ciclista}
       />
       {garagem && (
         <Garagem

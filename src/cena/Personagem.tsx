@@ -183,6 +183,21 @@ export default function Personagem({ fisico, vestindo, giro, animo = 'ok' }: Pro
     }
   })
 
+  /**
+   * Quanto cada corte CLAREIA a cor escolhida.
+   *
+   * Raspado é máquina dois: o que se vê é tanto couro cabeludo quanto pelo,
+   * e por isso um raspado nunca parece da cor do cabelo da pessoa — parece
+   * mais claro e mais fosco. Sem isto os três cortes saem do mesmo preto e
+   * a diferença entre eles fica só no volume, que a 1,5 m é pouca.
+   */
+  const CLARIDADE: Record<string, [number, number]> = {
+    cabelo_raspado: [0.60, 0.045],
+    cabelo_curto: [0.90, 0.012],
+    cabelo_medio: [1.0, 0.0],
+    cabelo_capacete: [0.95, 0.006],
+  }
+
   useEffect(() => {
     // o calor da pele anda junto com o tom: no tom 8 o multiplicador e' 0,40,
     // e um vermelho fixo por baixo dele viraria brasa
@@ -190,10 +205,43 @@ export default function Personagem({ fisico, vestindo, giro, animo = 'ok' }: Pro
     scene.traverse((o) => {
       const mat = (o as THREE.Mesh).material as THREE.MeshStandardMaterial
       if (mat?.name === 'pele_export') mat.color.setRGB(...fisico.tom)
-      // o cabelo é nó próprio com material próprio: é a única peça do corpo
-      // que dá para variar sem reexportar o modelo
-      if (mat?.name === 'cabelo' && fisico.cabelo) mat.color.setRGB(...fisico.cabelo)
     })
+
+    /*
+      A COR DO CABELO NUNCA CHEGOU NO MODELO.
+
+      Este laço comparava `mat.name === 'cabelo'`. O material sai do glTF
+      como `cabelo.003` — o `gltf-transform` funde as quatro peças de corte
+      num material só e o Blender já numera o nome na exportação. Ou seja: a
+      etapa "cor do cabelo" do vestiário não mudava um pixel, desde sempre.
+      É o mesmo defeito que `aquecerPele` teve com `pele_corpo.002`, e por
+      isso ela compara por PREFIXO — aqui ficou comparando por igualdade.
+
+      E como os quatro cortes dividem o mesmo material, cada peça precisa do
+      clone dela para poder ter claridade própria.
+    */
+    if (!fisico.cabelo) return
+    for (const no of scene.children) {
+      if (!no.name.startsWith('cabelo')) continue
+      const [mult, piso] = CLARIDADE[no.name] ?? [1, 0]
+      no.traverse((o) => {
+        const malha = o as THREE.Mesh
+        const m = malha.material as THREE.MeshStandardMaterial
+        if (!m || Array.isArray(malha.material)) return
+        if (!m.name.startsWith('cabelo')) return
+        if (!m.userData.cortePropio) {
+          const clone = m.clone()
+          clone.userData = { ...clone.userData, cortePropio: true }
+          malha.material = clone
+        }
+        const atual = malha.material as THREE.MeshStandardMaterial
+        atual.color.setRGB(
+          fisico.cabelo![0] * mult + piso,
+          fisico.cabelo![1] * mult + piso,
+          fisico.cabelo![2] * mult + piso,
+        )
+      })
+    }
   }, [scene, fisico.tom, fisico.cabelo])
 
   /** O giro já interpolado, sem a oscilação de ocioso somada por cima. */
