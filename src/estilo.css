@@ -395,6 +395,7 @@ body {
   .painel-topo { padding: 18px 18px 10px; }
   .painel-topo h2 { font-size: 22px; }
   .grupo, .abas, .arara { padding-left: 18px; padding-right: 18px; }
+  .situacao { margin-left: 18px; margin-right: 18px; }
   .painel-rodape { padding: 14px 18px 18px; }
 }
 
@@ -789,8 +790,12 @@ body {
   background: linear-gradient(90deg, transparent 58%, var(--fundo) 99%);
 }
 .abertura-conteudo {
-  align-self: center; padding: 0 clamp(24px, 4vw, 56px) 0 0;
-  max-width: 560px;
+  /* O MESMO RESPIRO DOS DOIS LADOS.
+     Era `0 clamp(…) 0 0`: recuo só à direita, nenhum à esquerda. O título e
+     a tarja verde da fala encostavam na borda da coluna, que foi a primeira
+     coisa que o cliente apontou. */
+  align-self: center; padding: 0 clamp(24px, 4vw, 56px);
+  max-width: 616px;
 }
 .abertura h1 {
   font-size: clamp(38px, 5vw, 58px); line-height: 1.02; letter-spacing: -.02em;
@@ -1351,10 +1356,14 @@ body {
 }
 
 /* ---- em que pé está o serviço (fase 3) ------------------------------ */
+/* A CAIXA RESPEITA A SANGRIA DO PAINEL.
+   Ela mora solta entre o topo e os grupos, e só `.grupo` tinha o recuo
+   lateral — então a tarja de estado ia de borda a borda enquanto todo o
+   resto do painel recuava 26 px. */
 .situacao {
   display: grid;
   gap: 3px;
-  margin: 0 0 12px;
+  margin: 0 26px 12px;
   padding: 9px 13px;
   border-radius: 10px;
   border-left: 3px solid var(--tom);

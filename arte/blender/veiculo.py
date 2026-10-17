@@ -737,9 +737,21 @@ def detalhes():
 
 
 def celular(guardado=False):
-    """Celular. Solto no painel e o estado errado; guardado no console e o certo."""
-    pos = (-0.10, -0.455, PAINEL_TOPO - 0.015) if not guardado else (0.0, -0.05, 0.315)
-    rot = (math.radians(-14), 0, math.radians(8)) if not guardado else (0, 0, 0)
+    """Celular. Solto no painel e o estado errado; guardado no console e o certo.
+
+    POUSADO NA PRATELEIRA DO PAINEL, e nao no ar.
+
+    O y antigo (-0,455) nao tem painel NENHUM embaixo: medindo com raio para
+    baixo, dali o raio atravessa o vao e so encontra o console 70 cm abaixo.
+    O celular ficava boiando no meio da cabine, que foi o que o cliente viu.
+
+    O cocuruto do painel tem uma prateleira de 10 graus entre y -0,60 e
+    -0,69 (medido de 12 em 12 mm). O celular deita nela, com a MESMA
+    inclinacao de 10 graus — a de 14 graus era chute e nao batia com
+    superficie nenhuma.
+    """
+    pos = (-0.10, -0.644, 0.912) if not guardado else (0.0, -0.05, 0.315)
+    rot = (math.radians(-10), 0, math.radians(8)) if not guardado else (0, 0, 0)
     tela = C.caixa("cab_celular", (0.072, 0.148, 0.009), pos, rot=rot)
     C.chanfrar(tela, largura=0.003, segmentos=2)
     C.aplicar(tela, C.mat_simples("celular", (0.010, 0.011, 0.014),
@@ -748,16 +760,25 @@ def celular(guardado=False):
 
 
 def prancheta(preenchida=False):
-    """Prancheta com o checklist, no banco do passageiro."""
-    base = Vector((-0.40, 0.30, ALTURA_ASSENTO + 0.112))
-    tabua = C.caixa("cab_prancheta", (0.225, 0.315, 0.010), tuple(base),
-                    rot=(math.radians(-6), 0, math.radians(-12)))
+    """Prancheta com o checklist, no ASSENTO do banco do passageiro.
+
+    Estava em y=+0,30, que nao e onde se senta: ali ja e o ENCOSTO, cuja
+    superficie medida esta em z=0,747. A prancheta, pousada em z=0,512,
+    nascia dentro da espuma do encosto — aparecia metade dela saindo do
+    estofado.
+
+    y=+0,02 cai na almofada, cuja superficie e plana e medida em z=0,400 em
+    toda a volta. E deita PLANA: a inclinacao de 6 graus so servia para
+    enterrar uma ponta.
+    """
+    base = Vector((-0.40, 0.02, ALTURA_ASSENTO + 0.008))
+    giro = (0, 0, math.radians(-12))
+    tabua = C.caixa("cab_prancheta", (0.225, 0.315, 0.010), tuple(base), rot=giro)
     C.chanfrar(tabua, largura=0.004, segmentos=2)
     C.aplicar(tabua, C.mat_simples("prancheta", (0.085, 0.062, 0.038),
                                    rugosidade=0.72))
     folha = C.caixa("cab_folha", (0.200, 0.285, 0.002),
-                    tuple(base + Vector((0, 0, 0.007))),
-                    rot=(math.radians(-6), 0, math.radians(-12)))
+                    tuple(base + Vector((0, 0, 0.007))), rot=giro)
     C.aplicar(folha, C.mat_simples("papel", (0.72, 0.71, 0.68), rugosidade=0.90))
     pecas = [tabua, folha]
     if preenchida:
@@ -765,7 +786,7 @@ def prancheta(preenchida=False):
         for i in range(7):
             marca = C.caixa(f"cab_marca_{i}", (0.014, 0.014, 0.0012),
                             tuple(base + Vector((-0.072, 0.108 - i * 0.033, 0.009))),
-                            rot=(math.radians(-6), 0, math.radians(-12)))
+                            rot=giro)
             C.aplicar(marca, tinta)
             pecas.append(marca)
     return pecas

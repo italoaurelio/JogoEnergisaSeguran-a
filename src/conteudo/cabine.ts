@@ -184,7 +184,7 @@ export const ITENS_CABINE: ItemCabine[] = [
       'Objeto solto no painel vira projétil numa frenagem e, muito antes disso, vira desvio de atenção. Celular na mão em deslocamento é infração e é a causa mais comum de colisão traseira na frota.',
     norma: 'CTB art. 252 — dirigir manuseando telefone',
     pontos: 10,
-    camera: { de: [0.20, 1.20, 0.02], para: [-0.10, 0.91, 0.46], lente: 40 },
+    camera: { de: [0.20, 1.21, 0.21], para: [-0.10, 0.91, 0.64], lente: 40 },
     no: { errado: 'celular', certo: 'celular_guardado' },
   },
   {
@@ -207,7 +207,7 @@ export const ITENS_CABINE: ItemCabine[] = [
     // quadro com o torso dele. O item pergunta por uma prancheta que está do
     // outro lado da cabine: era a quarta das seis vistas compostas quando o
     // banco ainda estava vazio.
-    camera: { de: [0.10, 1.24, 0.22], para: [-0.40, 0.51, -0.30], lente: 34 },
+    camera: { de: [0.10, 1.16, 0.44], para: [-0.40, 0.41, -0.02], lente: 34 },
     no: { errado: 'checklist_branco', certo: 'checklist_feito' },
   },
 ]
