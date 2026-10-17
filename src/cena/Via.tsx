@@ -62,12 +62,24 @@ useGLTF.preload(MODELO, DRACO)
 
 /** Pool de cópias de uma peça, recicladas conforme o mundo corre. */
 function Fileira({
-  molde, marcos, distancia, limite = 14,
+  molde, marcos, distancia, limite = 14, recuo = 0,
 }: {
   molde: THREE.Object3D | null
   marcos: Marco[]
   distancia: React.RefObject<number>
   limite?: number
+  /**
+   * Quanto ANTES do alcance esta fileira some.
+   *
+   * Existe por causa do vão de cabos: ele é a única peça que ocupa os 40 m
+   * seguintes ao próprio metro, e por isso o último vão desenhado terminava
+   * 40 m à frente do último POSTE desenhado — fio no ar, preso a nada. O
+   * cliente apontou quatro vezes.
+   *
+   * Medido: postes em −14, 26, 66 … 306 e vãos de −14,1 a 345,9. O vão de
+   * 305,9 ia até 345,9 e o poste de 346 ainda não tinha entrado em cena.
+   */
+  recuo?: number
 }) {
   const grupo = useRef<THREE.Group>(null)
 
@@ -92,7 +104,7 @@ function Fileira({
     let usadas = 0
     for (const marco of marcos) {
       const z = marco.metro - d
-      if (z < -TRECHO || z > ALCANCE) continue
+      if (z < -TRECHO || z > ALCANCE - recuo) continue
       const c = copias[usadas]
       if (!c) break
       c.position.set(marco.x, 0, z)
@@ -1488,6 +1500,9 @@ export function Mundo({
           marcos={porPeca[nome] ?? []}
           distancia={distancia}
           limite={POOL[nome]}
+          /* o vão de cabos ocupa os 40 m à frente do próprio metro: ele some
+             um vão antes, senão sobra fio preso a um poste que não existe */
+          recuo={nome === 'cabos' ? 44 : 0}
         />
       ))}
       {ciclista != null && lateral && (

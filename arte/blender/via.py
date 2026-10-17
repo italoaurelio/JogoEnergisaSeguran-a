@@ -774,6 +774,50 @@ def casa(m, nome="via_casa", largura=7.5, fundo=8.0, altura=None, variante=0):
     for p in telhado.data.polygons:
         p.material_index = 1 if abs(p.normal.y) > 0.9 else 0
     pecas.append(telhado)
+
+    if cfg["teto"] == "duas_aguas":
+        """
+        O OITAO — a parede triangular que fecha a ponta do telhado.
+
+        Ela NUNCA existiu. O telhado e uma casca em Λ de 16 cm de espessura,
+        nao um solido: entre o topo da parede (reta) e a agua do telhado
+        (inclinada) sobra um vao triangular, e esse vao estava ABERTO dos dois
+        lados. Da rua via-se por baixo do beiral e saia pelo outro lado —
+        "a casa e um retangulo, e o telhado e um triangulo, a parte triangular
+        da parede que devia chegar no telhado ta faltando".
+
+        E por isso que o render de conferencia nunca mostrou: nas vistas de
+        frente e de tres quartos o proprio telhado tapa o buraco. So aparece
+        de quem passa rente, que e exatamente o ponto de vista do jogo.
+
+        O contorno acompanha a face de BAIXO do telhado, nao a de cima, senao
+        o oitao atravessaria a telha. E desce 20 cm abaixo do topo da parede,
+        para a junta ficar dentro do volume e nao virar costura.
+        """
+        L = largura / 2
+        # altura da face inferior do telhado na vertical da parede
+        z_beira = (cume - 0.16) - (L / meia) * cume
+        contorno = ((-L, -0.20), (-L, z_beira), (0.0, cume - 0.14),
+                    (L, z_beira), (L, -0.20))
+        espessura_oitao = 0.14
+        for face_y, dentro in ((0.0, -espessura_oitao),
+                               (-fundo, espessura_oitao)):
+            bm = bmesh.new()
+            lados = []
+            for y in (face_y, face_y + dentro):
+                lados.append([bm.verts.new((x, y, z + altura))
+                              for x, z in contorno])
+            n = len(contorno)
+            for i in range(n):
+                j = (i + 1) % n
+                bm.faces.new((lados[0][i], lados[0][j],
+                              lados[1][j], lados[1][i]))
+            bm.faces.new(lados[0])
+            bm.faces.new(list(reversed(lados[1])))
+            bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+            oitao = C.obj_de_bmesh(bm, f"{nome}_oitao_{'f' if face_y == 0 else 't'}")
+            C.aplicar(oitao, parede)
+            pecas.append(oitao)
     if cfg["teto"] == "platibanda":
         # a laje que a platibanda esconde do lado; vista de cima ela aparece
         laje = C.caixa(f"{nome}_laje", (largura + 0.4, fundo + 0.4, 0.12),

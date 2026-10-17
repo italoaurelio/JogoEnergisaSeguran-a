@@ -23,14 +23,18 @@ Enquanto estiver `[ ]`, está em aberto, mesmo que eu ache que resolvi.
 - [ ] Modelar a cabine direito
 
 ## Rua / cenário
-- [ ] Casas com teto vazado (3ª vez que ele aponta)
+- [x] Teto vazado — 17/10: era o OITÃO que faltava. O telhado é uma casca em
+      Λ de 16 cm, não um sólido; entre o topo da parede e a água sobrava um
+      vão triangular ABERTO. Render de rua novo em `prova_via.py -- casas`
 - [x] Escola — 17/10: módulo de entrada com portão (antes não havia porta
       nenhuma) e janela 9 cm para fora, acima do muro
 - [ ] Rua vazia — povoar
 - [ ] Cruzamento não tem cruzamento: semáforo em linha reta, sem a via
       transversal e sem trânsito nela
 - [x] Placa da lombada — 17/10: A-18 30 m antes
-- [ ] Poste com fio "voando" (4ª vez)
+- [x] Fio voando — 17/10: o vão ocupa os 40 m à frente do próprio metro, e o
+      último desenhado ia 40 m além do último POSTE desenhado. Medido depois:
+      cabo termina em 305,9 e poste em 306
 
 ## Gente e veículos da rua
 - [x] Joelho — 17/10: coxa e canela separadas. Medido: 51° no pico e zero

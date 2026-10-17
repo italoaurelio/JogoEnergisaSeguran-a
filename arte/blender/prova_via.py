@@ -80,7 +80,12 @@ GRUPOS = {
                ("casa_c", (9.6, 0, 0))],
         vistas={"frente": ((0.0, 34.0, 7.0), (0.0, -3.0, 2.6), 42),
                 "fundos": ((2.0, -42.0, 8.0), (0.0, -5.0, 2.6), 42),
-                "rua": ((16.0, 20.0, 4.0), (-6.0, -3.0, 2.4), 48)},
+                "rua": ((16.0, 20.0, 4.0), (-6.0, -3.0, 2.4), 48),
+                # RENTE E DE BAIXO, que e o olho do motorista. O oitao
+                # aberto nao aparecia em nenhuma das tres vistas de cima
+                # porque o proprio telhado tapava o buraco; so quem passa
+                # na rua, com o olho a 2,4 m, enxerga por baixo do beiral.
+                "oitao": ((11.5, 7.0, 2.4), (-6.0, -2.0, 3.2), 52)},
     ),
     # Os quatro carros lado a lado: a prova e a SILHUETA, entao de perfil
     # tambem, que e como o motorista ve o contrafluxo passar.
