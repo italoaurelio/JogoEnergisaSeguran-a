@@ -29,8 +29,10 @@ Enquanto estiver `[ ]`, está em aberto, mesmo que eu ache que resolvi.
 - [x] Escola — 17/10: módulo de entrada com portão (antes não havia porta
       nenhuma) e janela 9 cm para fora, acima do muro
 - [ ] Rua vazia — povoar
-- [ ] Cruzamento não tem cruzamento: semáforo em linha reta, sem a via
-      transversal e sem trânsito nela
+- [x] Cruzamento — 17/10: peça `cruzamento` (dois braços de asfalto, linha de
+      retenção, eixo tracejado, meio-fio nas 4 esquinas) + `TransitoCruzado`,
+      que anda ao CONTRÁRIO do sinal do jogador. Conferido na tela: van parada
+      na transversal com o semáforo dele verde
 - [x] Placa da lombada — 17/10: A-18 30 m antes
 - [x] Fio voando — 17/10: o vão ocupa os 40 m à frente do próprio metro, e o
       último desenhado ia 40 m além do último POSTE desenhado. Medido depois:

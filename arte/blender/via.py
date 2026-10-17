@@ -1872,6 +1872,74 @@ def _mat_luz(nome, cor, forca=1.0):
     return mat
 
 
+def cruzamento(m, nome="via_cruzamento", braco=46.0):
+    """A VIA TRANSVERSAL do cruzamento.
+
+    "O cruzamento nao tem cruzamento, nunca vi semaforo numa linha reta,
+    cade o asfalto vindo do outro lado." Ele esta certo: havia um poste de
+    semaforo plantado na beira de uma reta, e mais nada. Semaforo sem via
+    que cruza nao e cruzamento, e um poste.
+
+    A peca nasce CENTRADA no cruzamento (x local 0) e e posta no eixo da
+    pista. Dois bracos de asfalto saem para os lados; o miolo fica de fora,
+    porque ali quem manda e a propria pista — asfalto por cima de asfalto na
+    mesma altura briga por profundidade e pisca.
+
+    Leva junto o que faz um cruzamento ser lido como cruzamento antes de
+    qualquer placa: a linha de retencao na aproximacao, o eixo tracejado da
+    transversal, as quatro esquinas de meio-fio e o recuo de calcada.
+    """
+    pecas = []
+    meia_cruz = 3.6          # meia largura da transversal
+    x_esq, x_dir = BORDA_DIR, BORDA_ESQ   # onde a pista principal comeca/acaba
+
+    # os dois bracos de asfalto, parando na borda da pista
+    for lado, (xa, xb) in (("e", (-braco, x_esq)), ("d", (x_dir, braco))):
+        comp = xb - xa
+        faixa_as = C.caixa(f"{nome}_asfalto_{lado}", (comp, meia_cruz * 2, 0.12),
+                           ((xa + xb) / 2, 0, -0.06))
+        C.aplicar(faixa_as, m["asfalto"])
+        pecas.append(faixa_as)
+        # eixo tracejado da transversal
+        n = int(comp / 12)
+        for i in range(n):
+            x = xa + 4 + i * 12
+            if x_esq - 1 < x < x_dir + 1:
+                continue
+            t = C.caixa(f"{nome}_eixo_{lado}_{i}", (4.0, 0.12, 0.004),
+                        (x, 0, 0.004))
+            C.aplicar(t, m["tinta"])
+            pecas.append(t)
+
+    """
+    LINHA DE RETENCAO: a barra branca onde se para no vermelho.
+
+    So na faixa de quem dirige (de BORDA_DIR ao eixo). Atravessar a pista
+    inteira seria pintar a linha da contramao junto, que e erro de via — e
+    a linha e justamente o que a fase cobra no amarelo.
+    """
+    ret = C.caixa(f"{nome}_retencao", (abs(EIXO - BORDA_DIR), 0.40, 0.004),
+                  ((BORDA_DIR + EIXO) / 2, meia_cruz + 0.9, 0.004))
+    C.aplicar(ret, m["tinta"])
+    pecas.append(ret)
+
+    # quatro esquinas: meio-fio em L, que e o que desenha a quina do
+    # cruzamento quando se olha de cima do capo
+    for sx, nx in ((-1, "e"), (1, "d")):
+        for sy, ny in ((-1, "s"), (1, "n")):
+            bx = x_esq - 0.12 if sx < 0 else x_dir + 0.12
+            ao_longo = C.caixa(f"{nome}_meiofio_{nx}{ny}_a", (0.24, 7.0, 0.16),
+                               (bx, sy * (meia_cruz + 3.5), 0.02))
+            C.aplicar(ao_longo, m["concreto"])
+            pecas.append(ao_longo)
+            atravessa = C.caixa(f"{nome}_meiofio_{nx}{ny}_b", (9.0, 0.24, 0.16),
+                                (bx + sx * 4.5, sy * (meia_cruz + 0.12), 0.02))
+            C.aplicar(atravessa, m["concreto"])
+            pecas.append(atravessa)
+
+    return C.juntar(pecas, nome)
+
+
 def semaforo(m, nome="via_semaforo"):
     """Semaforo de braco projetado sobre a faixa.
 

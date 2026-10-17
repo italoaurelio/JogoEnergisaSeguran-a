@@ -286,6 +286,100 @@ function pintarVeiculo(
 }
 
 /**
+ * O TRÂNSITO DA VIA QUE CRUZA.
+ *
+ * Um cruzamento sem carro na transversal é um desenho de cruzamento: a via
+ * existe, mas nada nunca passa por ela, e o semáforo continua sendo um
+ * poste decorativo. Esses carros são a razão de o vermelho existir.
+ *
+ * Eles andam ao contrário do jogador por construção: quando o semáforo DELE
+ * está verde, o da transversal está vermelho e estes param antes da pista;
+ * quando o dele fecha, estes atravessam. Não há um segundo semáforo a
+ * simular — é o mesmo, lido pelo outro lado.
+ */
+function TransitoCruzado({
+  moldes, distancia, metro, sinal, dobra,
+}: {
+  moldes: (THREE.Object3D | null)[]
+  distancia: React.RefObject<number>
+  /** Metro do cruzamento. Null quando este trajeto não tem um. */
+  metro: number | null
+  /** 0 verde, 1 amarelo, 2 vermelho — do ponto de vista do JOGADOR. */
+  sinal?: React.RefObject<number>
+  dobra: Dobra
+}) {
+  const grupo = useRef<THREE.Group>(null)
+  const QUANTOS = 4
+  /** De onde saem e até onde vão, em x. A via transversal tem 46 m por lado. */
+  const DE = -34
+  const ATE = 38
+  /** Onde param quando o sinal deles está fechado: antes da borda da pista. */
+  const LINHA = BORDA_DIR - 3.2
+
+  const copias = useMemo(() => {
+    const uteis = moldes.filter(Boolean) as THREE.Object3D[]
+    if (!uteis.length) return []
+    return Array.from({ length: QUANTOS }, (_, i) => {
+      const c = uteis[i % uteis.length].clone(true)
+      // atravessam da esquerda para a direita: meia-volta no eixo vertical
+      c.rotation.y = Math.PI / 2
+      pintarVeiculo(c, PINTURAS[(i * 5 + 2) % PINTURAS.length], dobra)
+      c.visible = false
+      return c
+    })
+  }, [moldes, dobra])
+
+  useEffect(() => {
+    const g = grupo.current
+    if (!g) return
+    copias.forEach((c) => g.add(c))
+    return () => { copias.forEach((c) => g.remove(c)) }
+  }, [copias])
+
+  /** x de cada um ao longo da transversal. */
+  const posicoes = useRef<number[] | null>(null)
+
+  useFrame((_, bruto) => {
+    const g = grupo.current
+    if (!g || metro == null) return
+    const dt = Math.min(bruto, TETO_DT)
+    const z = metro - (distancia.current ?? 0)
+    g.visible = z > -40 && z < ALCANCE
+    if (!g.visible) return
+    g.position.z = z
+
+    if (!posicoes.current) {
+      posicoes.current = copias.map((_, i) => DE + i * 19)
+    }
+    const p = posicoes.current
+    // o jogador no VERMELHO é a transversal no verde
+    const atravessa = (sinal?.current ?? 0) === 2
+
+    for (let i = 0; i < copias.length; i++) {
+      const antes = p[i]
+      if (atravessa || antes > LINHA) {
+        p[i] += 9.5 * dt
+      } else {
+        // encosta na linha e enfileira atrás de quem já está nela
+        const alvo = Math.min(LINHA, antes + 9.5 * dt)
+        p[i] = alvo
+      }
+      if (p[i] > ATE) p[i] = DE
+      // não atravessa quem está na frente
+      for (let j = 0; j < p.length; j++) {
+        if (j === i) continue
+        if (p[j] > p[i] && p[j] - p[i] < 6.5) p[i] = p[j] - 6.5
+      }
+      copias[i].position.set(p[i], 0, 0)
+      copias[i].visible = true
+    }
+  })
+
+  if (metro == null) return null
+  return <group ref={grupo} />
+}
+
+/**
  * Tráfego no sentido oposto.
  *
  * O cliente pediu "outros carros" e "tráfego no sentido oposto" olhando um
@@ -1123,7 +1217,7 @@ function Garagem({
 export function Mundo({
   distancia, marcos, carro, freioCarro, tracado, sinal, garagem, faixa,
   pedestreLiberado,
-  onibus, onibusLiberado, onibusOnde, lateral, ciclista,
+  onibus, onibusLiberado, onibusOnde, lateral, ciclista, cruzamento,
 }: {
   distancia: React.RefObject<number>
   marcos: Marco[]
@@ -1157,6 +1251,8 @@ export function Mundo({
   lateral?: React.RefObject<number>
   /** Metro do ciclista. Ele tem componente próprio porque REAGE. */
   ciclista?: number | null
+  /** Metro do cruzamento, para o trânsito da transversal. */
+  cruzamento?: number | null
 }) {
   const { scene } = useGLTF(MODELO, DRACO)
   const [asfaltoCor, asfaltoRelevo, terraCor, terraRelevo, gramaCor, gramaRelevo] =
@@ -1531,6 +1627,11 @@ export function Mundo({
         onde={onibusOnde}
       />
       <PessoasDoPatio molde={moldes.pedestre} distancia={distancia} />
+      <TransitoCruzado
+        moldes={[moldes.carro_b, moldes.carro, moldes.carro_d, moldes.carro_c]}
+        distancia={distancia} metro={cruzamento ?? null}
+        sinal={sinal} dobra={dobra}
+      />
       <Contrafluxo
         moldes={[moldes.carro, moldes.carro_b, moldes.carro_c, moldes.carro_d]}
         distancia={distancia} dobra={dobra}

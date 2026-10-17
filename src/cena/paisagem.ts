@@ -69,7 +69,7 @@ const ARVORE_DIR = BORDA_DIR - 4.15
 export type Marco = {
   peca: 'poste' | 'cabos' | 'arvore' | 'arbusto' | 'casa'
     | 'casa_b' | 'casa_c' | 'placa'
-    | 'carro' | 'lombada' | 'faixa_pedestre' | 'semaforo' | 'onibus'
+    | 'carro' | 'lombada' | 'faixa_pedestre' | 'semaforo' | 'cruzamento' | 'onibus'
     | 'ciclista' | 'escola' | 'escola_portao' | 'muro_patio'
   /** Distância absoluta ao longo do trajeto, em metros. */
   metro: number
@@ -309,7 +309,7 @@ export const POOL: Record<Marco['peca'], number> = {
   carro: 10,
   onibus: 10,
   // peças de evento: uma de cada no trajeto inteiro
-  placa: 10, lombada: 10, faixa_pedestre: 10, semaforo: 10,
+  placa: 10, lombada: 10, faixa_pedestre: 10, semaforo: 10, cruzamento: 4,
   // 1 e não 10: o ciclista saiu da fileira e ganhou componente próprio em
   // `Via.tsx`, porque REAGE a quem passa colado. A entrada fica para o molde
   // continuar sendo procurado por `FILEIRAS`; as cópias não são usadas.

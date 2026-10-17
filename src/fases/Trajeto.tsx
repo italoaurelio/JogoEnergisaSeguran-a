@@ -304,7 +304,12 @@ export default function Fase2Trajeto({
       if (e.tipo === 'lombada') base.push({ peca: 'lombada', metro: e.metro, x: 0 })
       if (e.tipo === 'faixa') base.push({ peca: 'faixa_pedestre', metro: e.metro, x: 0 })
       // o semáforo fica na borda do lado do motorista, recuado do cruzamento
-      if (e.tipo === 'semaforo') base.push({ peca: 'semaforo', metro: e.metro, x: -3.1 })
+      if (e.tipo === 'semaforo') {
+        base.push({ peca: 'semaforo', metro: e.metro, x: -3.1 })
+        // a VIA QUE CRUZA: sem ela o semáforo é um poste numa reta. Vai no
+        // eixo da pista, que é onde o cruzamento de verdade fica.
+        base.push({ peca: 'cruzamento', metro: e.metro, x: 1.75 })
+      }
       // O ÔNIBUS ESCOLAR NÃO ENTRA AQUI.
       //
       // Entrava, e virava um segundo ônibus exatamente em cima do primeiro:
@@ -427,6 +432,7 @@ export default function Fase2Trajeto({
             }}
             lateral={lateral}
             ciclista={evento('ciclista')?.metro ?? null}
+            cruzamento={evento('semaforo')?.metro ?? null}
           />
           <Motor
             distancia={distancia}

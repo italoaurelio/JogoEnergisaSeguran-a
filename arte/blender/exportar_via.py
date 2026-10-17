@@ -50,6 +50,7 @@ def processar():
         "moto": V.moto(m),
         "lombada": V.lombada(m),
         "faixa_pedestre": V.faixa_pedestre(m),
+        "cruzamento": V.cruzamento(m),
         "semaforo": V.semaforo(m),
         "onibus": V.onibus(m),
         "ciclista": V.ciclista(m),
