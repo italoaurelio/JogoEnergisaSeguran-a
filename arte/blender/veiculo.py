@@ -126,7 +126,13 @@ def mat_vidro():
 # que a fita tinha sido ALARGADA para nao sumir; alargar nao resolve
 # contraste, cor resolve. Cinto cinza e comum em frota, entao nao custa
 # realismo nenhum.
-def mat_cinto(cor=(0.175, 0.180, 0.192)):
+# 0,34 e nao 0,175. O comentario acima ja contava a historia de uma
+# subida de 0,062 para 0,175 "porque ele sumia contra o pilar, que tem
+# 0,072" — e ele continuava sumindo, porque o resto da cabine escureceu
+# depois disso. Medido na tela pintando a fita de vermelho: ela esta no
+# quadro o tempo todo, so nao da para ve-la. 0,34 contra pilar de 0,072 e
+# quase cinco vezes de contraste, e cinto claro em frota e comum.
+def mat_cinto(cor=(0.34, 0.345, 0.355)):
     mat = C.mat_simples("cinto", cor, rugosidade=0.78)
     b = mat.node_tree.nodes["Principled BSDF"]
     if "Sheen Weight" in b.inputs:
@@ -826,21 +832,23 @@ def cinto(afivelado=True, lado=1):
         O CINTO SOLTO TEM DE SER VISTO, senao ele nao existe.
 
         O caminho antigo ia de ancora a ancora rente ao pilar — x 0,75,
-        0,74, 0,73 — ou seja, uma fita colada na coluna, atras do ombro do
-        motorista e do encosto do banco. Da camera da fase 2a nao aparecia
-        um pixel dela: o cliente disse "o cinto de seguranca sumiu", e o
-        marcador apontava para um banco vazio.
+        0,74, 0,73, y 0,36-0,40 — uma fita colada na coluna, ATRAS do ombro
+        do motorista. O cliente disse "o cinto de seguranca sumiu".
 
-        Cinto solto de verdade nao fica colado na coluna: ele pende do
-        anel superior e CAI para dentro, encostando no ombro do banco. E
-        esse drapeado que se enxerga de dentro da cabine. Os dois pontos
-        do meio vem 13 cm para dentro e 8 cm para a frente.
+        A primeira tentativa trouxe a fita 13 cm para DENTRO, e piorou:
+        pintando a peca de vermelho na cena para achar onde ela estava, o
+        que se viu foi a fita indo parar exatamente atras do ombro dele —
+        inboard demais e atras demais. O eixo que faltava era o Y.
+
+        Agora ela pende para a FRENTE (y 0,23-0,26, contra 0,36 de antes) e
+        fica no x do pilar: passa na frente da coluna e por FORA do ombro,
+        que e onde alguem enxerga o proprio cinto solto.
         '''
         caminho = [
             tuple(ancora_alta),
-            tuple(Vector((lado * (meia - 0.17), 0.33, 0.98))),
-            tuple(Vector((lado * (meia - 0.19), 0.30, 0.78))),
-            tuple(Vector((lado * (meia - 0.12), 0.31, ALTURA_ASSENTO + 0.08))),
+            tuple(Vector((lado * (meia - 0.07), 0.26, 1.00))),
+            tuple(Vector((lado * (meia - 0.09), 0.23, 0.80))),
+            tuple(Vector((lado * (meia - 0.08), 0.26, ALTURA_ASSENTO + 0.08))),
             tuple(ancora_baixa),
         ]
 

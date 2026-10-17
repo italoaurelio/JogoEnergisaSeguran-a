@@ -136,28 +136,71 @@ Enquanto estiver `[ ]`, está em aberto, mesmo que eu ache que resolvi.
 Mesma regra: só sai daqui com data e com o que foi olhado.
 
 ## Cabine (o cliente já pediu 3 vezes)
-- [ ] Volante está virado para baixo
-- [ ] Personagem NÃO está segurando o volante — 3ª vez que é pedido
-- [ ] Cinto de segurança sumiu da cena
-- [ ] Dentro do veículo o personagem está descalço
+- [x] Volante virado para baixo — 17/10: 32° da horizontal é volante de
+      ônibus. Os 32° tinham sido comprados para manter o aro em quadro na
+      fase 2b, e essa conta MORREU quando o olho da 2b andou 28 cm para a
+      frente: projetado na tela, o topo do aro cai em px 1036 de 1038.
+      Sobrou só o preço. 62°, que é coluna de caminhonete
+- [x] Não estava segurando o volante — 17/10. `fechar_mao`, que curva os
+      20 ossos de dedo do rig, EXISTE há rodadas e o `exportar_motorista.py`
+      nunca a chamou. Quem chama é `prova_sentado.py` — então as duas vezes
+      em que conferi "no render" eu estava conferindo a prova, não o jogo.
+      É o mesmo erro que o docstring de `prova_rosto.montar` descreve para a
+      sobrancelha. Conferido agora na tela da fase 2a, não no render
+- [x] Cinto sumiu — 17/10. Achado pintando a peça de VERMELHO na cena:
+      ela estava em quadro o tempo todo, atrás do ombro do motorista e cinza
+      0,175 contra um pilar 0,072. Dois acertos: a fita pende para a FRENTE
+      (y 0,23 contra 0,36) e passa por fora do ombro, e o albedo foi para
+      0,34. Conferido na tela
+- [x] Descalço na cabine — 17/10: o motorista tinha roupa de baixo e
+      nenhum calçado. `base_tenis` já existia no catálogo e não entrava no
+      exportador do motorista. Medido no jogo: `mot_base_tenis` visível
 
 ## Gente e tráfego
-- [ ] Pedestres deslizam e teleportam. Fazer a caminhada COMPLETA no Blender,
-      testar, e julgar se ficou real ou amaldiçoada
-- [ ] Na faixa de pedestre só eu paro; os outros veículos passam. Quando o
-      pedestre atravessa, TODO MUNDO para
-- [ ] O carro que sai da garagem desliza de forma sobrenatural
+- [x] Pedestres deslizando e teleportando — 17/10. Medido: vaivém de 1,2 m
+      com ω 0,42 dá 0,25 m/s de pico — um passo de 72 cm a cada 3 s, que é
+      câmera lenta. E a virada era `giro + π` entre dois quadros, cinco
+      pessoas dando meia-volta instantânea a cada 7 s: era esse o teleporte.
+      Agora andam 4,4 m ao longo do meio-fio a 1,10 m/s e a meia-volta é uma
+      curva contínua que cai onde eles estão parando.
+      **Não foi feita no Blender, e é de propósito:** `X.preparar()` roda
+      convert(MESH) e aplica a armadura, então nada com osso chega ao .glb —
+      a animação teria de ir como trilha de nó, e `gltf-transform optimize`
+      achata hierarquia. Em contrapartida a fase do passo é calculada a
+      partir da distância ANDADA, o que uma trilha assada não consegue
+      fazer: é isso que garante que o pé não desliza em nenhuma velocidade
+- [x] Só o jogador parava na faixa — 17/10: o contrafluxo corria à
+      velocidade cheia e levava `p[i] = linha` ao cruzar — não freava,
+      congelava, todos no mesmo ponto, e um segundo laço os desempilhava de
+      7,5 em 7,5 m. Teleporte para desfazer teleporte. Agora a linha entra
+      na perseguição como veículo parado, igual à do ciclista
+- [x] Carro da garagem deslizando — 17/10: posição e ângulo eram duas
+      retas independentes, 7 m de deslocamento LATERAL com o carro apontado
+      para outro lado. Agora são duas fases (sai de ré, para, arranca) e em
+      cada uma a posição vem da direção apontada
 
 ## Rua / cenário
-- [ ] Ainda tem espaço vazio na estrada
-- [ ] Cruzamento sem artefato nenhum no meio
-- [ ] Tem um POSTE no meio do cruzamento
-- [ ] Espaço vazio ATRÁS das casas (aparece na chegada)
-- [ ] Fios pairando no ar na tela de chegada
+- [x] Espaço vazio na estrada — 17/10: terceira linha de árvores a 34 m do
+      eixo, fechando o fundo atrás da segunda fileira de casas
+- [x] Cruzamento vazio no meio — 17/10: quatro bocas de lobo, dois poços de
+      visita e dois remendos de asfalto. Cruzamento é o pedaço de rua mais
+      remendado que existe
+- [x] Poste no meio do cruzamento — 17/10: a paisagem põe poste a cada 40 m
+      sem saber que existe cruzamento. Filtro de ±11 m do eixo, que também
+      tira casa, muro e arbusto da esquina
+- [x] Vazio atrás das casas — 17/10: mesma linha de árvores de fundo
+- [x] Fios pairando no ar — 17/10. Medido na cena: `via_cabos` NÃO é
+      centrado na origem (o comentário dizia que era) — corre 40 m para +Z a
+      partir dela. Um vão atravessava o de serviço e morria no ar em z 1; o
+      outro ia a z 78,9 com o último poste em 39. Postes em -59/-19/19/59 e
+      cada vão começa e termina em poste. Medido de novo depois: ok
 
 ## Chegada ao local
-- [ ] Hoje o caminhão leva ~20 s parando lentamente. Precisa de animação de
-      encostar na calçada, e o ícone de missão entra aí
+- [x] 20 s parando lentamente — 17/10: `max(1,5; restante/4)` nunca chega a
+      zero, ele entrava nos últimos metros a 5,4 km/h e ficava assim até o
+      esmaecer. Agora é desaceleração constante de 1,4 m/s² (7,6 s) e ele
+      ENCOSTA NO MEIO-FIO nos últimos 30 m. O marcador de serviço aparece na
+      aproximação, a 110 m — existia só dentro da fase 3, onde já se chegou
 - [ ] A tela de chegada inteira está lendo como protótipo
 
 ## Em andamento (código pronto, falta exportar e conferir na tela)

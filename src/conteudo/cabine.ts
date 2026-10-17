@@ -72,7 +72,15 @@ export const ITENS_CABINE: ItemCabine[] = [
     // tem de passar por cima do volante (z até 1,00), por cima do encosto
     // (z até 1,02), e ficar INBOARD — a fita olha para dentro da cabine, e
     // de perto do pilar ela é vista de fio e vira um risco.
-    camera: { de: [-0.12, 1.22, 0.84], para: [0.48, 0.72, -0.22], lente: 32 },
+    // 17/10: e ela AINDA não mostrava o cinto solto. Medido na cena, o
+    // cinto recolhido ocupa x 0,57 a 0,78 — e o motorista está em x 0,38,
+    // ou seja, EXATAMENTE entre a câmera (x −0,12) e a fita. A correção de
+    // 06/10 acertou para onde olhar e esqueceu quem está no caminho; foi o
+    // "o cinto de segurança sumiu".
+    //
+    // Agora a câmera sai de x +0,26 e sobe para y 1,46: passa por cima do
+    // ombro dele, que é de onde alguém olharia o próprio cinto.
+    camera: { de: [0.26, 1.46, 0.74], para: [0.66, 0.78, -0.26], lente: 34 },
     no: { errado: 'cinto_solto', certo: 'cinto_afivelado' },
   },
   {
