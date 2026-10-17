@@ -16,6 +16,16 @@ export type ItemCabine = {
   nome: string
   /** Pergunta que aparece junto da imagem. */
   pergunta: string
+  /**
+   * O gesto, no infinitivo: o que o dedo faz com a peça.
+   *
+   * A fase deixou de ser pergunta-e-dois-botões e virou conferência de
+   * pátio: clica-se NA PEÇA. Isto é o rótulo da ação, e precisa dizer o que
+   * acontece com o objeto — "afivelar o cinto", não "corrigir".
+   */
+  gesto: string
+  /** O mesmo gesto desfeito, para quem clicar duas vezes. */
+  desfazer: string
   /** O estado em que o item está quando o jogador chega nele. */
   comoEsta: string
   /** `true` se o estado inicial já está correto — nem tudo está errado. */
@@ -42,6 +52,8 @@ export type ItemCabine = {
 export const ITENS_CABINE: ItemCabine[] = [
   {
     id: 'cinto',
+    gesto: 'Afivelar o cinto',
+    desfazer: 'Soltar o cinto de novo',
     nome: 'Cinto de segurança',
     pergunta: 'O cinto está como precisa estar para dar a partida?',
     comoEsta: 'O cinto está solto, recolhido junto à coluna.',
@@ -65,6 +77,8 @@ export const ITENS_CABINE: ItemCabine[] = [
   },
   {
     id: 'retrovisores',
+    gesto: 'Abrir os retrovisores',
+    desfazer: 'Virar os espelhos para dentro',
     nome: 'Retrovisores',
     pergunta: 'Os retrovisores estão regulados para quem vai dirigir?',
     comoEsta: 'Os dois externos estão virados para dentro, mostrando a lateral do próprio veículo.',
@@ -98,6 +112,8 @@ export const ITENS_CABINE: ItemCabine[] = [
   },
   {
     id: 'apoio_cabeca',
+    gesto: 'Levantar o apoio',
+    desfazer: 'Baixar o apoio de novo',
     nome: 'Apoio de cabeça',
     pergunta: 'O apoio de cabeça está na altura certa?',
     comoEsta: 'O apoio está no batente de baixo, na altura da nuca.',
@@ -125,6 +141,8 @@ export const ITENS_CABINE: ItemCabine[] = [
   },
   {
     id: 'freio_mao',
+    gesto: 'Soltar o freio',
+    desfazer: 'Puxar o freio de novo',
     nome: 'Freio de estacionamento',
     pergunta: 'O freio de estacionamento está como deveria, com o veículo parado?',
     comoEsta: 'O freio está puxado.',
@@ -155,6 +173,8 @@ export const ITENS_CABINE: ItemCabine[] = [
   },
   {
     id: 'celular',
+    gesto: 'Guardar o celular',
+    desfazer: 'Deixar o celular no painel',
     nome: 'Celular no painel',
     pergunta: 'Tem alguma coisa solta no painel que não deveria estar?',
     comoEsta: 'Um celular está apoiado solto no painel, sem suporte.',
@@ -169,6 +189,8 @@ export const ITENS_CABINE: ItemCabine[] = [
   },
   {
     id: 'checklist',
+    gesto: 'Preencher o checklist',
+    desfazer: 'Deixar o checklist em branco',
     nome: 'Checklist do veículo',
     pergunta: 'O checklist diário do veículo está resolvido?',
     comoEsta: 'A prancheta está no banco do passageiro com o checklist em branco.',

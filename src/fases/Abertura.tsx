@@ -275,20 +275,19 @@ function ANota({
           <span className="onb-bola">1</span>
           <p>
             {/*
-              A REGRA ESTAVA MENTINDO, por meia frase. O texto dizia "fora do
-              vestiário", mas a conferência do veículo TAMBÉM dá veredito na
-              hora ("Decisão correta" / "Decisão errada", em `Cabine.tsx`).
-              Sobravam duas fases que avisam e duas que não, e o jogador só
-              era avisado de uma delas.
+              A REGRA VOLTOU A SER A ORIGINAL, e desta vez é verdade.
 
-              A regra de verdade é melhor do que a prometida e cabe numa
-              linha: as duas fases de PREPARAÇÃO ensinam na hora, as duas de
-              CAMPO não. Quem mente para o jogador sobre as regras perde o
-              jogador.
+              Ela estava mentindo por meia frase: prometia "ninguém avisa
+              fora do vestiário", e a conferência do veículo imprimia
+              "Decisão correta" a cada clique. Na época eu ajustei o TEXTO,
+              que era a correção honesta possível sem refazer a fase.
+
+              Agora a fase foi refeita — a resposta virou gesto na cabine e
+              não há mais veredito nenhum lá — então a promessa original vale
+              de novo, e ela é mais forte: uma exceção, não duas.
             */}
-            Cada decisão vale ponto. Errar desconta. No vestiário e na
-            conferência do veículo você descobre na hora; <b>na rua e no poste,
-            ninguém avisa</b> — a conta aparece no fim.
+            Cada decisão vale ponto. Errar desconta — mas <b>ninguém avisa na
+            hora</b>, fora do vestiário, que é onde se ensina.
           </p>
         </li>
         <li>

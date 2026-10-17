@@ -1432,3 +1432,29 @@ body {
   60%  { transform: scale(1.25); }
   100% { transform: scale(1); opacity: 1; }
 }
+
+/* ---- conferência do veículo (fase 2a) ------------------------------- */
+.conferencia-cabine { list-style: none; display: grid; gap: 8px; margin-top: 4px; }
+.conferencia-cabine li {
+  display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
+  border-radius: 11px; background: var(--painel-claro);
+  border-left: 3px solid transparent; padding: 4px 10px 4px 4px;
+}
+/* a peça mexida se marca sozinha: é o único retorno que a fase dá durante o
+   jogo, e não diz se está certo — só que o dedo passou por ali */
+.conferencia-cabine li.mexido { border-left-color: var(--verde-claro, #35c98c); }
+.linha-item {
+  display: grid; gap: 2px; text-align: left; padding: 9px 10px;
+  background: none; border: none; color: inherit; font: inherit; cursor: pointer;
+  border-radius: 9px;
+}
+.linha-item:hover, .linha-item.olhando { background: #1b2430; }
+.linha-item b { font-size: 14.5px; font-weight: 600; }
+.linha-item span { font-size: 12.5px; color: var(--texto-fraco); line-height: 1.35; }
+.btn-gesto {
+  white-space: nowrap; padding: 8px 12px; border-radius: 9px; cursor: pointer;
+  font: inherit; font-size: 12.5px; font-weight: 600;
+  border: 1px solid var(--borda); background: #161d26; color: var(--texto);
+}
+.btn-gesto:hover { border-color: var(--verde); color: var(--verde-claro); }
+.conferencia-cabine li.mexido .btn-gesto { color: var(--texto-fraco); }

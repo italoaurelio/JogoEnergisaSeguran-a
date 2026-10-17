@@ -141,23 +141,32 @@ async function vestiario(page) {
   await clicar(page, 'Sair para o serviço', { pausa: 2600 })
 }
 
+/**
+ * A conferência do veículo, que deixou de ser pergunta-e-dois-botões.
+ *
+ * Agora se clica NA PEÇA: cada gesto ajusta uma coisa da cabine, e o que não
+ * for tocado sai como está. O freio de estacionamento é o único item que já
+ * chega certo — deixá-lo em paz É a resposta, e por isso ele não aparece
+ * nesta lista.
+ *
+ * O roteiro clica pelo botão do PAINEL e não pela marca 3D de propósito: a
+ * marca é um alvo de 22 px que se move com a câmera, e clique por
+ * coordenada em cena animada é a receita de roteiro que quebra em silêncio.
+ */
 async function cabine(page) {
-  // o veículo chega com defeito em cinco dos seis itens
-  const respostas = [
-    'Corrigir antes de sair',      // cinto
-    'Corrigir antes de sair',      // retrovisores
-    'Corrigir antes de sair',      // apoio de cabeça
-    'Está correto, pode sair assim', // freio de estacionamento
-    'Corrigir antes de sair',      // celular
-    'Corrigir antes de sair',      // checklist
+  const gestos = [
+    'Afivelar o cinto',
+    'Abrir os retrovisores',
+    'Levantar o apoio',
+    'Guardar o celular',
+    'Preencher o checklist',
   ]
-  for (let i = 0; i < respostas.length; i++) {
-    await espera(1600)                       // deixa ver o item
-    await clicar(page, respostas[i], { pausa: 1500 })
-    await clicar(page, i === respostas.length - 1 ? 'Dar a partida' : 'Próximo item',
-                 { pausa: 900 })
+  for (const g of gestos) {
+    await espera(1500)                   // deixa a câmera chegar na peça
+    await clicar(page, g, { pausa: 1700 })  // e deixa ver a peça se mexer
   }
-  await espera(2200)
+  await espera(1800)
+  await clicar(page, 'Dar a partida', { pausa: 2200 })
 }
 
 /**
