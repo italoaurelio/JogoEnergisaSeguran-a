@@ -6,6 +6,7 @@
  * par. Mandar corrigir na fase 2 troca o nó — o jogador vê a correção
  * acontecer, em vez de só marcar um visto numa lista.
  */
+import { SOMBRA_MEDIA } from './desempenho'
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { GRAO_CABINE, uvPorEixoDominante, vestir } from './texturas'
@@ -233,7 +234,7 @@ export function LuzCabine() {
            aparecia como um moiré diagonal nas superfícies claras e planas —
            a folha da prancheta era onde mais se via. O tronco apertado em
            volta da cabine é o que faz os 2048 px renderem de verdade. */
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={SOMBRA_MEDIA}
         shadow-camera-near={0.5}
         shadow-camera-far={9}
         shadow-camera-left={-1.6}

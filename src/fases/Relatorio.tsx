@@ -17,6 +17,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Environment } from '@react-three/drei'
 import { Acabamento } from '../cena/Acabamento'
+import { DPR } from '../cena/desempenho'
 import { PalcoPronto } from '../cena/Carregando'
 import Vestiario3D, { LuzVestiario, MiraFixa } from '../cena/Vestiario3D'
 import Personagem, { type Fisico } from '../cena/Personagem'
@@ -142,7 +143,7 @@ export default function Relatorio({
   return (
     <div className={`fim ${resultado.aprovado ? 'fim-ok' : 'fim-ruim'}`}>
       <div className="fim-palco">
-        <Canvas dpr={[1, 1.5]} shadows camera={{ position: [0.1, 1.5, 2.5], fov: 34 }}
+        <Canvas dpr={DPR} shadows camera={{ position: [0.1, 1.5, 2.5], fov: 34 }}
                 gl={{ antialias: true, toneMappingExposure: 1.0 }}>
           <Environment files="./hdri/ceu.hdr" environmentIntensity={0.10} />
           <LuzVestiario />

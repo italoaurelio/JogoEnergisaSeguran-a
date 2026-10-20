@@ -14,7 +14,9 @@
 import {
   Bloom, EffectComposer, N8AO, SMAA, ToneMapping, Vignette,
 } from '@react-three/postprocessing'
+import { Stats } from '@react-three/drei'
 import { ToneMappingMode } from 'postprocessing'
+import { LEVE, MOSTRAR_FPS } from './desempenho'
 
 export type Qualidade = 'cheia' | 'leve'
 
@@ -28,7 +30,27 @@ export function Acabamento(
   { qualidade?: Qualidade; raio?: number; intensidade?: number },
 ) {
   const leve = qualidade === 'leve'
+  /*
+    GPU de tablet: só o tom e a vinheta, que a `postprocessing` funde num
+    passe só. Quem sai é o caro — oclusão (passe próprio, com ruído e
+    limpeza), bloom (cadeia de mipmaps) e SMAA (mais um passe de tela
+    cheia). A cena perde o "pousado" que a oclusão dava; num aparelho em que
+    ela rodava a punhado de quadros por segundo, isso não era escolha.
+  */
+  if (LEVE) {
+    return (
+      <>
+        {MOSTRAR_FPS && <Stats />}
+        <EffectComposer multisampling={0} enableNormalPass={false}>
+          <Vignette offset={0.34} darkness={0.30} eskil={false} />
+          <ToneMapping mode={ToneMappingMode.AGX} />
+        </EffectComposer>
+      </>
+    )
+  }
   return (
+    <>
+    {MOSTRAR_FPS && <Stats />}
     <EffectComposer multisampling={leve ? 0 : 4} enableNormalPass={false}>
       <N8AO
         halfRes={leve}
@@ -60,5 +82,6 @@ export function Acabamento(
       <ToneMapping mode={ToneMappingMode.AGX} />
       <SMAA />
     </EffectComposer>
+    </>
   )
 }

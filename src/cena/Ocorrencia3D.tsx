@@ -6,6 +6,7 @@
  * conforme as decisões da fase 3a. É o mesmo padrão do EPI e da cabine: o que
  * o jogador decide, ele vê acontecer.
  */
+import { SOMBRA_ALTA } from './desempenho'
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Html, useGLTF } from '@react-three/drei'
@@ -1079,7 +1080,7 @@ export function LuzOcorrencia() {
         position={[-14, 20, 10]}
         intensity={3.2}
         castShadow
-        shadow-mapSize={[4096, 4096]}
+        shadow-mapSize={SOMBRA_ALTA}
         /* O enquadramento tem de cobrir TUDO o que a câmera vê, não só o poste.
            Com o recorte antigo (28 m x 22 m) a fileira de casas e meio asfalto
            caíam fora, e fora da câmera de sombra nada recebe sombra: dava uma

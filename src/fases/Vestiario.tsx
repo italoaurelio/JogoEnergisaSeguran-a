@@ -27,6 +27,7 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Environment, Html } from '@react-three/drei'
 import { Acabamento } from '../cena/Acabamento'
+import { DPR } from '../cena/desempenho'
 import Personagem, { ALTURA_BASE, type Fisico } from '../cena/Personagem'
 import Vestiario3D, { LuzVestiario } from '../cena/Vestiario3D'
 import {
@@ -214,7 +215,7 @@ export default function Vestiario({
         onPointerCancel={aoSubir}
       >
         <Canvas
-          dpr={[1, 1.5]}
+          dpr={DPR}
           shadows
           camera={{ position: [0.2, 1.62, 4.05], fov: 34 }}
           gl={{ antialias: true, toneMappingExposure: 1.0 }}

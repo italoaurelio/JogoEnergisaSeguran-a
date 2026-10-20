@@ -16,6 +16,7 @@
  * Convenção: o personagem fica na origem, de pé em y = 0, olhando para +Z.
  * A câmera também está em +Z. Os armários ficam ATRÁS dele, em −Z.
  */
+import { SOMBRA_MEDIA } from './desempenho'
 import { useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
@@ -172,7 +173,7 @@ export function LuzVestiario() {
         intensity={3.1}
         color="#ffe7c2"
         castShadow
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={SOMBRA_MEDIA}
         shadow-camera-left={-3.2}
         shadow-camera-right={3.2}
         shadow-camera-top={3.0}

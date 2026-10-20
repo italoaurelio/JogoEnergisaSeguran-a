@@ -9,6 +9,7 @@
  * re-renderizar a árvore sessenta vezes por segundo derrubaria a taxa. Só o
  * painel sobe para o estado, e a 10 Hz.
  */
+import { SOMBRA_ALTA } from '../cena/desempenho'
 import {
   forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef,
   useState,
@@ -430,7 +431,7 @@ export default function Fase2Trajeto({
             position={[-24, 30, 40]}
             intensity={2.2}
             castShadow
-            shadow-mapSize={[4096, 4096]}
+            shadow-mapSize={SOMBRA_ALTA}
             /* Tem de cobrir até onde a névoa ainda deixa ver (≈290 m). Com o
                alcance antigo de 120 m aparecia uma linha reta atravessando a
                pista: dali para a frente nada recebia sombra, e a emenda lia
