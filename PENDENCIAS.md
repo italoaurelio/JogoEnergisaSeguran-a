@@ -286,3 +286,15 @@ desenho por quadro direto no contexto WebGL:
       geometria no shader e o corte por caixa envolvente a descartaria em
       curva. O corte certo é por distância em Z, à mão, com margem — não
       feito ainda
+
+- [x] **Tirar a conferência da cabine e o trajeto** — 20/10, a pedido. O jogo
+      ficou vestiário → ocorrência → relatório, em QUALQUER máquina (não só no
+      tablet). As duas fases continuam inteiras no repositório, só não são
+      montadas: `fases/Cabine.tsx` e `fases/Trajeto.tsx` não têm mais quem as
+      chame, e religá-las é devolver as duas etapas em `App.tsx`.
+      Foi junto o que mentiria na tela: o cartão "Em trânsito" e a
+      demonstração de dirigir na abertura ("duas fases", "dois gestos"), o
+      rótulo da ocorrência (Fase 3 → Fase 2) e o relatório de exemplo.
+      Conferido jogando: vestiário → "Sair para o serviço" cai direto em
+      "FASE 2 · OCORRÊNCIA", e o relatório fecha com duas linhas de fase
+      (18/72 e 22/164) em vez de quatro

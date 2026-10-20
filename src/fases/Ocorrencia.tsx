@@ -1,5 +1,8 @@
 /**
- * Fase 3 — a ocorrência, em três etapas na mesma cena.
+ * Fase 2 — a ocorrência, em três etapas na mesma cena.
+ *
+ * Era a fase 3; virou a 2 quando a conferência da cabine e o trajeto saíram
+ * do fluxo (20/10, ver `App.tsx`). O número aqui é só rótulo de tela.
  *
  * 3a  chegar e isolar a área (decisões, com a peça aparecendo na cena)
  * 3b  separar o equipamento para ESTA falha
@@ -631,7 +634,7 @@ function Briefing({ comecar }: { comecar: () => void }) {
   return (
     <>
       <header className="painel-topo">
-        <p className="sobretitulo">Fase 3 · Ocorrência</p>
+        <p className="sobretitulo">Fase 2 · Ocorrência</p>
         <h2>{OCORRENCIA.titulo}</h2>
         <p className="painel-texto">{OCORRENCIA.endereco}</p>
       </header>
@@ -664,7 +667,7 @@ function Chegada({
   return (
     <>
       <header className="painel-topo">
-        <p className="sobretitulo">Fase 3 · Chegada</p>
+        <p className="sobretitulo">Fase 2 · Chegada</p>
         <h2>{decisao.nome}</h2>
         <p className="painel-texto">{decisao.pergunta}</p>
       </header>
@@ -727,7 +730,7 @@ function Ferramental({
   return (
     <>
       <header className="painel-topo">
-        <p className="sobretitulo">Fase 3 · Equipamento</p>
+        <p className="sobretitulo">Fase 2 · Equipamento</p>
         <h2>Separe o que vai subir</h2>
         <p className="painel-texto">
           A caixa tem mais coisa do que este serviço pede. Leve o que é do
@@ -813,7 +816,7 @@ function Reparo({
   return (
     <>
       <header className="painel-topo">
-        <p className="sobretitulo">Fase 3 · O reparo</p>
+        <p className="sobretitulo">Fase 2 · O reparo</p>
         <h2>{ferramenta ? 'Onde você vai usar?' : 'O que você vai fazer?'}</h2>
         {/*
           O PARÁGRAFO SÓ EXISTE COM FERRAMENTA NA MÃO.

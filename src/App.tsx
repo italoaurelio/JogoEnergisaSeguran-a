@@ -1,17 +1,22 @@
 /**
- * Fluxo da sessão: abertura → vestiário → trânsito → ocorrência → relatório.
+ * Fluxo da sessão: abertura → vestiário → ocorrência → relatório.
  *
- * As fases 2 e 3 ainda não estão montadas; o fluxo já prevê o lugar delas para
- * a pontuação ser somada de uma vez só no fim, que é como o cliente pediu.
+ * A CONFERÊNCIA DA CABINE E O TRAJETO SAÍRAM DO FLUXO (20/10), a pedido: no
+ * tablet Android em que o treinamento vai rodar, dirigir era injogável. As
+ * duas fases continuam no repositório inteiras — `fases/Cabine.tsx` e
+ * `fases/Trajeto.tsx` —, só não são montadas por ninguém. Para trazer de
+ * volta basta religar as duas etapas aqui; nada foi apagado.
+ *
+ * A pontuação continua somada de uma vez só no fim, que é como o cliente
+ * pediu, e o relatório já ignora fase sem registro — por isso tirar as duas
+ * não deixa linha vazia na nota.
  */
 import { useCallback, useEffect, useState } from 'react'
 import { som } from './som'
 import Carregando from './cena/Carregando'
 import Abertura from './fases/Abertura'
 import Vestiario from './fases/Vestiario'
-import Fase2Cabine from './fases/Cabine'
-import Fase2Trajeto from './fases/Trajeto'
-import Fase3Ocorrencia from './fases/Ocorrencia'
+import Fase2Ocorrencia from './fases/Ocorrencia'
 import Relatorio from './fases/Relatorio'
 import type { Fisico } from './cena/Personagem'
 import { FISICO_INICIAL } from './conteudo/fisico'
@@ -20,8 +25,7 @@ import {
   MAXIMO_EXEMPLO, MAXIMO_POR_FASE_EXEMPLO, REGISTROS_EXEMPLO,
 } from './conteudo/amostra'
 
-type Etapa =
-  | 'abertura' | 'vestiario' | 'cabine' | 'trajeto' | 'ocorrencia' | 'relatorio'
+type Etapa = 'abertura' | 'vestiario' | 'ocorrencia' | 'relatorio'
 
 /**
  * Atalho de desenvolvimento: `?fase=ocorrencia` entra direto na fase.
@@ -32,16 +36,14 @@ type Etapa =
 function etapaInicial(): Etapa {
   if (!import.meta.env.DEV) return 'abertura'
   const pedida = new URLSearchParams(window.location.search).get('fase')
-  const validas: Etapa[] = [
-    'abertura', 'vestiario', 'cabine', 'trajeto', 'ocorrencia', 'relatorio',
-  ]
+  const validas: Etapa[] = ['abertura', 'vestiario', 'ocorrencia', 'relatorio']
   return (validas as string[]).includes(pedida ?? '') ? (pedida as Etapa) : 'abertura'
 }
 
 /**
  * Quando se pula direto para uma fase pelo atalho de desenvolvimento, não há
- * vestiário para escolher o EPI — e sem ele o motorista apareceria de camiseta
- * na conferência. Entra o conjunto correto.
+ * vestiário para escolher o EPI — e sem ele o eletricista apareceria de
+ * camiseta na ocorrência. Entra o conjunto correto.
  */
 function epiInicial(): string[] {
   if (!import.meta.env.DEV) return []
@@ -84,24 +86,10 @@ export default function App() {
       guardarMaximo('vestiario', maximoFase)
       setFisico(fisicoEscolhido)
       setEpi(vestindo)
-      setEtapa('cabine')
+      setEtapa('ocorrencia')
     },
     [],
   )
-
-  const concluirCabine = useCallback((novos: Registro[], maximoFase: number) => {
-    setRegistros((a) => [...a, ...novos])
-    setMaximo((m) => m + maximoFase)
-      guardarMaximo('cabine', maximoFase)
-    setEtapa('trajeto')
-  }, [])
-
-  const concluirTrajeto = useCallback((novos: Registro[], maximoFase: number) => {
-    setRegistros((a) => [...a, ...novos])
-    setMaximo((m) => m + maximoFase)
-      guardarMaximo('trajeto', maximoFase)
-    setEtapa('ocorrencia')
-  }, [])
 
   const concluirOcorrencia = useCallback(
     (novos: Registro[], maximoFase: number) => {
@@ -129,12 +117,8 @@ export default function App() {
         <Abertura nome={nome} setNome={setNome} avancar={() => setEtapa('vestiario')} />
       )}
       {etapa === 'vestiario' && <Vestiario aoConcluir={concluirVestiario} />}
-      {etapa === 'cabine' && (
-        <Fase2Cabine aoConcluir={concluirCabine} vestindo={epi} />
-      )}
-      {etapa === 'trajeto' && <Fase2Trajeto aoConcluir={concluirTrajeto} />}
       {etapa === 'ocorrencia' && (
-        <Fase3Ocorrencia aoConcluir={concluirOcorrencia} fisico={fisico ?? FISICO_INICIAL} />
+        <Fase2Ocorrencia aoConcluir={concluirOcorrencia} fisico={fisico ?? FISICO_INICIAL} />
       )}
       {etapa === 'relatorio' && (
         <Relatorio

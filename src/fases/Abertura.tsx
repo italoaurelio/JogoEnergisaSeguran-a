@@ -9,8 +9,8 @@
  * São quatro passos, e o quarto é o que já existia:
  *
  *   1. a história — quem você é, que horas são, o que aconteceu
- *   2. o que vai acontecer — as três fases, com imagem de cada uma
- *   3. como se joga — as três mecânicas, DEMONSTRADAS em movimento
+ *   2. o que vai acontecer — as duas fases, com imagem de cada uma
+ *   3. como se joga — as duas mecânicas, DEMONSTRADAS em movimento
  *   4. como a nota funciona, nome e começar
  *
  * As demonstrações do passo 3 são SVG animado por CSS, e isso é decisão, não
@@ -19,9 +19,14 @@
  * interface mudasse de cor. O desenho é vetor, pesa zero e herda as
  * variáveis de cor do tema.
  *
- * As três FOTOS do passo 2 são quadros reais da gravação da partida
- * (`gravacao/gravar.mjs`), 640 px e 116 KB somadas — ali a foto é melhor que
- * o desenho, porque a promessa é "é assim que vai parecer".
+ * As FOTOS do passo 2 são quadros reais da gravação da partida
+ * (`gravacao/gravar.mjs`), 640 px — ali a foto é melhor que o desenho,
+ * porque a promessa é "é assim que vai parecer".
+ *
+ * O TRAJETO SAIU DO JOGO (20/10, ver `App.tsx`), e com ele saíram daqui o
+ * cartão "Em trânsito" e a demonstração de dirigir. A foto
+ * `onboarding/trajeto.jpg` ficou em `public/`, de propósito: se a fase
+ * voltar, o cartão volta com ela.
  */
 import { Suspense, useState } from 'react'
 import { Environment } from '@react-three/drei'
@@ -45,11 +50,6 @@ const FASES = [
     img: './onboarding/vestiario.jpg',
     titulo: 'Vestiário',
     texto: 'Monte o seu personagem e escolha o EPI peça por peça. Leia a etiqueta antes de vestir: é ela que diz a classe e a validade do ensaio.',
-  },
-  {
-    img: './onboarding/trajeto.jpg',
-    titulo: 'Em trânsito',
-    texto: 'Confira a cabine com o veículo desligado e dirija 1,3 km até a ocorrência — escola, faixa de pedestre, lombada e ciclista no caminho.',
   },
   {
     img: './onboarding/ocorrencia.jpg',
@@ -155,7 +155,7 @@ function Historia({ avancar, pular }: { avancar: () => void; pular: () => void }
         </p>
         <p>
           <b>{OCORRENCIA.endereco}.</b> {OCORRENCIA.relato} É você quem vai até
-          lá — do vestiário, pelo trânsito, até o poste.
+          lá — do vestiário direto ao poste.
         </p>
         <p className="onb-missao">
           O serviço em si é simples. O que está sendo avaliado é tudo o que vem
@@ -178,7 +178,7 @@ function OQueVaiAcontecer({ voltar, avancar, pular }:
   return (
     <>
       <p className="sobretitulo">O que vai acontecer</p>
-      <h2 className="onb-titulo">Três fases, na ordem do dia</h2>
+      <h2 className="onb-titulo">Duas fases, na ordem do dia</h2>
 
       <ol className="onb-fases">
         {FASES.map((f, i) => (
@@ -209,7 +209,7 @@ function ComoSeJoga({ voltar, avancar, pular }:
   return (
     <>
       <p className="sobretitulo">Como se joga</p>
-      <h2 className="onb-titulo">São três gestos, e só</h2>
+      <h2 className="onb-titulo">São dois gestos, e só</h2>
 
       <ul className="onb-demos">
         <li>
@@ -220,17 +220,6 @@ function ComoSeJoga({ voltar, avancar, pular }:
               No vestiário, clique numa <b>parte do corpo</b>. O armário abre só
               o que vai ali. Clique na peça para ler a etiqueta, e em
               <b> Vestir</b> para pôr no personagem.
-            </p>
-          </div>
-        </li>
-        <li>
-          <DemoDirigir />
-          <div>
-            <h3>Dirigir</h3>
-            <p>
-              O caminhão segue a estrada sozinho. Você só <b>segura</b> Acelerar
-              ou Frear — ou as setas ↑ e ↓. O velocímetro mostra a máxima do
-              trecho em que você está.
             </p>
           </div>
         </li>
@@ -351,28 +340,6 @@ function DemoEscolher() {
       {/* cursor */}
       <g className="demo-cursor">
         <path d="M0 0 l0 11 l3 -3 l2.6 5 l2.6 -1.3 l-2.6 -4.8 l4.4 -0.3 z" />
-      </g>
-    </svg>
-  )
-}
-
-function DemoDirigir() {
-  return (
-    <svg className="demo" viewBox="0 0 150 90" aria-hidden>
-      {/* arco do velocímetro */}
-      <path className="demo-arco" d="M14 64 A32 32 0 0 1 78 64" />
-      <path className="demo-arco demo-arco-cheio" d="M14 64 A32 32 0 0 1 78 64" />
-      <g className="demo-ponteiro"><line x1="46" y1="64" x2="46" y2="38" /></g>
-      <circle className="demo-pino" cx="46" cy="64" r="3.5" />
-      {/* placa de limite que entra no fim do ciclo */}
-      <g className="demo-placa">
-        <circle cx="116" cy="26" r="15" />
-        <text x="116" y="31" textAnchor="middle">30</text>
-      </g>
-      {/* os dois pedais */}
-      <g className="demo-pedais">
-        <rect className="demo-frear" x="86" y="54" width="28" height="20" rx="5" />
-        <rect className="demo-acelerar" x="118" y="54" width="28" height="20" rx="5" />
       </g>
     </svg>
   )
