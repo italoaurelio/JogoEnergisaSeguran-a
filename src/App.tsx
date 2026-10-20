@@ -4,7 +4,7 @@
  * As fases 2 e 3 ainda não estão montadas; o fluxo já prevê o lugar delas para
  * a pontuação ser somada de uma vez só no fim, que é como o cliente pediu.
  */
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { som } from './som'
 import Carregando from './cena/Carregando'
 import Abertura from './fases/Abertura'
@@ -121,6 +121,7 @@ export default function App() {
   return (
     <div className="app">
       <BotaoMudo />
+      <BotaoTela />
       {/* Uma só, aqui: o `useProgress` é global, então a mesma cobertura
           serve as cinco fases e aparece de novo a cada troca. */}
       <Carregando chave={etapa} temPalco={etapa !== 'relatorio'} />
@@ -164,6 +165,51 @@ function BotaoMudo() {
       onClick={() => setMudo(som.alternarMudo())}
     >
       {mudo ? '🔇' : '🔊'}
+    </button>
+  )
+}
+
+/**
+ * O jogo também roda no navegador de um tablet Android, onde a barra do
+ * sistema come a tela. A API de tela cheia só funciona a partir de um toque
+ * do usuário — por isso é botão, e não automático na abertura.
+ */
+function BotaoTela() {
+  const [cheia, setCheia] = useState(false)
+  useEffect(() => {
+    const sincronizar = () => setCheia(!!document.fullscreenElement)
+    // Sair pelo gesto de voltar do Android não avisa o React: sem isto o
+    // ícone continuaria mostrando "sair" com a tela já normal.
+    document.addEventListener('fullscreenchange', sincronizar)
+    return () => document.removeEventListener('fullscreenchange', sincronizar)
+  }, [])
+  // No Electron a janela já abre em tela cheia com TOTEM=1, e navegador antigo
+  // sem a API ganharia um botão morto.
+  if (!document.documentElement.requestFullscreen) return null
+  return (
+    <button
+      className="btn-tela"
+      title={cheia ? 'Sair da tela cheia' : 'Tela cheia'}
+      aria-label={cheia ? 'Sair da tela cheia' : 'Tela cheia'}
+      onClick={() => {
+        if (document.fullscreenElement) document.exitFullscreen()
+        else document.documentElement.requestFullscreen().catch(() => {})
+      }}
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
+           strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        {cheia ? (
+          <>
+            <path d="M9 4v5H4" /><path d="M15 4v5h5" />
+            <path d="M9 20v-5H4" /><path d="M15 20v-5h5" />
+          </>
+        ) : (
+          <>
+            <path d="M4 9V4h5" /><path d="M20 9V4h-5" />
+            <path d="M4 15v5h5" /><path d="M20 15v5h-5" />
+          </>
+        )}
+      </svg>
     </button>
   )
 }

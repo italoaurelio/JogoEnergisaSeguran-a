@@ -775,7 +775,7 @@ body {
    altura: os dois disputavam o canto superior direito. */
 .abertura .sobretitulo { padding-right: 52px; }
 
-.btn-mudo {
+.btn-mudo, .btn-tela {
   position: fixed; top: var(--margem-hud); right: var(--margem-hud); z-index: 50;
   width: 38px; height: 38px; border-radius: 50%;
   display: grid; place-items: center;
@@ -784,7 +784,12 @@ body {
   background: rgba(15, 20, 25, .62); color: var(--texto);
   backdrop-filter: blur(4px);
 }
-.btn-mudo:hover { background: rgba(31, 41, 53, .9); }
+.btn-mudo:hover, .btn-tela:hover { background: rgba(31, 41, 53, .9); }
+
+/* Ao lado do mudo, não embaixo: no tablet em pé o HUD das fases ocupa a
+   coluna da direita inteira. */
+.btn-tela { right: calc(var(--margem-hud) + 46px); }
+.btn-tela svg { width: 20px; height: 20px; }
 
 /* ---------------------------------------------------- vestiário em etapas */
 
