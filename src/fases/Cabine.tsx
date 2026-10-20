@@ -21,7 +21,7 @@ import { PalcoPronto } from '../cena/Carregando'
 import Garagem3D from '../cena/Garagem3D'
 import { Canvas } from '@react-three/fiber'
 import { Acabamento } from '../cena/Acabamento'
-import { DPR } from '../cena/desempenho'
+import { LEVE, DPR } from '../cena/desempenho'
 import { Environment } from '@react-three/drei'
 import { Cabine, CameraDaVista, LuzCabine } from '../cena/Cabine3D'
 import { Motorista } from '../cena/Motorista'
@@ -106,7 +106,7 @@ export default function Fase2Cabine({
     <div className="vestiario">
       <div className="vestiario-palco">
         <Canvas dpr={DPR} shadows camera={{ position: [0.22, 1.22, 0.1], fov: 45 }}
-                gl={{ toneMappingExposure: 1.0 }}>
+                gl={{ antialias: !LEVE, toneMappingExposure: 1.0 }}>
           <Environment files="./hdri/ceu.hdr" environmentIntensity={0.30} />
           <LuzCabine />
           <Garagem3D />

@@ -14,6 +14,9 @@
 import {
   Bloom, EffectComposer, N8AO, SMAA, ToneMapping, Vignette,
 } from '@react-three/postprocessing'
+import { useEffect } from 'react'
+import { AgXToneMapping } from 'three'
+import { useThree } from '@react-three/fiber'
 import { Stats } from '@react-three/drei'
 import { ToneMappingMode } from 'postprocessing'
 import { LEVE, MOSTRAR_FPS } from './desempenho'
@@ -31,20 +34,24 @@ export function Acabamento(
 ) {
   const leve = qualidade === 'leve'
   /*
-    GPU de tablet: só o tom e a vinheta, que a `postprocessing` funde num
-    passe só. Quem sai é o caro — oclusão (passe próprio, com ruído e
-    limpeza), bloom (cadeia de mipmaps) e SMAA (mais um passe de tela
-    cheia). A cena perde o "pousado" que a oclusão dava; num aparelho em que
-    ela rodava a punhado de quadros por segundo, isso não era escolha.
+    GPU de tablet: NENHUM passe depois da cena.
+
+    Saem a oclusão (passe próprio, com ruído e limpeza), o bloom (cadeia de
+    mipmaps) e o SMAA (mais um passe de tela cheia) — e sai também o
+    `EffectComposer` inteiro, que é o que mais pesa num aparelho móvel e o
+    que menos aparece na conta de desenhos: ele obriga a cena a ser pintada
+    numa textura de meia-precisão e depois copiada para a tela. Numa GPU de
+    ladrilho isso é a cena inteira indo e voltando da memória a cada quadro.
+
+    O tom AgX é o único que não dá para perder — sem ele a imagem aprovada
+    no Blender vira outra — e ele não precisa de passe: é conta do próprio
+    material. A vinheta é que fica para trás.
   */
   if (LEVE) {
     return (
       <>
         {MOSTRAR_FPS && <Stats />}
-        <EffectComposer multisampling={0} enableNormalPass={false}>
-          <Vignette offset={0.34} darkness={0.30} eskil={false} />
-          <ToneMapping mode={ToneMappingMode.AGX} />
-        </EffectComposer>
+        <TomDireto />
       </>
     )
   }
@@ -84,4 +91,21 @@ export function Acabamento(
     </EffectComposer>
     </>
   )
+}
+
+/**
+ * AgX no próprio renderizador, sem passe nenhum.
+ *
+ * O three refaz o programa do material quando o tom do renderizador muda
+ * (ele compara os dois em `setProgram`), então trocar depois de montado
+ * basta — não é preciso marcar material por material.
+ */
+function TomDireto() {
+  const gl = useThree((e) => e.gl)
+  useEffect(() => {
+    const antes = gl.toneMapping
+    gl.toneMapping = AgXToneMapping
+    return () => { gl.toneMapping = antes }
+  }, [gl])
+  return null
 }

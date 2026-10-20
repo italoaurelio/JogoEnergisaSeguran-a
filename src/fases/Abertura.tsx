@@ -30,7 +30,7 @@ import { Canvas } from '@react-three/fiber'
 import Personagem from '../cena/Personagem'
 import Vestiario3D, { LuzVestiario, MiraFixa } from '../cena/Vestiario3D'
 import { Acabamento } from '../cena/Acabamento'
-import { DPR } from '../cena/desempenho'
+import { LEVE, DPR } from '../cena/desempenho'
 import { FISICO_INICIAL } from '../conteudo/fisico'
 import { OCORRENCIA } from '../conteudo/ocorrencia'
 
@@ -81,7 +81,7 @@ export default function Abertura({
           dpr={DPR}
           shadows
           camera={{ position: [0.46, 1.30, 3.55], fov: 32 }}
-          gl={{ antialias: true }}
+          gl={{ antialias: !LEVE }}
         >
           <Suspense fallback={null}>
             {/* Sem IBL, TODO METAL RENDERIZA PRETO: ele só tem reflexo para

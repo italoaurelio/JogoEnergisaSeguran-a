@@ -9,7 +9,7 @@
  * re-renderizar a árvore sessenta vezes por segundo derrubaria a taxa. Só o
  * painel sobe para o estado, e a 10 Hz.
  */
-import { SOMBRA_ALTA } from '../cena/desempenho'
+import { LEVE, DPR, SOMBRA_ALTA } from '../cena/desempenho'
 import {
   forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef,
   useState,
@@ -394,13 +394,31 @@ export default function Fase2Trajeto({
     <div className="trajeto">
       <div className="trajeto-palco">
         {/*
-          `dpr={1}` travado, e não `[1, 1.5]`. Medido: 88% do quadro desta
-          fase é custo POR PIXEL, então numa tela HiDPI o 1,5 multiplica os
-          pixels por 2,25 e triplica o custo. Nesta máquina o valor resolvia
-          para 1 e não aparecia em medida nenhuma — no mini-PC do totem é a
-          diferença entre rodar e não rodar.
+          `1` travado no desktop, e não `[1, 1.5]`. Medido: 88% do quadro
+          desta fase é custo POR PIXEL, então numa tela HiDPI o 1,5 multiplica
+          os pixels por 2,25 e triplica o custo. Nesta máquina o valor
+          resolvia para 1 e não aparecia em medida nenhuma — no mini-PC do
+          totem é a diferença entre rodar e não rodar.
+
+          No tablet o `DPR` aperta MAIS que 1 (desce de 1), pelo mesmo motivo
+          medido aqui: é a fase onde cortar pixel rende mais.
         */}
-        <Canvas dpr={1} shadows camera={{ position: OLHO, fov: 52 }}>
+        {/*
+          SEM SOMBRA NO TABLET — e não é corte de qualidade, é corte de
+          desperdício. Medido com o caminhão andando: 2.059 desenhos por
+          quadro no mapa de sombra contra 994 na tela, ou seja, DOIS TERÇOS
+          do quadro inteiro desta fase saem pelo ralo. O mapa cobre os 290 m
+          de névoa, então ele desenha o mundo todo enquanto a câmera só vê um
+          terço dele.
+
+          E o ralo é literal: nenhuma peça do trajeto projeta sombra na
+          estrada (defeito conhecido, anotado em PENDENCIAS). Aqui não se
+          perde uma sombra; perde-se o custo de calcular uma que nunca
+          apareceu. No desktop fica ligado: o dia em que o defeito for
+          corrigido, é lá que se vai conferir.
+        */}
+        <Canvas dpr={LEVE ? DPR : 1} shadows={!LEVE} camera={{ position: OLHO, fov: 52 }}
+                gl={{ antialias: !LEVE }}>
           {/*
             O CÉU É A HDRI, NÃO O `<Sky>`.
 

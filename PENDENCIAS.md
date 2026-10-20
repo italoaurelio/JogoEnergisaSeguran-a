@@ -244,3 +244,45 @@ Os dois que eu mesmo declarei como não resolvidos.
       para dentro da faixa do caimento; e faltava gola, sem a qual o decote
       em barco lê como moletom. Prova nova `prova_roupa.py` — não havia
       nenhuma do corpo inteiro vestido, e era por isso que isso passava
+
+---
+
+# Rodada 20/10 — tablet Android
+
+O jogo passou a rodar no navegador de um tablet. Fase 1 lisa, fase 2
+engasgando (~20 fps pelo olho do cliente), fase 3 travada a ponto de não dar
+para jogar. Medido no navegador, com `?leve=1`, contando as chamadas de
+desenho por quadro direto no contexto WebGL:
+
+| fase | desenhos/quadro (antes) | depois |
+|---|---|---|
+| 2 trajeto, andando | 994 na tela + 2.059 no mapa de sombra | 996 |
+| 3 ocorrência, no local | 209 num alvo HDR + 1 cópia para a tela + 27 de sombra | 209 na tela + 27 |
+
+- [x] Modo leve por toque (`pointer: coarse`) — 20/10: sai o
+      `EffectComposer` inteiro (o AgX passa a ser conta do material, não
+      passe), saem oclusão, bloom, SMAA e MSAA, o dpr cai para 0,8 e os mapas
+      de sombra para 1024. Conferido no navegador: as cinco fases desenham,
+      sem erro de console, e o alvo intermediário sumiu da contagem
+- [x] Sombra do trajeto no tablet — 20/10: desligada em modo leve. Dois
+      terços do quadro da fase iam para um mapa que NÃO APARECE (ver abaixo).
+      Conferido andando: 3.053 → 996 desenhos por quadro, e a imagem não muda
+      um pixel
+
+- [ ] **Nenhuma peça do trajeto projeta sombra na estrada.** Vem de 16/10 e
+      continua aberto. Já descartados, medindo: campos das malhas, o
+      enquadramento da câmera de sombra, a posição do sol, o remendo da dobra
+      e a compilação dos programas. Com `shadow-bias={0}` não aparece acne
+      nenhuma, sinal de que o fragmento não amostra o mapa. O vestiário, no
+      mesmo projeto, projeta normalmente
+- [ ] **Fase 3 ainda travada no tablet** — falta o número do aparelho. É
+      pouco desenho (236/quadro) para estar tão lenta, então o gargalo deve
+      ser por pixel e não por objeto. Como separar, no próprio tablet:
+      `?fps=1` liga o contador e `?dpr=0.5` corta os pixels pela metade. Se
+      o dpr derruba o custo, é pixel; se não muda nada, é objeto/CPU
+- [ ] **O trajeto desenha o mundo inteiro todo quadro** (996 desenhos, 1.340
+      m de estrada para 290 m de névoa visível). `frustumCulled = false` está
+      ligado de propósito em todas as malhas da via, porque a dobra move a
+      geometria no shader e o corte por caixa envolvente a descartaria em
+      curva. O corte certo é por distância em Z, à mão, com margem — não
+      feito ainda

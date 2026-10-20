@@ -27,10 +27,21 @@ export const MOSTRAR_FPS =
   new URLSearchParams(window.location.search).has('fps')
 
 /**
- * Pixels por pixel de tela. Em `1.5` o tablet desenha 2,25 vezes mais pixels
- * do que precisa — é a conta mais cara da lista e a mais fácil de cortar.
+ * Pixels de desenho por pixel de CSS. Em `1.5` o tablet desenhava 2,25 vezes
+ * mais pixels do que a tela mostra — a conta mais cara da lista.
+ *
+ * Abaixo de 1 a cena 3D é desenhada menor e esticada. Dá para ir longe sem
+ * feiura porque o HUD É HTML: texto, botões e cartas continuam na resolução
+ * da tela, e só a imagem da cena amolece. `?dpr=1` volta ao tamanho cheio,
+ * `?dpr=0.6` aperta mais — é o botão de volume do desempenho, e o único
+ * jeito de achar o ponto certo no aparelho de verdade.
  */
-export const DPR: number | [number, number] = LEVE ? 1 : [1, 1.5]
+function dprPedido(): number {
+  const v = Number(new URLSearchParams(window.location.search).get('dpr'))
+  return v > 0 && v <= 2 ? v : 0.8
+}
+
+export const DPR: number | [number, number] = LEVE ? dprPedido() : [1, 1.5]
 
 /**
  * Mapas de sombra. Constantes de módulo, e não calculadas na renderização:

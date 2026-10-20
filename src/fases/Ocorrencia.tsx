@@ -16,7 +16,7 @@ import { SeloVeredito, type Selo } from '../Veredito'
 import { PalcoPronto } from '../cena/Carregando'
 import { Canvas } from '@react-three/fiber'
 import { Acabamento } from '../cena/Acabamento'
-import { DPR } from '../cena/desempenho'
+import { LEVE, DPR } from '../cena/desempenho'
 import { Environment } from '@react-three/drei'
 import {
   AlvosDoPoste, Aterramento, Bloqueio, CameraDaCena, CenaOcorrencia,
@@ -507,7 +507,8 @@ export default function Fase3Ocorrencia({
       {clarao && <div className="clarao" aria-hidden />}
       <SeloVeredito tipo={selo} aoFim={() => setSelo(null)} />
       <div className="vestiario-palco">
-        <Canvas dpr={DPR} shadows camera={{ position: [-16, 8, 18], fov: 40 }}>
+        <Canvas dpr={DPR} shadows camera={{ position: [-16, 8, 18], fov: 40 }}
+                gl={{ antialias: !LEVE }}>
           {/*
             O CÉU ESTAVA FALTANDO, e o que aparecia no lugar dele era o
             `background` do CSS de `.vestiario-palco` — um gradiente radial
