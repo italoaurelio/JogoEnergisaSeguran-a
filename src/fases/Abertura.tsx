@@ -54,7 +54,7 @@ const FASES = [
   {
     img: './onboarding/ocorrencia.jpg',
     titulo: 'Ocorrência',
-    texto: 'Isole a área, separe o equipamento e faça o reparo na ordem certa. A ordem é o que mata quando se inverte.',
+    texto: 'Isole a área e faça o reparo na ordem certa: ferramenta na mão, ponto do poste, um passo de cada vez. A ordem é o que mata quando se inverte.',
   },
 ]
 

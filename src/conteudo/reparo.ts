@@ -237,15 +237,26 @@ export const ACOES: Acao[] = [
 ]
 
 /**
- * As ferramentas que aparecem no cesto.
+ * O QUE SOBE NO CESTO. Lista fixa, e é de propósito (21/10).
  *
- * Três delas (`radio`, `bloqueio`, `cobertura`) NÃO estão na caixa da etapa
- * anterior: rádio é do uniforme, e cadeado-etiqueta e cobertura são do
- * conjunto que sobe sempre. As outras só aparecem se o jogador as tiver
- * separado — levar a vara trincada e deixar a boa é uma decisão que só cobra
- * o preço aqui em cima.
+ * Antes o cesto era o que o jogador tivesse separado na etapa de ferramental.
+ * Duas coisas vinham junto:
+ *
+ *  1. SOFTLOCK. Quem subia sem o elo (ou sem a vara, ou sem o aterramento)
+ *     não tinha como fazer `eloTrocado` virar verdadeiro — e `desbloquear`
+ *     exige `eloTrocado`. A fase ficava sem nenhuma ação possível, para
+ *     sempre, e o botão de encerrar nunca destravava.
+ *  2. Dificuldade. Treze ferramentas por cinco alvos são 65 combinações; aqui
+ *     são 35, e todas as sete peças têm alguma ação. Nada no cesto é inútil.
+ *
+ * O catálogo `FERRAMENTAL` e as `RECUSAS` das peças ruins continuam inteiros
+ * em `ocorrencia.ts` — para religar a etapa basta montar o cesto a partir do
+ * kit de novo, e aí a lista de baixo volta a ser só o que sempre sobe.
  */
-export const SEMPRE_NO_CESTO = ['radio', 'bloqueio', 'cobertura']
+export const CESTO = [
+  'radio', 'vara_manobra', 'bloqueio', 'detector_at',
+  'aterramento', 'cobertura', 'elo_certo',
+]
 
 export const NOME_FERRAMENTA: Record<string, string> = {
   radio: 'Rádio',
@@ -366,3 +377,78 @@ export const RECUSAS: { ferramenta: string; alvo: Alvo; porque: string }[] = [
     porque: 'Alumínio conduz. Escada de alumínio não encosta em rede, e no cesto ela não tem função nenhuma.',
   },
 ]
+
+/**
+ * AUTOTESTE: nenhum estado alcançável pode ficar sem saída. `npm run reparo`.
+ *
+ * O jogo deixa errar a ordem de propósito — a nota cobra isso. O que ele não
+ * pode é deixar o jogador numa combinação de onde o serviço não fecha mais,
+ * que foi o que a etapa de ferramental fazia: subir sem o elo e acabou.
+ *
+ * O estado são nove booleanos, então dá para varrer tudo em vez de confiar na
+ * leitura. Anda por todas as ações possíveis do cesto, junta os estados que
+ * dá para alcançar, e exige que de cada um deles ainda exista caminho até
+ * `eloTrocado && !aterrado && comunicado`, que é o que destrava o encerramento.
+ */
+export function becosSemSaida(): Estado[] {
+  const chave = (e: Estado) => JSON.stringify(e)
+  const pronto = (e: Estado) => e.eloTrocado && !e.aterrado && e.comunicado
+  const saidas = (e: Estado) => ACOES
+    .filter((a) => CESTO.includes(a.ferramenta) && a.quando(e))
+    .map((a) => ({ ...e, ...a.aplicar(e) }))
+
+  const alcancaveis = new Map<string, Estado>()
+  for (const fila = [ESTADO_INICIAL]; fila.length;) {
+    const e = fila.pop()!
+    if (alcancaveis.has(chave(e))) continue
+    alcancaveis.set(chave(e), e)
+    fila.push(...saidas(e))
+  }
+
+  const fecha = new Map<string, boolean>()
+  function fechaDaqui(e: Estado, andando = new Set<string>()): boolean {
+    const k = chave(e)
+    const j = fecha.get(k)
+    if (j !== undefined) return j
+    if (pronto(e)) { fecha.set(k, true); return true }
+    if (andando.has(k)) return false      // ciclo: não é saída por aqui
+    andando.add(k)
+    const r = saidas(e).some((s) => fechaDaqui(s, andando))
+    andando.delete(k)
+    if (r) fecha.set(k, true)
+    return r
+  }
+
+  return [...alcancaveis.values()].filter((e) => !fechaDaqui(e))
+}
+
+/**
+ * A partida perfeita existe? Percorre os nove passos na ordem da NR-10 e
+ * exige que cada um tenha ação disponível no cesto no momento em que chega.
+ *
+ * `PASSOS` mora em `ocorrencia.ts`, que importa este arquivo — a ordem entra
+ * por parâmetro para não fechar o ciclo.
+ */
+export function partidaPerfeita(sequencia: string[]): string[] {
+  let e = ESTADO_INICIAL
+  const faltando: string[] = []
+  for (const passo of sequencia) {
+    const a = ACOES.find(
+      (x) => x.passo === passo && CESTO.includes(x.ferramenta) && x.quando(e),
+    )
+    if (!a) { faltando.push(passo); continue }
+    if (a.mata?.(e)) { faltando.push(`${passo} (mata)`); continue }
+    e = { ...e, ...a.aplicar(e) }
+  }
+  if (!(e.eloTrocado && !e.aterrado && e.comunicado)) faltando.push('não encerra')
+  return faltando
+}
+
+/*
+  O GATILHO DO TESTE MORA EM `ocorrencia.ts`, e não aqui.
+
+  As duas funções acima precisam de `PASSOS`, que está lá — e lá já importa
+  este arquivo. Um `await import` daqui para lá fecha o ciclo e trava o
+  processo num top-level await que nunca resolve (testado: "unsettled
+  top-level await", saída 13).
+*/

@@ -298,3 +298,54 @@ desenho por quadro direto no contexto WebGL:
       Conferido jogando: vestiário → "Sair para o serviço" cai direto em
       "FASE 2 · OCORRÊNCIA", e o relatório fecha com duas linhas de fase
       (18/72 e 22/164) em vez de quatro
+
+---
+
+# Rodada 21/10 — a ocorrência, jogabilidade
+
+Retorno: "a parte da ocorrência precisa de um toque na qualidade do game, tá
+difícil, e dependendo do que você leva você soft locka". Pedido: tirar a
+seleção do que sobe, facilitar, e destacar a resposta certa depois do erro.
+
+- [x] **O softlock era o kit** — 21/10. Quem subia sem o elo (ou sem a vara,
+      ou sem o aterramento) não tinha como fazer `eloTrocado` virar
+      verdadeiro, e `desbloquear` exige isso: a fase ficava sem NENHUMA ação
+      possível e o botão de encerrar nunca destravava. Não era caso de borda
+      — eram 48 dos estados alcançáveis
+- [x] **Tirar a etapa de separar o ferramental** — 21/10, a pedido. O cesto
+      virou lista fixa de sete peças (`CESTO`, em `reparo.ts`), todas com
+      ação: 35 combinações em vez de 65, e nada inútil na mão. O catálogo
+      `FERRAMENTAL` e as `RECUSAS` das peças ruins (vara trincada, escada de
+      alumínio, multímetro, elo maior) continuam inteiros em `ocorrencia.ts`,
+      só sem quem os monte — religar é devolver o cesto ao kit do jogador e a
+      etapa a `Ocorrencia.tsx`. A fase passou a valer 92 (38 de chegada + 54
+      de reparo), e não mais 164
+- [x] **Dois autotestes de becos sem saída** — `npm run reparo`. O estado são
+      nove booleanos, então varre tudo em vez de confiar na leitura: (1) os
+      nove passos na ordem da NR-10 são jogáveis de ponta a ponta, sem
+      acidente no caminho; (2) de todo estado alcançável ainda existe caminho
+      até `eloTrocado && !aterrado && comunicado`. Conferido que o teste pega
+      de fato: tirando o elo do cesto ele acusa os 48 estados presos
+- [x] **Errou uma vez, vê a resposta** — 21/10. Na chegada, a opção certa
+      aparece escrita com o porquê E desenhada transparente na cena ao lado
+      do que a pessoa fez ("antes da área" e "depois da área" são duas frases
+      quase iguais e vinte metros de rua). No reparo, o guia acende a partir
+      do primeiro erro — recusa, ação fora de ordem ou acidente — e marca a
+      ferramenta no cesto, o alvo na lista e a marca no poste, em verde.
+      `proximaAcao` sai do primeiro passo que falta cruzado com o estado do
+      poste, não de uma tabela à parte. Quem acerta tudo nunca vê o guia
+- [x] **Acidente na primeira ação travava o passo 2** — 21/10. O desfazer
+      punha `chaveAberta: true` sem o jogador ter aberto a chave, para o arco
+      não repetir em laço. Efeito colateral: `seccionar` exige `!chaveAberta`
+      e ficava indisponível para sempre — o passo 2 nunca mais podia ser
+      cumprido, a checklist travava nele e o guia não tinha o que acender.
+      Agora o poste volta ao estado inicial. Laço não há: a ação certa está
+      sempre disponível
+- [ ] **O cesto para do lado oposto à chave** — com a resposta CERTA da
+      primeira decisão (caminhão a 8,5 m, protegendo a área), a lança vem da
+      esquerda e o cesto encosta em x −1,35, enquanto a chave fusível está em
+      +0,42. O eletricista fica a quase dois metros do serviço e, com a casa
+      do fundo atrás dele, lê como se estivesse em pé no telhado. A conta de
+      `miraDoCesto` está certa (aproxima pelo lado de onde o caminhão está);
+      o que falta é a lança contornar para o lado da chave, ou a câmera do
+      reparo mudar de eixo. Mexer ali esbarra em enquadramentos calibrados

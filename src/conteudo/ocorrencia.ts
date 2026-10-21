@@ -293,6 +293,23 @@ export const MAXIMO_FERRAMENTAL = FERRAMENTAL
   .filter((f) => f.necessaria)
   .reduce((t, f) => t + f.pontos, 0)
 
+/*
+  A ETAPA DE SEPARAR O FERRAMENTAL SAIU DO FLUXO (21/10), a pedido.
+
+  O catálogo acima continua inteiro — a vara trincada, a escada de alumínio, o
+  elo de valor maior são conteúdo de NR-10 bom demais para apagar —, só que
+  ninguém o monta mais. Duas razões:
+
+   1. SOFTLOCK. Quem subisse sem o elo, sem a vara ou sem o aterramento não
+      tinha como terminar o serviço, e a fase travava sem saída.
+   2. Dificuldade. A fase precisa ser passável por qualquer colaborador, e
+      escolher às cegas doze peças antes de saber o que se vai fazer com elas
+      não é a parte que ensina.
+
+  Para religar: `CESTO` em `reparo.ts` volta a ser o kit do jogador, e aqui a
+  etapa 'ferramental' volta a `Ocorrencia.tsx`. Nada foi apagado.
+*/
+
 // ------------------------------------------------------------- 3c o reparo
 
 export type Passo = {
@@ -320,6 +337,9 @@ export type Passo = {
  * cabo de cobre numa rede que pode estar viva.
  */
 import { embaralhar } from './ordem.ts'
+import {
+  ACOES, CESTO, becosSemSaida, partidaPerfeita, type Acao, type Estado,
+} from './reparo.ts'
 
 /**
  * Os passos NA ORDEM EM QUE A TELA MOSTRA — que não pode ser a ordem certa.
@@ -413,5 +433,68 @@ export const PASSOS: Passo[] = [
 
 export const MAXIMO_REPARO = PASSOS.length * 6
 
-export const MAXIMO_OCORRENCIA =
-  MAXIMO_CHEGADA + MAXIMO_FERRAMENTAL + MAXIMO_REPARO
+/** Sem o ferramental, que saiu do fluxo. */
+export const MAXIMO_OCORRENCIA = MAXIMO_CHEGADA + MAXIMO_REPARO
+
+/**
+ * A PRÓXIMA AÇÃO CERTA: qual ferramenta, em qual ponto do poste.
+ *
+ * É o que a tela acende depois do primeiro erro. Não sai de uma tabela à
+ * parte — sai do primeiro passo da NR-10 que ainda não foi cumprido, cruzado
+ * com a ação que o estado atual do poste permite. Mexer na sequência ou nas
+ * ações continua sendo mexer num lugar só.
+ */
+export function proximaAcao(estado: Estado, ordem: string[]): Acao | null {
+  // Varre os passos que faltam, e não só o primeiro: um passo pode estar
+  // indisponível sem culpa de quem joga (a chave já aberta por um acidente
+  // deixa `seccionar` sem ação), e um guia que não acende nada na hora exata
+  // em que o jogador se perdeu é pior do que não ter guia.
+  for (const passo of PASSOS) {
+    if (ordem.includes(passo.id)) continue
+    const a = ACOES.find(
+      (x) => x.passo === passo.id && CESTO.includes(x.ferramenta) && x.quando(estado),
+    )
+    if (a) return a
+  }
+  return null
+}
+
+/** O passo da ordem de serviço em que o jogador está, para dizer em palavras. */
+export function passoAtual(ordem: string[]): Passo | null {
+  return PASSOS.find((p) => !ordem.includes(p.id)) ?? null
+}
+
+/**
+ * AUTOTESTE DA FASE: `npm run reparo`.
+ *
+ * Duas garantias, e as duas nasceram do mesmo defeito — a etapa de separar o
+ * ferramental deixava subir sem o elo, e daí a fase não fechava mais:
+ *
+ *  1. A ordem certa é jogável de ponta a ponta, sem acidente no caminho.
+ *  2. Nenhum estado alcançável fica sem saída.
+ *
+ * Mora aqui, e não em `reparo.ts`, porque `PASSOS` está neste arquivo e
+ * `reparo.ts` não pode importá-lo de volta sem fechar ciclo.
+ */
+const nodejs = (globalThis as {
+  process?: { env?: Record<string, string | undefined>; exit?: (n: number) => void }
+}).process
+
+if (nodejs?.env?.REPARO_TESTE) {
+  const falhas = partidaPerfeita(PASSOS.map((p) => p.id))
+  if (falhas.length) {
+    console.error(`FALHA: a ordem certa não é jogável: ${falhas.join(', ')}`)
+    nodejs.exit?.(1)
+  } else {
+    console.log('ok: os nove passos na ordem da NR-10 são jogáveis de ponta a ponta')
+  }
+
+  const presos = becosSemSaida()
+  if (presos.length) {
+    console.error(`FALHA: ${presos.length} estado(s) sem saída. O primeiro:`)
+    console.error(presos[0])
+    nodejs.exit?.(1)
+  } else {
+    console.log('ok: de todo estado alcançável ainda dá para encerrar o serviço')
+  }
+}

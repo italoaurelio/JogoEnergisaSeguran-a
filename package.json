@@ -15,7 +15,8 @@
     "dist:win:instalador": "npm run build && electron-builder --win --x64",
     "dist:mac": "npm run build && electron-builder --mac --dir",
     "paisagem": "PAISAGEM_TESTE=1 node --experimental-strip-types src/cena/paisagem.ts",
-    "gabarito": "GABARITO_TESTE=1 node --experimental-strip-types src/conteudo/gabarito.ts"
+    "gabarito": "GABARITO_TESTE=1 node --experimental-strip-types src/conteudo/gabarito.ts",
+    "reparo": "REPARO_TESTE=1 node --experimental-strip-types src/conteudo/ocorrencia.ts"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

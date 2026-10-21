@@ -44,10 +44,10 @@ const REGISTROS: Registro[] = [
 export const REGISTROS_EXEMPLO: Registro[] = REGISTROS
 
 /** Os máximos das duas fases, para a nota de exemplo fechar com a real. */
-export const MAXIMO_EXEMPLO = 72 + 164
+export const MAXIMO_EXEMPLO = 72 + 92
 
 /** Quanto cada fase valia, para o placar por fase do relatório de exemplo. */
 export const MAXIMO_POR_FASE_EXEMPLO = {
   vestiario: 72,
-  ocorrencia: 164,
+  ocorrencia: 92,
 }

@@ -29,12 +29,12 @@ import {
   type Colocada, type PoseEletricista, type Vista,
 } from '../cena/Ocorrencia3D'
 import {
-  ACOES, ALVOS, ESTADO_INICIAL, NOME_FERRAMENTA, PARA_QUE, RECUSAS, SEMPRE_NO_CESTO, situacao,
-  energizado, type Alvo, type Estado,
+  ACOES, ALVOS, CESTO, ESTADO_INICIAL, NOME_FERRAMENTA, PARA_QUE, RECUSAS, situacao,
+  type Acao, type Alvo, type Estado,
 } from '../conteudo/reparo'
 import {
-  CHEGADA, FERRAMENTAL, MAXIMO_CHEGADA, MAXIMO_FERRAMENTAL, MAXIMO_REPARO,
-  OCORRENCIA, PASSOS, opcoesNaTela, passosNaTela, type DecisaoChegada,
+  CHEGADA, MAXIMO_CHEGADA, MAXIMO_REPARO, OCORRENCIA, PASSOS,
+  opcoesNaTela, passoAtual, proximaAcao, type DecisaoChegada,
 } from '../conteudo/ocorrencia'
 import type { Registro } from '../conteudo/pontuacao'
 
@@ -93,32 +93,6 @@ const APOIO: Colocada[] = [
 ]
 
 /**
- * A escada ENCOSTA no poste, e isso é conta, não palpite. Medido na cena com
- * o jogo rodando:
- *
- *   poste  — seção duplo T, x ±0,055 constante, z ±0,139 na altura do topo
- *            da escada (a face afina de 0,36 na base para 0,19 aos 9,30 m)
- *   escada — eixo longo em Y, 4,63 m de sapata a topo, a própria peça com
- *            0,040 de meia-espessura em X e 0,267 de meia-largura em Z
- *
- * Encostar na face de X estava descartado: os degraus de escalada do poste
- * saem justamente em ±X, até 0,311 — a escada atravessaria um deles na altura
- * de 4,36 m. Sobra a face de Z, que é lisa.
- *
- * A ordem de Euler do three.js é XYZ, então o `tombo` em Z é aplicado ANTES
- * do `giro` em Y: a escada tomba no próprio plano (que é como uma escada
- * tomba) e depois o giro aponta esse tombo para onde se quer. Com giro −90°
- * o topo vai para +Z e o pé para −Z.
- *
- * Resultado: pé em (0, 0, −1,10), topo encostado na face do poste em
- * (0, 4,47, +0,137), 15° fora da vertical — o encosto de ~75° da NR-18.
- */
-const ESCADA: Colocada = {
-  peca: 'oc_escada', pos: [0, 2.255, -0.496], giro: -Math.PI / 2,
-  tombo: [0, -0.2618],
-}
-
-/**
  * As peças que cada opção põe na cena, por decisão.
  *
  * Existe para a PRÉVIA: antes de confirmar, o jogador vê a escolha desenhada
@@ -135,10 +109,6 @@ const PECAS_DA_OPCAO: Record<string, Record<string, Colocada[]>> = {
   area_trabalho: AREA,
 }
 
-// A caixa de ferramentas E a escada inteira, que vai a 4,47 m: com o
-// enquadramento anterior (alvo a 0,5 m de altura) a escada saía cortada pelo
-// topo da tela justo na etapa em que o jogador decide se leva escada.
-const VISTA_FERRAMENTAL: Vista = { de: [-5.0, 3.2, 5.4], para: [-0.7, 2.2, -0.5], lente: 32 }
 // Enquadramento do reparo: tem de caber do rádio no peito (y 5,75) ao
 // condutor (y 9,22), que são 3,5 m de poste. O alvo antigo mirava y 6,4 e
 // deixava a chave fusível e o ramal fora de quadro — eram justamente os dois
@@ -182,7 +152,7 @@ function feitosNoPoste(e: Estado) {
   return feitos
 }
 
-type Etapa = 'briefing' | 'chegada' | 'ferramental' | 'reparo'
+type Etapa = 'briefing' | 'chegada' | 'reparo'
 
 export default function Fase3Ocorrencia({
   aoConcluir, fisico,
@@ -200,8 +170,19 @@ export default function Fase3Ocorrencia({
   const [previa, setPrevia] = useState<string | null>(null)
   /* o selo de acerto/erro por cima da tela; ele mesmo se apaga */
   const [selo, setSelo] = useState<Selo>(null)
-  const [kit, setKit] = useState<string[]>([])
   const [ordem, setOrdem] = useState<string[]>([])
+  /*
+    O MODO GUIADO: liga no PRIMEIRO erro e não desliga mais.
+
+    A fase é treinamento, não prova de admissão — o retorno foi "tá difícil, a
+    ideia é todo mundo conseguir fazer". Errar uma vez passa a acender, no
+    cesto e no poste, a ferramenta e o ponto do próximo passo. A nota continua
+    contando o erro que já aconteceu; o que o guia evita é a pessoa travar
+    tentando a oitava combinação sem ideia do que o jogo quer.
+
+    Quem acerta tudo nunca vê o guia aceso, que é como tem de ser.
+  */
+  const [guiado, setGuiado] = useState(false)
   /** O que já aconteceu no poste. É o estado que decide o que cada ação faz. */
   const [estadoPoste, setEstadoPoste] = useState<Estado>(ESTADO_INICIAL)
   const [acidentes, setAcidentes] = useState<{ porque: string }[]>([])
@@ -260,18 +241,33 @@ export default function Fase3Ocorrencia({
     const acao = ACOES.find(
       (a) => a.ferramenta === ferramenta && a.alvo === alvo && a.quando(estadoPoste),
     )
+    const esperada = proximaAcao(estadoPoste, ordem)
+    const passo = passoAtual(ordem)
 
     if (!acao) {
       const recusa = RECUSAS.find((r) => r.ferramenta === ferramenta && r.alvo === alvo)
+      setGuiado(true)
       setRecado({
         tom: 'nao',
-        texto: recusa?.porque
+        texto: (recusa?.porque
           ?? `${NOME_FERRAMENTA[ferramenta]} não tem o que fazer em `
-             + `${ALVOS[alvo as Alvo].nome.toLowerCase()} agora.`,
+             + `${ALVOS[alvo as Alvo].nome.toLowerCase()} agora.`)
+          // Depois do primeiro erro o recado diz em que passo se está. Pelo
+          // número e pelo texto CURTO, que são os mesmos da ordem de serviço
+          // logo abaixo: é assim que o jogador liga o recado à lista. A frase
+          // longa custava duas linhas e empurrava o fim da lista para fora.
+          + (passo
+            ? `\n\nAgora é o passo ${PASSOS.indexOf(passo) + 1}: ${passo.curto.toLowerCase()}.`
+            : ''),
       })
       setFerramenta(null)
       return
     }
+
+    // AÇÃO VÁLIDA, MAS FORA DE ORDEM. Não recusa — a fase deixa inverter de
+    // propósito, e a nota cobra. Mas conta como erro para o guia acender:
+    // quem aterrou antes de medir está tão perdido quanto quem clicou errado.
+    if (esperada && acao.passo !== esperada.passo) setGuiado(true)
 
     /*
       A RELIGAÇÃO. É o acidente que a NR-10 inteira existe para evitar, e o
@@ -321,7 +317,19 @@ export default function Fase3Ocorrencia({
         setOrdem(anterior.ordem)
         setHistorico((h) => h.slice(0, -1))
       } else {
-        setEstadoPoste((e) => ({ ...e, religado: false, chaveAberta: true }))
+        /*
+          ACIDENTE NA PRIMEIRA AÇÃO: não há passo anterior para perder, então
+          o poste volta ao começo.
+
+          Aqui havia `chaveAberta: true`, posto para o arco não poder repetir
+          em laço. Custava caro: a chave ficava aberta sem o jogador ter
+          aberto, `seccionar` ficava indisponível para sempre (`quando` exige
+          `!chaveAberta`) e o passo 2 nunca mais podia ser cumprido — a
+          checklist travava nele e o guia não tinha o que acender. Laço não
+          há: a ação certa está sempre disponível, e repetir a errada é
+          escolha de quem joga.
+        */
+        setEstadoPoste(ESTADO_INICIAL)
       }
       /*
         O ARCO É O SEGUNDO MAIS ENSINÁVEL DE OITO MINUTOS, e passava antes de
@@ -335,6 +343,7 @@ export default function Fase3Ocorrencia({
         dela.
       */
       setPose('choque')
+      setGuiado(true)
       setAcidentes((a) => [...a, { porque: morte }])
       setClarao(true)
       som.veredito(false)
@@ -380,29 +389,33 @@ export default function Fase3Ocorrencia({
     if (s) saida.push(...(SINALIZACAO[s] ?? []))
     const a = escolhas.area_trabalho
     if (a) saida.push(...(AREA[a] ?? []))
-    if (etapa === 'ferramental' || etapa === 'reparo') {
-      saida.push(...APOIO)
-      // A escada só existe na cena se o jogador a tiver separado — antes ela
-      // ficava encostada no poste mesmo para quem deixou escada nenhuma na
-      // caixa, o que desmentia a própria pergunta. Enquanto ele está
-      // separando o material, ela aparece em prévia; vira peça quando ele
-      // sobe para o serviço.
-      const alu = kit.includes('escada_aluminio')
-      if (kit.includes('escada_fibra') || alu) {
-        saida.push({
-          ...ESCADA,
-          metal: alu && !kit.includes('escada_fibra'),
-          fantasma: etapa === 'ferramental',
-        })
-      }
-    }
+    if (etapa === 'reparo') saida.push(...APOIO)
     // a prévia entra por último, para desenhar por cima do que já está posto
     if (etapa === 'chegada' && previa) {
       const mapa = PECAS_DA_OPCAO[CHEGADA[indice].id]
       for (const p of mapa?.[previa] ?? []) saida.push({ ...p, fantasma: true })
     }
+    /*
+      ERROU: A RESPOSTA CERTA APARECE TRANSPARENTE AO LADO DA QUE FOI FEITA.
+
+      O painel já explicava por escrito por que a escolha estava errada, e o
+      texto é a parte que menos ensina aqui: "antes da área" e "depois da
+      área" são duas frases quase iguais e vinte metros de rua. Com as duas
+      coisas na cena ao mesmo tempo — o caminhão onde ele parou, e o fantasma
+      onde deveria ter parado — a diferença não precisa de parágrafo.
+    */
+    if (etapa === 'chegada' && retorno) {
+      const d = CHEGADA[indice]
+      const feita = d.opcoes.find((o) => o.id === retorno)
+      const certa = d.opcoes.find((o) => o.certa)
+      if (feita && !feita.certa && certa) {
+        for (const p of PECAS_DA_OPCAO[d.id]?.[certa.id] ?? []) {
+          saida.push({ ...p, fantasma: true })
+        }
+      }
+    }
     return saida
-  }, [escolhas, etapa, previa, indice, kit])
+  }, [escolhas, etapa, previa, retorno, indice])
 
   /**
    * Onde o eletricista fica de pé: no piso do cesto, olhando para o poste.
@@ -431,10 +444,15 @@ export default function Fase3Ocorrencia({
     }
   }, [escolhas.posicao_veiculo])
 
+  /** O que o guia acende: a ferramenta e o ponto do próximo passo. */
+  const dica: Acao | null = useMemo(
+    () => (guiado && etapa === 'reparo' ? proximaAcao(estadoPoste, ordem) : null),
+    [guiado, etapa, estadoPoste, ordem],
+  )
+
   const vista: Vista = useMemo(() => {
     if (etapa === 'briefing') return { de: [-13, 6.5, 12], para: [0, 4.0, 0], lente: 30 }
     if (etapa === 'chegada') return CHEGADA[indice].camera
-    if (etapa === 'ferramental') return VISTA_FERRAMENTAL
     return VISTA_REPARO
   }, [etapa, indice])
 
@@ -450,25 +468,6 @@ export default function Fase3Ocorrencia({
         porque: op?.porque ?? 'Decisão não tomada.',
         norma: d.norma,
       })
-    }
-
-    for (const f of FERRAMENTAL) {
-      const levou = kit.includes(f.id)
-      if (f.necessaria) {
-        registros.push({
-          fase: 'ocorrencia', id: f.id, titulo: `Levou: ${f.nome}`,
-          veredito: levou ? 'correta' : 'incorreta',
-          pontos: levou ? f.pontos : 0,
-          porque: levou ? f.porque : `Ficou para trás. ${f.porque}`,
-          norma: f.norma,
-        })
-      } else if (levou) {
-        registros.push({
-          fase: 'ocorrencia', id: f.id, titulo: `Levou indevidamente: ${f.nome}`,
-          veredito: 'incorreta', pontos: f.pontos, porque: f.porque,
-          norma: f.norma,
-        })
-      }
     }
 
     for (let i = 0; i < PASSOS.length; i++) {
@@ -499,8 +498,8 @@ export default function Fase3Ocorrencia({
       })
     })
 
-    aoConcluir(registros, MAXIMO_CHEGADA + MAXIMO_FERRAMENTAL + MAXIMO_REPARO)
-  }, [escolhas, kit, ordem, acidentes, aoConcluir])
+    aoConcluir(registros, MAXIMO_CHEGADA + MAXIMO_REPARO)
+  }, [escolhas, ordem, acidentes, aoConcluir])
 
   return (
     <div className="vestiario">
@@ -546,7 +545,10 @@ export default function Fase3Ocorrencia({
             <>
               <AlvosDoPoste
                 alvos={ALVOS_NA_CENA}
-                ativo={null}
+                /* a marca no poste só acende com a ferramenta certa na mão:
+                   antes disso ela apontaria o lugar sem dizer com o quê, e o
+                   jogador clicaria lá com qualquer coisa */
+                ativo={dica && ferramenta === dica.ferramenta ? dica.alvo : null}
                 feitos={feitosNoPoste(estadoPoste)}
                 escolher={usar}
               />
@@ -594,25 +596,15 @@ export default function Fase3Ocorrencia({
               setRetorno(null)
               setPrevia(null)
               if (indice + 1 < CHEGADA.length) setIndice(indice + 1)
-              else setEtapa('ferramental')
+              else setEtapa('reparo')
             }}
             ultimo={indice + 1 === CHEGADA.length}
           />
         )}
 
-        {etapa === 'ferramental' && (
-          <Ferramental
-            kit={kit}
-            alternar={(id) =>
-              setKit((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]))
-            }
-            avancar={() => setEtapa('reparo')}
-          />
-        )}
-
         {etapa === 'reparo' && (
           <Reparo
-            kit={kit}
+            dica={dica}
             estado={estadoPoste}
             ordem={ordem}
             acidentes={acidentes}
@@ -664,6 +656,10 @@ function Chegada({
 }) {
   const op = decisao.opcoes.find((o) => o.id === retorno)
   const marcada = decisao.opcoes.find((o) => o.id === previa)
+  /* Errou uma vez, vê a certa. A decisão da chegada é de tiro único — não há
+     como tentar de novo —, então guardar a resposta para o relatório, que o
+     jogador lê dez minutos depois, era guardar para nunca. */
+  const certa = op && !op.certa ? decisao.opcoes.find((o) => o.certa) : undefined
   return (
     <>
       <header className="painel-topo">
@@ -711,53 +707,25 @@ function Chegada({
               {op.certa ? 'Decisão correta' : 'Decisão errada'}
             </h3>
             <p className="painel-texto">{op.porque}</p>
+            {certa && (
+              <div className="resposta-certa">
+                <h3 className="nota-ok">O certo era</h3>
+                <p className="painel-texto"><b>{certa.texto}</b></p>
+                <p className="painel-texto">{certa.porque}</p>
+                <p className="painel-aviso">
+                  Na cena, o transparente é onde isso deveria estar.
+                </p>
+              </div>
+            )}
             <p className="norma">{decisao.norma}</p>
           </section>
           <div className="painel-rodape">
             <button className="btn btn-grande" onClick={avancar}>
-              {ultimo ? 'Separar o equipamento' : 'Próxima decisão'}
+              {ultimo ? 'Subir para o serviço' : 'Próxima decisão'}
             </button>
           </div>
         </>
       )}
-    </>
-  )
-}
-
-function Ferramental({
-  kit, alternar, avancar,
-}: { kit: string[]; alternar: (id: string) => void; avancar: () => void }) {
-  return (
-    <>
-      <header className="painel-topo">
-        <p className="sobretitulo">Fase 2 · Equipamento</p>
-        <h2>Separe o que vai subir</h2>
-        <p className="painel-texto">
-          A caixa tem mais coisa do que este serviço pede. Leve o que é do
-          serviço — e só o que está em condição de uso.
-        </p>
-      </header>
-      <ul className="arara">
-        {FERRAMENTAL.map((f) => (
-          <li key={f.id}>
-            <button
-              className={`item ${kit.includes(f.id) ? 'ativa' : ''}`}
-              onClick={() => alternar(f.id)}
-              aria-pressed={kit.includes(f.id)}
-              aria-label={`${f.nome} — ${f.descricao}`}
-            >
-              <span className="item-nome">{f.nome}</span>
-              <span className="item-desc">{f.descricao}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-      <div className="painel-rodape">
-        <p className="painel-aviso">{kit.length} peça(s) separada(s)</p>
-        <button className="btn btn-grande" onClick={avancar} disabled={!kit.length}>
-          Subir para o serviço
-        </button>
-      </div>
     </>
   )
 }
@@ -782,10 +750,11 @@ function Ferramental({
  *     acidente.
  */
 function Reparo({
-  kit, estado, ordem, acidentes, concluir,
+  dica, estado, ordem, acidentes, concluir,
   ferramenta, setFerramenta, recado, setRecado, clarao, usar,
 }: {
-  kit: string[]
+  /** A próxima ação certa, quando o guia está aceso. `null` enquanto acerta. */
+  dica: Acao | null
   estado: Estado
   ordem: string[]
   acidentes: { porque: string }[]
@@ -797,12 +766,6 @@ function Reparo({
   clarao: boolean
   usar: (alvo: string) => void
 }) {
-  /** O que o cesto tem: o que sempre sobe mais o que o jogador separou. */
-  const cesto = useMemo(
-    () => [...SEMPRE_NO_CESTO, ...kit].filter((f) => NOME_FERRAMENTA[f]),
-    [kit],
-  )
-
   const alvos = useMemo(
     () => (Object.keys(ALVOS) as Alvo[]).map((id) => ({
       id, nome: ALVOS[id].nome, onde: ALVOS[id].onde,
@@ -856,10 +819,15 @@ function Reparo({
       <section className="grupo cresce">
         <h3>No cesto</h3>
         <ul className="cesto">
-          {cesto.map((f) => (
+          {CESTO.map((f) => (
             <li key={f}>
               <button
-                className={`ferramenta ${ferramenta === f ? 'na-mao' : ''}`}
+                className={`ferramenta ${ferramenta === f ? 'na-mao' : ''} ${
+                  !ferramenta && dica?.ferramenta === f ? 'sugerida' : ''}`}
+                /* o que a peça serve, sem custar altura de painel: a linha
+                   inteira só aparece com ela na mão, e a lista já estava
+                   empurrando os últimos passos da ordem de serviço para fora */
+                title={PARA_QUE[f]}
                 onClick={() => { setFerramenta(ferramenta === f ? null : f); setRecado(null) }}
               >
                 {NOME_FERRAMENTA[f]}
@@ -878,7 +846,13 @@ function Reparo({
             <h3 style={{ marginTop: 18 }}>Em quê</h3>
             <div className="opcoes coluna">
               {alvos.map((a) => (
-                <button key={a.id} className="opcao alta" onClick={() => usar(a.id)}>
+                <button
+                  key={a.id}
+                  className={`opcao alta ${
+                    dica?.ferramenta === ferramenta && dica?.alvo === a.id
+                      ? 'sugerida' : ''}`}
+                  onClick={() => usar(a.id)}
+                >
                   {a.nome} <span className="alvo-dica">{ALVOS[a.id as Alvo].dica}</span>
                 </button>
               ))}
